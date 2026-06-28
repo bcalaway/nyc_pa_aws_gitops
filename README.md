@@ -1,8 +1,8 @@
 # Home Platform Architecture
 
-Version 0.1 (Draft)
+Version 0.2 (Draft)
 
-Author: Bill Calaway + ChatGPT
+Author: Bill Calaway
 
 ---
 
@@ -10,8 +10,8 @@ Author: Bill Calaway + ChatGPT
 
 Create a highly reliable, reproducible, GitOps-managed home infrastructure spanning two physical locations:
 
-* NYC Apartment
-* Poconos Cottage
+* NYC (`10.0.1.x`)
+* Rambles (`10.0.2.x`)
 
 using AWS as a cloud control plane.
 
@@ -62,7 +62,7 @@ Examples:
 * Documentation
 * Recovery procedures
 
-Configuration changes should occur through Pull Requests.
+Configuration changes should occur through Pull Requests with manual approval before apply.
 
 ---
 
@@ -72,11 +72,13 @@ The entire platform should be observable.
 
 Metrics:
 
-* Prometheus
+* Prometheus (hosted on AWS EC2)
 
 Dashboards:
 
-* Grafana
+* Grafana (public HTTPS via `grafana.billandjessie.com`, anonymous access enabled)
+* Uptime Kuma (public status page via `status.billandjessie.com`)
+* Portal landing page via `billandjessie.com` (S3 + CloudFront)
 
 Logs:
 
@@ -88,8 +90,56 @@ Long-term storage:
 
 Alerts:
 
-* Grafana Alerting
-* Alertmanager (future)
+* Grafana Alerting → email (Gmail SMTP)
+
+---
+
+# IP Addressing
+
+| Site    | Subnet      |
+|---------|-------------|
+| NYC     | 10.0.1.0/24 |
+| Rambles | 10.0.2.0/24 |
+| WireGuard overlay | 10.0.3.0/24 |
+
+WireGuard peer assignments:
+
+* `10.0.3.1` — AWS hub
+* `10.0.3.2` — NYC
+* `10.0.3.3` — Rambles
+
+Reserved host assignments within each site subnet carry over from existing configuration.
+
+---
+
+# DNS
+
+Domain: `billandjessie.com`
+
+Registrar: Network Solutions (migrate to Route53)
+
+Hosted zone: AWS Route53
+
+Naming convention:
+
+```
+<device>.<site>.billandjessie.com
+```
+
+Examples:
+
+```
+router.nyc.billandjessie.com
+nas1.nyc.billandjessie.com
+router.rambles.billandjessie.com
+grafana.billandjessie.com
+```
+
+DNS records are generated from Git via Terraform.
+
+Split-horizon: internal records resolve to private IPs. Public records limited to specific services (Grafana, etc.).
+
+TLS certificates: Let's Encrypt via DNS-01 challenge against Route53. No public-facing ports required.
 
 ---
 
@@ -99,240 +149,210 @@ Alerts:
 
 Internet
 
-* Verizon FiOS
+* Verizon FiOS (primary WAN)
 
 Backup Internet
 
-* Building WiFi
+* Building WiFi → GL.iNet travel router (bridge to ethernet) → RB5009 WAN2
 
-Current Router
+Router
 
-* Netgear Nighthawk RS700
+* MikroTik RB5009 (replacing Nighthawk)
 
 Switch
 
-* MikroTik CRS309-1G-8S+IN
-
-Storage
-
-* Synology NAS
-* Plex
-
-Server
-
-* Linux NUC (planned)
-
----
-
-## Poconos
-
-Internet
-
-* 2Gb Cable
-
-Backup Internet
-
-* Starlink
+* MikroTik CRS309-1G-8S+IN (10Gb)
 
 WiFi
 
-* ASUS ZenWiFi AX6600 (3-node mesh)
+* Netgear Nighthawk RS700 (AP mode)
+
+Server
+
+* Intel NUC 11 Enthusiast (NUC11PHKi7C)
+  * Intel Core i7-1165G7
+  * NVIDIA RTX 2060
+  * 64GB RAM
+  * 2TB SSD
+  * OS: Rocky Linux 9
+
+Storage
+
+* Synology DiskStation DS1621xs+ (6-bay NAS)
+  * Runs: Plex and other existing services
+  * Monitored via node_exporter (Docker)
+
+---
+
+## Rambles
+
+Internet
+
+* 2Gb Cable (primary WAN)
+
+Backup Internet
+
+* Starlink (secondary WAN, bypass mode enabled)
+
+Router
+
+* MikroTik RB5009 (replacing ASUS as router)
 
 Switch
 
 * MikroTik CRS310-8G+2S+IN
 
+WiFi
+
+* ASUS ZenWiFi AX6600 3-node mesh (AP mode)
+
 Server
 
-* Linux NUC (planned)
+* MINISFORUM MS-01
+  * Intel Core i9-13900H
+  * 32GB RAM
+  * 1TB SSD
+  * OS: Rocky Linux 9
 
 ---
 
 ## AWS
 
-Purpose
+Purpose: cloud control plane
 
-Cloud control plane
+Region: us-east-1
 
-Responsibilities
+Infrastructure:
 
-* WireGuard hub
-* Grafana
-* Prometheus
-* Loki
-* S3
-* Future automation
+* EC2 instance (single, non-HA to start)
+  * WireGuard hub
+  * Grafana
+  * Prometheus
+  * Loki
+  * Docker Compose managed
+* Elastic IP (static anchor for WireGuard peers)
+* S3 (log archive, backups)
+* Route53 (billandjessie.com hosted zone)
+* SSM Parameter Store (secrets)
 
 AWS is NOT intended to become the default Internet gateway.
 
-Only infrastructure traffic should traverse AWS.
+Only infrastructure traffic traverses AWS.
 
 ---
 
 # Networking Philosophy
 
-Internet traffic should remain local.
+Internet traffic remains local.
 
-Example
+NYC → Internet uses FiOS, not NYC → AWS → Internet.
 
-NYC → Internet
-
-uses
-
-FiOS
-
-NOT
-
-NYC → AWS → Internet
-
-Likewise
-
-Poconos → Internet
-
-uses
-
-Cable or Starlink.
+Rambles → Internet uses Cable or Starlink.
 
 AWS carries:
 
-* site-to-site traffic
-* monitoring
-* logging
-* administration
+* Site-to-site traffic (via WireGuard)
+* Monitoring and metrics
+* Logging
+* Administration
 
 ---
 
-# Planned Topology
+# WAN Failover
 
-NYC
+## Rambles
 
-FiOS
-↓
+Primary: 2Gb Cable
 
-Router
-↓
+Secondary: Starlink (ethernet adapter, bypass mode)
 
-CRS309
+The RB5009 monitors both WANs and fails over automatically via RouterOS dual-WAN policy routing. Failover is transparent to clients.
 
-↓
+Starlink bypass mode disables Starlink's built-in NAT so the RB5009 receives a routable IP and fully controls routing.
 
-10Gb devices
+## NYC
 
-↓
+Primary: Verizon FiOS
 
-Linux NUC
+Secondary: Building WiFi via GL.iNet travel router (client bridge → ethernet WAN2)
 
-↓
+Same RB5009 dual-WAN failover as Rambles.
 
-Synology
+---
 
-Poconos
+# WireGuard Topology
 
-Cable
-Starlink
-↓
+Hub-and-spoke. AWS EC2 (Elastic IP) is the hub.
 
-Router
+| Peer | Type | WireGuard IP | Notes |
+|------|------|--------------|-------|
+| AWS EC2 | Hub | 10.0.3.1 | Elastic IP, static anchor |
+| NYC RB5009 | Site peer | 10.0.3.2 | Covers all NYC devices |
+| Rambles RB5009 | Site peer | 10.0.3.3 | Covers all Rambles devices |
+| Laptop | Road warrior | 10.0.3.4 | WireGuard client, remote access only |
 
-↓
+Site-to-site: WireGuard runs on the RB5009 at each site. All devices on the local network get full access to both sites and AWS transparently — no client software required on phones, PCs, or any home device.
 
-CRS310
+Road warrior: WireGuard client on laptop only, for access when away from both sites. Connects to AWS hub and gets full access to both site subnets.
 
-↓
-
-ASUS WiFi
-
-↓
-
-Clients
-
-↓
-
-Linux NUC
-
-AWS
-
-WireGuard Hub
-
-↓
-
-Grafana
-
-↓
-
-Prometheus
-
-↓
-
-Loki
-
-↓
-
-S3
+Both site peers initiate outbound to the hub — dynamic residential IPs are not a problem.
 
 ---
 
 # Router Philosophy
 
-Current consumer routers are acceptable initially.
+MikroTik RB5009 handles routing at both sites.
 
-Long term:
+Existing consumer hardware (Nighthawk, ASUS) demoted to AP mode.
 
-Dedicated routers should become the network edge.
+Switches remain switches.
 
-Switches should remain switches.
+Linux NUCs run application workloads.
 
-Linux NUCs should run applications.
+Routing does not depend on a Linux server.
 
-Routing should not depend upon a Linux server.
-
----
-
-# Proposed Router Hardware
-
-Recommended
-
-MikroTik RB5009
-
-Initial purchase
-
-2 routers
-
-One per site
-
-Future
-
-Cold spare
-
-Eventually
-
-Two routers per site with VRRP
+DHCP and DNS served by the router (Tier 1 — survives NUC failure).
 
 ---
 
-# Availability Philosophy
+# NUC Philosophy
 
-Tier 1
+NUCs are application nodes, not infrastructure.
 
-Must survive
+Provisioned with Ansible from a fresh Rocky Linux 9 install.
+
+Workloads run as Docker Compose stacks defined in Git.
+
+Goal: a new or reformatted NUC reaches full operation in a small number of commands.
+
+NUC storage:
+
+* OS and Docker volumes on local SSD
+* Ephemeral data (Prometheus TSDB, Loki cache) stays local
+* Persistent data backs up to NYC NAS via restic
+
+NUCs are treated as stateless where possible. Losing a NUC should require only reprovisioning, not data recovery.
+
+---
+
+# Availability Tiers
+
+Tier 1 — Must survive NUC or AWS failure:
 
 * Internet
 * WiFi
 * DHCP
 * DNS
 * Routing
+* WAN failover
 
-Tier 2
+Tier 2 — Temporary outage acceptable:
 
-Temporary outage acceptable
-
-* VPN
+* WireGuard tunnel
 * Monitoring
 * SSH
 
-Tier 3
-
-Developer services
+Tier 3 — Developer / optional services:
 
 * CI/CD
 * Experiments
@@ -340,256 +360,249 @@ Developer services
 
 ---
 
-# DNS
+# Observability
 
-Replace hosts files.
+## Metrics
 
-Current hosts
+Prometheus on AWS EC2 scrapes exporters at both sites through the WireGuard tunnel.
 
-router
-printer
-nas1
-nas2
-sw-main
-sw-desk
-sw-10g
-p7670
-furry
+Exporters:
 
-Current addresses should remain unchanged.
+* `node_exporter` — NUCs and NAS (Docker)
+* `snmp_exporter` — MikroTik switches and routers
+* `blackbox_exporter` — WAN health probes (latency, packet loss) per interface
+* `speedtest_exporter` — periodic throughput tests per WAN interface
+* WireGuard metrics
 
-Preferred naming
+### WAN Monitoring
 
-router.nyc.home.arpa
+All 4 internet connections are monitored continuously and independently, regardless of which is active as the primary at each site:
 
-nas1.nyc.home.arpa
+| Site    | Connection      | Interface |
+|---------|-----------------|-----------|
+| NYC     | Verizon FiOS    | WAN1      |
+| NYC     | Building WiFi   | WAN2      |
+| Rambles | Cable           | WAN1      |
+| Rambles | Starlink        | WAN2      |
 
-etc.
+`blackbox_exporter` uses policy routing to force probes out each WAN interface independently. This gives continuous uptime, latency, and packet loss metrics for every connection regardless of failover state.
 
-DNS records should be generated from Git.
+`speedtest_exporter` runs periodic throughput tests per interface on a schedule.
 
----
+Metrics exposed per WAN connection:
 
-# Monitoring
+* Uptime / availability
+* Latency (ms)
+* Packet loss (%)
+* Throughput (Mbps up/down)
 
-Prometheus
+A small metrics gap is expected on a NUC during WireGuard tunnel failover (typically seconds). This is acceptable for a home setup.
 
-Collect
+## Web Properties
 
-* Router metrics
-* Switch metrics
-* NAS metrics
-* Linux metrics
-* VPN metrics
-* Internet health
-* Disk health
-* Temperature
-* UPS
+### `billandjessie.com` — Portal
+
+Static landing page hosted on S3 + CloudFront.
+
+Links to:
+* Grafana
+* Uptime Kuma status page
+* Other services as they are added
+
+Stays up independently of EC2.
+
+### `grafana.billandjessie.com` — Main Dashboard
+
+Grafana on EC2. Anonymous access enabled (no login required).
+
+Single pane of glass covering:
+
+NYC:
+* FiOS / Building WiFi WAN status
+* Router (RB5009)
+* Switch (CRS309)
+* NUC
+* Synology NAS
 * Plex
 
-Grafana
+Rambles:
+* Cable / Starlink WAN status
+* Router (RB5009)
+* Switch (CRS310)
+* ASUS WiFi
+* NUC
 
-Single pane of glass.
+AWS:
+* EC2
+* WireGuard
+* Grafana / Prometheus / Loki
+* S3
 
-Loki
+Deployments:
+* Recent GitHub Actions runs
+* Recent deployments
+* Recent alerts
 
-Collect
+Future (when sensors are added):
+* Temperature — indoor/outdoor per site
+* Environmental sensors
+* Weather overlays (NYC and Rambles)
+* External event feeds
 
-* Router logs
-* Linux logs
+### `status.billandjessie.com` — Uptime Kuma
+
+Purpose-built status page showing up/down for all services and WAN connections.
+
+Runs on EC2 via Docker Compose.
+
+Serves as a canary — visible even when Grafana or other services are degraded.
+
+## Logs
+
+Loki on AWS EC2.
+
+Sources:
+* Router logs (MikroTik syslog)
+* Linux logs (NUCs)
 * Docker logs
-* VPN logs
+* WireGuard logs
 
-Archive
+Archive: S3
 
-S3
+## Alerts
+
+Grafana Alerting → Gmail SMTP
 
 ---
 
-# Git Repository
+# Secret Management
 
-home-platform/
+AWS SSM Parameter Store.
 
-README.md
+Secrets referenced in Terraform and Ansible via SSM lookups.
 
-docs/
-
-terraform/
-
-ansible/
-
-routeros/
-
-compose/
-
-monitoring/
-
-dns/
-
-scripts/
-
-.github/
+No secrets in Git.
 
 ---
 
 # Deployment Workflow
 
+```
 Developer
-
 ↓
-
 Commit
-
 ↓
-
 Pull Request
-
 ↓
-
-Terraform Plan
-
+GitHub Actions: Terraform Plan
 ↓
-
 Validation
-
 ↓
-
-Manual Approval
-
+Manual Approval (GitHub environment protection)
 ↓
-
-Terraform Apply
-
+GitHub Actions: Terraform Apply
 ↓
-
 Ansible
-
 ↓
-
-Router Configuration
-
+Router Configuration (RouterOS)
 ↓
-
-Docker Deployment
-
+Docker Compose Deploy
 ↓
-
 Health Checks
-
 ↓
-
 Grafana Annotation
+```
+
+GitHub Actions authenticates to AWS via OIDC (no long-lived access keys).
 
 ---
 
-# Documentation
+# Repository Structure
 
-The repository should contain
-
-Architecture
-
-Roadmap
-
-Recovery
-
-Hardware Inventory
-
-IP Plan
-
-Runbooks
-
-Architecture Decision Records
-
----
-
-# Desired Dashboard
-
-NYC
-
-* FiOS
-* Building WiFi
-* Router
-* Switch
-* NUC
-* Synology
-* Plex
-
-Poconos
-
-* Cable
-* Starlink
-* Router
-* Switch
-* ASUS
-* NUC
-
-AWS
-
-* EC2
-* WireGuard
-* Grafana
-* Prometheus
-* Loki
-* S3
-
-Deployments
-
-GitHub Actions
-
-Recent Deployments
-
-Recent Alerts
+```
+home-platform/
+├── README.md
+├── docs/
+│   ├── architecture/
+│   ├── runbooks/
+│   ├── recovery/
+│   ├── hardware-inventory.md
+│   ├── ip-plan.md
+│   └── adr/
+├── terraform/
+│   ├── aws/
+│   └── dns/
+├── ansible/
+│   ├── playbooks/
+│   └── roles/
+├── routeros/
+│   ├── nyc/
+│   └── rambles/
+├── compose/
+│   ├── aws/
+│   ├── nyc/
+│   └── rambles/
+├── monitoring/
+│   ├── prometheus/
+│   └── grafana/
+├── dns/
+├── scripts/
+└── .github/
+    └── workflows/
+```
 
 ---
 
 # Long-Term Vision
 
-The repository should eventually be capable of rebuilding the entire platform from scratch.
+The repository should be capable of rebuilding the entire platform from scratch.
 
-Replacing a failed router should involve:
+Replacing a failed router:
 
-Install replacement hardware
-
+```
+Install replacement RB5009
 ↓
-
-Bootstrap
-
+Bootstrap (minimal manual config)
 ↓
-
-Pull configuration from Git
-
+Ansible pulls configuration from Git
 ↓
-
-Restore certificates
-
+WireGuard tunnel joins
 ↓
-
-Join monitoring
-
+Monitoring resumes
 ↓
-
 Operational
+```
 
-The same philosophy should apply to Linux servers and AWS.
+Same philosophy applies to Linux NUCs and AWS EC2.
+
+---
+
+# Planned Milestones
+
+1. **AWS foundation** — Terraform: VPC, EC2, Elastic IP, Route53, SSM, S3, IAM/OIDC for GitHub Actions
+2. **WireGuard hub** — EC2 WireGuard server, both sites connected
+3. **Observability stack** — Prometheus, Grafana, Loki, Uptime Kuma on EC2 via Docker Compose; exporters on NUCs and NAS
+4. **DNS migration** — billandjessie.com moved to Route53, records in Terraform
+5. **TLS** — Let's Encrypt certs for Grafana, Uptime Kuma, and other public services
+6. **Portal** — `billandjessie.com` landing page on S3 + CloudFront
+7. **Rambles WAN failover** — RB5009 dual-WAN with Cable primary, Starlink secondary *(priority)*
+8. **NYC WAN failover** — RB5009 dual-WAN with FiOS primary, GL.iNet/building WiFi secondary
+9. **NUC provisioning** — Rocky Linux 9, Ansible playbooks, Docker Compose stacks
+10. **Router GitOps** — RouterOS config in Git, applied via Ansible
+11. **NAS backup** — restic from NUCs to NAS on schedule
+12. **Sensors** — temperature and environmental monitoring (future, hardware TBD)
 
 ---
 
 # Open Questions
 
-* Final IP addressing plan
-* VLAN design
-* Router hardware selection
-* DNS implementation
-* DHCP implementation
-* WireGuard topology
-* Dynamic routing
-* UPS selection
+* VLAN design (deferred — flat network to start)
+* Dynamic routing between sites (deferred)
 * Remote power management
-* Backup strategy
-* Secret management
-* Certificate management
-* Home Assistant integration (future)
-* Kubernetes (future)
+* Certificate management for internal services
+* NAS backup retention policy
+* Starlink bypass mode compatibility verification
+* GL.iNet model selection for NYC backup WAN
 
 ---
 
@@ -597,11 +610,11 @@ The same philosophy should apply to Linux servers and AWS.
 
 The platform is considered complete when:
 
-* Entire infrastructure is defined in Git.
-* Changes occur via Pull Requests.
-* Every device is monitored.
-* Recovery from hardware failure is documented.
-* AWS provides observability but is not an Internet bottleneck.
-* DNS replaces hosts files.
-* WAN failover is automatic.
-* Rebuilding a router or NUC requires minimal manual work.
+* Entire infrastructure is defined in Git
+* Changes occur via Pull Requests with audit trail
+* Every device is monitored in Grafana
+* WAN failover is automatic at both sites
+* Recovery from hardware failure requires only reprovisioning from Git
+* AWS provides observability but is not an Internet bottleneck
+* DNS replaces all hosts files
+* Rebuilding a router or NUC requires minimal manual work
