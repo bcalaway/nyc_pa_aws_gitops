@@ -64,6 +64,8 @@ Examples:
 
 Configuration changes should occur through Pull Requests with manual approval before apply.
 
+Claude AI acts as the primary implementer — writing Terraform, Ansible, RouterOS config, and Docker Compose definitions, opening PRs, and applying changes after approval. Bill approves PRs and handles physical tasks only.
+
 ---
 
 ## Observability
@@ -485,35 +487,55 @@ No secrets in Git.
 
 ---
 
+# Division of Labor
+
+## Bill's responsibilities (physical and approvals only)
+
+- Physical: rack hardware, connect cables, power on devices
+- First boot: set root password, connect device to network
+- Bootstrap: run a single curl-to-shell script Claude provides
+- RB5009 first-time: minimal web UI config (IP + enable SSH), then hand off
+- PR approvals: click approve in GitHub for any change Claude opens
+- Always approve explicitly: firewall rule changes, DNS changes, anything that costs money in AWS
+
+## Claude's responsibilities (everything else)
+
+- Write and apply all Terraform, Ansible, RouterOS config, Docker Compose
+- Open PRs for every change
+- Apply changes after PR approval
+- Monitor health after changes
+- Stop and notify Bill if something fails — never attempt blind recovery
+- Notify Bill via email and Grafana annotation after autonomous changes
+
+---
+
 # Deployment Workflow
 
 ```
-Developer
+Claude writes code / config
 ↓
-Commit
+Claude opens Pull Request
 ↓
-Pull Request
+GitHub Actions: Terraform Plan (auto)
 ↓
-GitHub Actions: Terraform Plan
+Plan posted as PR comment
 ↓
-Validation
+Bill approves PR
 ↓
-Manual Approval (GitHub environment protection)
-↓
-GitHub Actions: Terraform Apply
-↓
-Ansible
-↓
-Router Configuration (RouterOS)
-↓
-Docker Compose Deploy
+GitHub Actions: Terraform Apply / Ansible / RouterOS push
 ↓
 Health Checks
 ↓
-Grafana Annotation
+Grafana Annotation + Email notification
+↓
+Claude reports result
 ```
 
 GitHub Actions authenticates to AWS via OIDC (no long-lived access keys).
+
+Claude uses AWS credentials directly in sessions for interactive work and bootstrapping.
+
+Changes to firewall rules, DNS records, and AWS-cost-incurring resources always require explicit PR approval — never applied automatically.
 
 ---
 
