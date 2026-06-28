@@ -118,7 +118,7 @@ Reserved host assignments within each site subnet carry over from existing confi
 
 Domain: `billandjessie.com`
 
-Registrar: Network Solutions (migrate to Route53)
+Registrar: GoDaddy (migrate to Route53)
 
 Hosted zone: AWS Route53
 

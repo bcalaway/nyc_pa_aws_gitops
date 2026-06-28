@@ -1,15 +1,15 @@
-# ADR-0006: Route53 for DNS, Migrated from Network Solutions
+# ADR-0006: Route53 for DNS, Migrated from GoDaddy
 
 Date: 2026-06-28
 Status: Accepted
 
 ## Context
 
-The domain `billandjessie.com` is currently registered at Network Solutions and not pointing at anything. The platform requires DNS management that integrates with Terraform for automated record creation and supports Let's Encrypt DNS-01 challenges.
+The domain `billandjessie.com` is currently registered at GoDaddy and not pointing at anything meaningful. The platform requires DNS management that integrates with Terraform for automated record creation and supports Let's Encrypt DNS-01 challenges.
 
 ## Options Considered
 
-**Option A: Stay on Network Solutions**
+**Option A: Stay on GoDaddy**
 - Manual DNS management via web UI
 - No Terraform provider support for automated record creation
 - DNS-01 challenge automation not feasible
@@ -24,7 +24,7 @@ The domain `billandjessie.com` is currently registered at Network Solutions and 
 
 ## Decision
 
-Migrate `billandjessie.com` to Route53. Network Solutions remains the registrar but NS records point to Route53 name servers (no registrar transfer required — just update NS records).
+Migrate `billandjessie.com` to Route53. GoDaddy remains the registrar but NS records point to Route53 name servers (no registrar transfer required — just update NS records).
 
 ## Naming Convention
 
@@ -50,5 +50,5 @@ Split-horizon: internal records resolve to private IPs. Public records limited t
 
 - DNS records defined in Terraform under `terraform/dns/`
 - Let's Encrypt certs issued via DNS-01 challenge against Route53 (no open ports required)
-- Migration requires updating NS records at Network Solutions — one-time manual step
+- Migration requires updating NS records at GoDaddy — one-time manual step
 - Existing hosts file entries (`router`, `nas1`, `nas2`, etc.) preserved at same IPs, converted to DNS records
