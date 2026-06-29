@@ -42,6 +42,10 @@ resource "aws_instance" "hub" {
   EOF
 
   tags = { Name = "home-platform-hub" }
+
+  lifecycle {
+    ignore_changes = [ami, user_data]
+  }
 }
 
 resource "aws_eip" "hub" {
