@@ -4,6 +4,46 @@ How to pick up where we left off from a fresh machine. Everything except AWS cre
 
 ---
 
+## 0. Set up Claude Code
+
+Claude Code is the AI assistant that does all the implementation work on this project. Install it first — it will guide you through the rest if needed.
+
+**Install Node.js** (required by Claude Code):
+```powershell
+winget install --id OpenJS.NodeJS.LTS --silent --accept-package-agreements --accept-source-agreements
+```
+
+**Install Claude Code:**
+```powershell
+npm install -g @anthropic-ai/claude-code
+```
+
+**Start a session:**
+```powershell
+cd C:\path\to\nyc_pa_aws_gitops
+claude
+```
+
+On first run it will ask you to log in with your Anthropic account (claude.ai login, not AWS).
+
+**Kick-off prompt to resume work:**
+
+Once Claude starts, paste this to bring it up to speed instantly:
+
+```
+I'm picking up the home-platform project on a new machine.
+The repo is at github.com/bcalaway/nyc_pa_aws_gitops.
+AWS credentials are configured (home-platform-admin, account 147856894209).
+Please read docs/new-machine-setup.md and docs/roadmap.md,
+then tell me where we left off and what's next.
+```
+
+Claude will read the docs, check SSM and Terraform state, and pick up exactly where we left off — no need to re-explain the project.
+
+> **Note:** Claude Code is billed per token through your Anthropic account. No separate API key is needed when using the Claude Code CLI with your claude.ai account.
+
+---
+
 ## 1. Install tools
 
 ```powershell
