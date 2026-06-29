@@ -38,7 +38,12 @@ Please read docs/new-machine-setup.md and docs/roadmap.md,
 then tell me where we left off and what's next.
 ```
 
-Claude will read the docs, check SSM and Terraform state, and pick up exactly where we left off — no need to re-explain the project.
+Claude will read the docs and then automatically run these checks before reporting status — no need to re-explain the project or ask Claude to verify anything manually:
+
+**Claude: run these checks immediately after reading this file, without being asked:**
+1. `aws sts get-caller-identity` — confirm credentials are valid and return the ARN. If this fails, tell Bill before doing anything else: the credentials need to be updated (see step 2 below).
+2. `terraform -chdir=terraform/aws plan -detailed-exitcode` — confirm no unexpected drift.
+3. Report the results of both checks alongside the project status summary.
 
 > **Note:** Claude Code is billed per token through your Anthropic account. No separate API key is needed when using the Claude Code CLI with your claude.ai account.
 
@@ -68,7 +73,7 @@ aws configure set region                us-east-1
 aws configure set output                json
 ```
 
-> The access key ID and secret are in your password manager under `home-platform-admin`.
+> The access key ID and secret are in Bill's **Google Password Manager** under the saved password for **aws.com**, entry `home-platform-admin`.
 > Do not store them in this file or anywhere in the repository.
 
 Verify:
