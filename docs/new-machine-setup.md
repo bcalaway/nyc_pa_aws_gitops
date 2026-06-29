@@ -101,12 +101,8 @@ The private key is stored in SSM. Pull it down and set permissions:
 
 ```powershell
 New-Item -ItemType Directory -Force -Path "$HOME\.ssh" | Out-Null
-$pem = aws ssm get-parameter `
-  --name "/home-platform/ec2/ssh-private-key" `
-  --with-decryption `
-  --query "Parameter.Value" `
-  --output text `
-  --region us-east-1
+$pem = aws ssm get-parameter --name "/home-platform/ec2/ssh-private-key" --with-decryption --region us-east-1 |
+  ConvertFrom-Json | Select-Object -ExpandProperty Parameter | Select-Object -ExpandProperty Value
 [System.IO.File]::WriteAllText(
   "$HOME\.ssh\home-platform.pem",
   $pem,
