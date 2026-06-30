@@ -2,6 +2,11 @@
 # Apply via: System > Terminal in the web UI (http://192.168.88.1)
 # Run AFTER connecting laptop directly to RB5009, before going live
 #
+# First login: the default admin password is printed on the bottom of the
+# router and in the box manual — it is NOT blank. Log in via WebFig at
+# http://192.168.88.1 first (SSH/telnet are locked until you do), then
+# change the password or proceed directly to the terminal.
+#
 # What this does:
 #   - Sets LAN to 10.0.1.1/24 (matches existing Nighthawk, zero client disruption)
 #   - Configures DHCP server with same range as Nighthawk (10.0.1.64-254)
@@ -29,6 +34,9 @@
 #    ether2 = WAN2 (GL.iNet backup, configured later in Milestone 7)
 #    ether3-8, sfp-sfpplus1 = LAN (bridge)
 # ---------------------------------------------------------------------------
+# Remove any existing bridge port memberships and bridge-lan before (re)creating
+/interface bridge port remove [find]
+/interface bridge remove [find name=bridge-lan]
 /interface bridge add name=bridge-lan
 
 /interface bridge port
@@ -43,23 +51,28 @@ add bridge=bridge-lan interface=sfp-sfpplus1
 # ---------------------------------------------------------------------------
 # 4. LAN IP
 # ---------------------------------------------------------------------------
+/ip address remove [find address="10.0.1.1/24"]
 /ip address add address=10.0.1.1/24 interface=bridge-lan
 
 # ---------------------------------------------------------------------------
 # 5. WAN1 — FiOS DHCP
 # ---------------------------------------------------------------------------
+/ip dhcp-client remove [find interface=ether1]
 /ip dhcp-client add interface=ether1 disabled=no add-default-route=yes use-peer-dns=no
 
 # ---------------------------------------------------------------------------
 # 6. NAT
 # ---------------------------------------------------------------------------
+/ip firewall nat remove [find chain=srcnat out-interface=ether1]
 /ip firewall nat add chain=srcnat out-interface=ether1 action=masquerade
 
 # ---------------------------------------------------------------------------
 # 7. DHCP server (same range as Nighthawk: 10.0.1.64-254)
 # ---------------------------------------------------------------------------
+/ip pool remove [find name=pool-lan]
 /ip pool add name=pool-lan ranges=10.0.1.64-10.0.1.254
 
+/ip dhcp-server remove [find name=dhcp-lan]
 /ip dhcp-server add name=dhcp-lan interface=bridge-lan address-pool=pool-lan disabled=no
 
 /ip dhcp-server network add address=10.0.1.0/24 gateway=10.0.1.1 dns-server=10.0.1.1
@@ -81,6 +94,9 @@ add mac-address=2C:58:B9:AF:E5:8A address=10.0.1.5  comment=HP-M455DN
 # ---------------------------------------------------------------------------
 # 10. WireGuard — tunnel to AWS hub (10.0.3.1)
 # ---------------------------------------------------------------------------
+/interface wireguard peers remove [find interface=wg-aws]
+/ip address remove [find interface=wg-aws]
+/interface wireguard remove [find name=wg-aws]
 /interface wireguard add name=wg-aws listen-port=51820 \
     private-key="2KwOB22Jgzc6fKijCka95KTL5YsjWjuKYADlV4Mwd3c="
 
