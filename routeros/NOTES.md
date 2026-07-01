@@ -148,3 +148,28 @@ Section 6     /ip address remove then add — SSH drops here
 Sections 7+   Run server-side (DHCP client, NAT, DHCP server, DNS, WireGuard, NTP)
 Last line     /ip firewall connection remove [find]
 ```
+
+---
+
+## Netgear RS700 AP mode (no dedicated toggle)
+
+The RS700 does not have a one-click AP mode. Do it manually while still
+connected to the RS700 as the active router:
+
+1. Log into the RS700 web UI at its current LAN IP
+2. LAN Setup → change LAN IP to **10.0.1.2** (or whatever is free on the new subnet)
+3. LAN Setup → disable DHCP server
+4. Save — router reboots to 10.0.1.2
+5. Physical cutover: unplug ISP from RS700 WAN; connect ISP to RB5009 ether1;
+   connect RS700 **LAN port** (not WAN) to RB5009 LAN port
+6. RS700 is now a dumb AP, reachable at http://10.0.1.2
+
+WiFi clients see no change — same SSID/password, same subnet, same gateway IP.
+
+---
+
+## FiOS WAN subnet
+
+FiOS assigns addresses in **192.168.1.0/24** on ether1 (observed: 192.168.1.154/24,
+gateway 192.168.1.1). Useful to know if you need to reach the ONT or diagnose
+WAN-side issues.
