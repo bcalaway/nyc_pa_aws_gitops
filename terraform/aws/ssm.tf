@@ -37,3 +37,23 @@ resource "aws_ssm_parameter" "grafana_smtp_password" {
 
   tags = { Name = "grafana-smtp-password" }
 }
+
+resource "aws_ssm_parameter" "router_nyc_admin_password" {
+  name  = "/home-platform/router/nyc-admin-password"
+  type  = "SecureString"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "router-nyc-admin-password" }
+}
+
+resource "aws_ssm_parameter" "router_rambles_admin_password" {
+  name  = "/home-platform/router/rambles-admin-password"
+  type  = "SecureString"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "router-rambles-admin-password" }
+}

@@ -32,9 +32,11 @@
 /system identity set name=rambles-rb5009
 
 # ---------------------------------------------------------------------------
-# 2. Admin password  *** CHANGE THIS before committing to git ***
+# 2. Admin password
 # ---------------------------------------------------------------------------
-/user set admin password="CHANGE_ME"
+# Password stored in SSM: /home-platform/router/rambles-admin-password
+# apply-config.py fetches it automatically when called with --ssm
+/user set admin password="PLACEHOLDER"
 
 # ---------------------------------------------------------------------------
 # 3. Bridge — keep factory bridge named "bridge"; just remove WAN ports

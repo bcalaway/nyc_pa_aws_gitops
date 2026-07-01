@@ -32,7 +32,9 @@
 # ---------------------------------------------------------------------------
 # 2. Admin password
 # ---------------------------------------------------------------------------
-/user set admin password="5192alone!D0ct0rDre"
+# Password stored in SSM: /home-platform/router/nyc-admin-password
+# apply-config.py fetches it automatically when called with --ssm
+/user set admin password="PLACEHOLDER"
 
 # ---------------------------------------------------------------------------
 # 3. Bridge — keep factory bridge named "bridge"; just remove WAN ports
