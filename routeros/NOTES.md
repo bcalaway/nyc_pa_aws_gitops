@@ -151,6 +151,18 @@ Last line     /ip firewall connection remove [find]
 
 ---
 
+## Factory reset procedure (RB5009)
+
+1. Hold the RESET button
+2. Power off the router (unplug)
+3. Power on (plug back in) while continuing to hold RESET
+4. Keep holding until a light blinks — about 30 seconds
+5. Release. Router boots to factory defaults (192.168.88.1, factory password on sticker)
+
+Remember: SSH is locked until you complete the first WebFig login after a reset.
+
+---
+
 ## Netgear RS700 AP mode (no dedicated toggle)
 
 The RS700 does not have a one-click AP mode. Do it manually while still
