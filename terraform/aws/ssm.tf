@@ -38,6 +38,16 @@ resource "aws_ssm_parameter" "grafana_smtp_password" {
   tags = { Name = "grafana-smtp-password" }
 }
 
+resource "aws_ssm_parameter" "github_api_token" {
+  name  = "/home-platform/github/api-token"
+  type  = "SecureString"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "github-api-token" }
+}
+
 resource "aws_ssm_parameter" "router_nyc_admin_password" {
   name  = "/home-platform/router/nyc-admin-password"
   type  = "SecureString"
