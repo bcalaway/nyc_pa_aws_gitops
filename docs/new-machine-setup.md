@@ -127,7 +127,33 @@ ssh -i "$HOME\.ssh\home-platform.pem" ec2-user@3.82.89.106 "echo connected"
 
 ---
 
-## 5. Initialize Terraform
+## 5. Install gh CLI and authenticate
+
+The GitHub token is stored in SSM — no need to generate a new one.
+
+```powershell
+winget install --id GitHub.cli --accept-package-agreements --accept-source-agreements
+
+# Open a new terminal after install, then:
+$token = (aws ssm get-parameter --name "/home-platform/github/api-token" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+$token | gh auth login --with-token
+
+gh run list --repo bcalaway/nyc_pa_aws_gitops --limit 5  # verify it works
+```
+
+---
+
+## 6. Install Python dependencies (for RouterOS config apply)
+
+```powershell
+pip install paramiko boto3
+```
+
+Used by `routeros/apply-config.py` to SSH into routers and push config files.
+
+---
+
+## 7. Initialize Terraform
 
 ```powershell
 cd terraform/aws
