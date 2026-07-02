@@ -17,32 +17,32 @@ Rambles WAN failover (Cable → Starlink) is the near-term priority. Everything 
 **Goal:** AWS account configured, all base infrastructure in Terraform, GitHub Actions pipeline working.
 
 Tasks:
-- [ ] 🧑 Create IAM admin user, generate access keys, share with Claude in session
-- [ ] 🤖 AWS CLI configured and verified
-- [ ] 🤖 Terraform bootstrap script: create S3 state bucket + DynamoDB lock table
-- [ ] 🧑 Run bootstrap script (one command)
-- [ ] 🤖 Terraform: VPC, subnets, security groups
-- [ ] 🤖 Terraform: EC2 instance, Elastic IP
-- [ ] 🤖 Terraform: S3 buckets (log archive, portal)
-- [ ] 🤖 Terraform: Route53 hosted zone for `billandjessie.com`
-- [ ] 🤖 Terraform: SSM Parameter Store baseline
-- [ ] 🤖 GitHub Actions: `terraform plan` on PR, `terraform apply` on merge with manual approval
-- [ ] 🤖 GitHub Actions: `terraform plan` output posted as PR comment
+- [x] 🧑 Create IAM admin user, generate access keys, share with Claude in session
+- [x] 🤖 AWS CLI configured and verified
+- [x] 🤖 Terraform bootstrap script: create S3 state bucket + DynamoDB lock table
+- [x] 🧑 Run bootstrap script (one command)
+- [x] 🤖 Terraform: VPC, subnets, security groups
+- [x] 🤖 Terraform: EC2 instance, Elastic IP
+- [x] 🤖 Terraform: S3 buckets (log archive, portal)
+- [x] 🤖 Terraform: Route53 hosted zone for `billandjessie.com`
+- [x] 🤖 Terraform: SSM Parameter Store baseline
+- [x] 🤖 GitHub Actions: `terraform plan` on PR, `terraform apply` on merge with manual approval
+- [x] 🤖 GitHub Actions: `terraform plan` output posted as PR comment
 - [ ] 🧑 Update NS records at GoDaddy to point to Route53 (Claude provides the values)
 
 ### Milestone 2 — WireGuard Hub
 **Goal:** Both sites connected to AWS hub via WireGuard. Site-to-site traffic working.
 
 Tasks:
-- [ ] 🤖 WireGuard installed on EC2
-- [ ] 🤖 WireGuard server config (hub, 3 peers: NYC, Rambles, laptop)
-- [ ] Keys generated, stored in SSM Parameter Store
-- [ ] NYC RB5009 deployed, WireGuard client configured
-- [ ] Rambles RB5009 deployed, WireGuard client configured
-- [ ] Laptop WireGuard client configured
-- [ ] Verify: NYC → Rambles connectivity
-- [ ] Verify: Both sites → EC2 connectivity
-- [ ] RouterOS configs committed to `routeros/`
+- [x] 🤖 WireGuard installed on EC2
+- [x] 🤖 WireGuard server config (hub, 3 peers: NYC, Rambles, laptop)
+- [x] Keys generated, stored in SSM Parameter Store
+- [x] NYC RB5009 deployed, WireGuard client configured
+- [ ] Rambles RB5009 deployed, WireGuard client configured *(pending hardware)*
+- [x] Laptop WireGuard client configured
+- [ ] Verify: NYC → Rambles connectivity *(pending Rambles hardware)*
+- [x] Verify: Both sites → EC2 connectivity
+- [x] RouterOS configs committed to `routeros/`
 
 ### Milestone 3 — Observability Stack
 **Goal:** Prometheus, Grafana, Loki, Uptime Kuma running on EC2. All devices monitored.
