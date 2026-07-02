@@ -60,10 +60,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter",
       "ssm:DeleteParameter", "ssm:DescribeParameters",
       "ssm:AddTagsToResource", "ssm:ListTagsForResource", "ssm:RemoveTagsFromResource",
-      "iam:GetRole", "iam:CreateRole", "iam:AttachRolePolicy", "iam:PassRole",
-      "iam:GetOpenIDConnectProvider", "iam:CreateOpenIDConnectProvider",
-      "iam:ListRolePolicies", "iam:GetRolePolicy",
-      "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:UpdateAssumeRolePolicy",
+      "iam:*",
     ]
     resources = ["*"]
   }
