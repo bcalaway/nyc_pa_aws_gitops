@@ -28,7 +28,7 @@ Tasks:
 - [x] 🤖 Terraform: SSM Parameter Store baseline
 - [x] 🤖 GitHub Actions: `terraform plan` on PR, `terraform apply` on merge with manual approval
 - [x] 🤖 GitHub Actions: `terraform plan` output posted as PR comment
-- [ ] 🧑 Update NS records at GoDaddy to point to Route53 (Claude provides the values)
+- [x] 🧑 Update NS records at GoDaddy to point to Route53 (Claude provides the values)
 
 ### Milestone 2 — WireGuard Hub
 **Goal:** Both sites connected to AWS hub via WireGuard. Site-to-site traffic working.
