@@ -69,6 +69,7 @@ Unlike the Docker Compose stack, this is host-level config on EC2 and **not trac
 - Cert obtained via `certbot-dns-route53` plugin (DNS-01, no inbound ports needed) — covers both `grafana.` and `status.` subdomains in one cert, stored at `/etc/letsencrypt/live/grafana.billandjessie.com/`
 - EC2 has an IAM instance role (`home-platform-hub`, in `terraform/aws/tls.tf`) scoped to Route53 record writes on our zone only — that's what lets certbot-dns-route53 work without embedding credentials
 - Renewal: `certbot-renew.timer` (systemd, runs twice daily, reloads nginx via deploy-hook) — not an OS package unit, created manually since pip-installed certbot doesn't ship one
+- Port 80 redirects to HTTPS for both subdomains; both HTTPS server blocks send HSTS (`max-age=31536000; includeSubDomains`)
 
 ## RouterOS config apply
 
