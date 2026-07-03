@@ -57,6 +57,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ec2:*", "vpc:*",
       "route53:*",
       "s3:*",
+      "cloudfront:*",
+      "acm:*",
       "ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter",
       "ssm:DeleteParameter", "ssm:DescribeParameters",
       "ssm:AddTagsToResource", "ssm:ListTagsForResource", "ssm:RemoveTagsFromResource",
