@@ -1,0 +1,61 @@
+services:
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    ports:
+      - "9090:9090"
+
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: loki
+    restart: unless-stopped
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/loki-config.yaml
+    ports:
+      - "3100:3100"
+
+  grafana:
+    image: grafana/grafana-oss:11.4.0
+    container_name: grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - loki
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: "smtp.gmail.com:587"
+      GF_SMTP_USER: "bcalaway@gmail.com"
+      GF_SMTP_PASSWORD: "${GRAFANA_SMTP_PASSWORD}"
+      GF_SMTP_FROM_ADDRESS: "bcalaway@gmail.com"
+      GF_SMTP_FROM_NAME: "Home Platform Grafana"
+    ports:
+      - "3000:3000"
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - uptime-kuma-data:/app/data
+    ports:
+      - "3001:3001"
+
+volumes:
+  prometheus-data:
+  loki-data:
+  grafana-data:
+  uptime-kuma-data:

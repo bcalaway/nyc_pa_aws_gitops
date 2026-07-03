@@ -48,17 +48,17 @@ Tasks:
 **Goal:** Prometheus, Grafana, Loki, Uptime Kuma running on EC2. All devices monitored.
 
 Tasks:
-- [ ] 🤖 Docker Compose stack for EC2: Prometheus, Grafana, Loki, Uptime Kuma
-- [ ] 🤖 `node_exporter` on NYC NUC and NAS
-- [ ] 🤖 `node_exporter` on Rambles NUC
+- [x] 🤖 Docker Compose stack for EC2: Prometheus, Grafana, Loki, Uptime Kuma
+- [ ] 🤖 `node_exporter` on NYC NUC and NAS *(pending NUC provisioning — Milestone 8)*
+- [ ] 🤖 `node_exporter` on Rambles NUC *(pending NUC provisioning — Milestone 8)*
 - [ ] 🤖 `snmp_exporter` for MikroTik switches and routers (both sites)
 - [ ] 🤖 `blackbox_exporter` on both NUCs — all 4 WAN connections probed independently
 - [ ] 🤖 `speedtest_exporter` on both NUCs — periodic throughput tests per WAN interface
-- [ ] 🤖 Prometheus scrape configs for all exporters
+- [ ] 🤖 Prometheus scrape configs for all exporters *(self-scrape only so far; jobs added as exporters come online)*
 - [ ] 🤖 Grafana dashboards: NYC, Rambles, AWS, WAN status
 - [ ] 🤖 Uptime Kuma monitors: all services and WAN connections
-- [ ] 🤖 Grafana anonymous access enabled
-- [ ] 🤖 Alert: email via Gmail SMTP (credentials stored in SSM)
+- [x] 🤖 Grafana anonymous access enabled
+- [x] 🤖 Alert: email via Gmail SMTP (credentials stored in SSM) *(wired up; needs a real Gmail App Password — SSM value is still a placeholder)*
 
 ### Milestone 4 — DNS and TLS
 **Goal:** All services accessible by name with valid HTTPS certs.

@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+# Future scrape jobs, added as exporters come online (Milestone 8 stands up the NUCs):
+#   - node_exporter    — NYC/Rambles NUCs and NAS
+#   - snmp_exporter    — MikroTik routers and switches, both sites
+#   - blackbox_exporter — WAN health probes, all 4 connections independently
+#   - speedtest_exporter — periodic throughput per WAN interface
