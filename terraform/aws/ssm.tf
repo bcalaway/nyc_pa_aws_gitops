@@ -38,6 +38,16 @@ resource "aws_ssm_parameter" "grafana_admin_password" {
   tags = { Name = "grafana-admin-password" }
 }
 
+resource "aws_ssm_parameter" "uptime_kuma_admin_password" {
+  name  = "/home-platform/uptime-kuma/admin-password"
+  type  = "SecureString"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "uptime-kuma-admin-password" }
+}
+
 resource "aws_ssm_parameter" "grafana_smtp_password" {
   name  = "/home-platform/grafana/smtp-password"
   type  = "SecureString"
