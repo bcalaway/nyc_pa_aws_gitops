@@ -76,11 +76,11 @@ Tasks:
 **Goal:** `billandjessie.com` live as a status/links portal.
 
 Tasks:
-- [ ] 🤖 Terraform: S3 static website + CloudFront distribution
-- [ ] 🤖 Terraform: ACM certificate for `billandjessie.com`
-- [ ] 🤖 Portal HTML created under `portal/`
-- [ ] 🤖 GitHub Actions: deploy portal on changes to `portal/`
-- [ ] 🤖 Links to Grafana and Uptime Kuma working
+- [x] 🤖 Terraform: S3 static website + CloudFront distribution
+- [x] 🤖 Terraform: ACM certificate for `billandjessie.com`
+- [x] 🤖 Portal HTML created under `portal/`
+- [x] 🤖 GitHub Actions: deploy portal on changes to `portal/`
+- [ ] 🤖 Links to Grafana and Uptime Kuma working *(portal is live at https://billandjessie.com — links target grafana./status. subdomains, which won't resolve until Milestone 4 stands up the reverse proxy)*
 
 ### Milestone 6 — Rambles WAN Failover *(priority)*
 **Goal:** Automatic failover between Cable and Starlink at Rambles.
