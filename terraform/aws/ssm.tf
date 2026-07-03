@@ -28,6 +28,16 @@ resource "aws_ssm_parameter" "wireguard_rambles_public_key" {
   tags = { Name = "wireguard-rambles-public-key" }
 }
 
+resource "aws_ssm_parameter" "grafana_admin_password" {
+  name  = "/home-platform/grafana/admin-password"
+  type  = "SecureString"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "grafana-admin-password" }
+}
+
 resource "aws_ssm_parameter" "grafana_smtp_password" {
   name  = "/home-platform/grafana/smtp-password"
   type  = "SecureString"
