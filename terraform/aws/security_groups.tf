@@ -21,6 +21,15 @@ resource "aws_security_group" "ec2" {
     cidr_blocks = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
   }
 
+  # HTTP (public) — nginx redirects to HTTPS
+  ingress {
+    description = "HTTP redirect to HTTPS"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # Grafana HTTPS (public)
   ingress {
     description = "Grafana HTTPS"
