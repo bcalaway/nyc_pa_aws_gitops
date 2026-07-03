@@ -9,11 +9,11 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "home-platform-terraform-state-147856894209"
-    key            = "aws/terraform.tfstate"
-    region         = "us-east-1"
-    use_lockfile   = true
-    encrypt        = true
+    bucket       = "home-platform-terraform-state-147856894209"
+    key          = "aws/terraform.tfstate"
+    region       = "us-east-1"
+    use_lockfile = true
+    encrypt      = true
   }
 }
 
@@ -22,9 +22,9 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "home-platform"
-      ManagedBy   = "terraform"
-      Repository  = "nyc_pa_aws_gitops"
+      Project    = "home-platform"
+      ManagedBy  = "terraform"
+      Repository = "nyc_pa_aws_gitops"
     }
   }
 }

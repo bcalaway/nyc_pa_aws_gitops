@@ -54,10 +54,21 @@ If gh isn't authed yet, see the "gh CLI setup" section above.
 - IP: `3.82.89.106`, user: `ec2-user`
 - SSH key in SSM at `/home-platform/ec2/ssh-private-key` → save to `~/.ssh/home-platform.pem`
 - SSH is only open from WireGuard subnets — laptop WireGuard must be active, or temporarily open port 22 for your IP (see `docs/new-machine-setup.md`)
+- **When connecting over the WireGuard tunnel, SSH to `10.0.3.1`, not the public IP `3.82.89.106`.** The laptop tunnel's `AllowedIPs` only covers `10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24` — traffic to the public IP goes out the normal internet path instead of the tunnel and gets blocked by the security group.
 
 ```powershell
-ssh -i "$HOME\.ssh\home-platform.pem" ec2-user@3.82.89.106
+ssh -i "$HOME\.ssh\home-platform.pem" ec2-user@10.0.3.1
 ```
+
+## TLS / reverse proxy on EC2 hub
+
+Unlike the Docker Compose stack, this is host-level config on EC2 and **not tracked in Git** — if the instance is ever rebuilt, redo this manually (or write an Ansible role for it under Milestone 8/9).
+
+- nginx installed via `dnf`, reverse-proxies `grafana.billandjessie.com` → `127.0.0.1:3000` and `status.billandjessie.com` → `127.0.0.1:3001`, config at `/etc/nginx/conf.d/home-platform.conf`
+- Certbot installed via pip into a venv at `/opt/certbot-venv`, symlinked to `/usr/bin/certbot` (AL2023 has no native certbot package)
+- Cert obtained via `certbot-dns-route53` plugin (DNS-01, no inbound ports needed) — covers both `grafana.` and `status.` subdomains in one cert, stored at `/etc/letsencrypt/live/grafana.billandjessie.com/`
+- EC2 has an IAM instance role (`home-platform-hub`, in `terraform/aws/tls.tf`) scoped to Route53 record writes on our zone only — that's what lets certbot-dns-route53 work without embedding credentials
+- Renewal: `certbot-renew.timer` (systemd, runs twice daily, reloads nginx via deploy-hook) — not an OS package unit, created manually since pip-installed certbot doesn't ship one
 
 ## RouterOS config apply
 

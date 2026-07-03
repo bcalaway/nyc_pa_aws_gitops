@@ -65,12 +65,12 @@ Tasks:
 
 Tasks:
 - [ ] 🧑 Bill provides current hosts file IP reservations so Claude can preserve them
-- [ ] 🤖 Route53 records for all internal hosts
-- [ ] 🤖 Route53 records for public services (Grafana, Uptime Kuma, portal)
-- [ ] 🤖 Let's Encrypt cert for `grafana.billandjessie.com` (DNS-01 via Route53)
-- [ ] 🤖 Let's Encrypt cert for `status.billandjessie.com`
-- [ ] 🤖 Certbot renewal via systemd timer
-- [ ] 🤖 Hosts files retired at both sites
+- [ ] 🤖 Route53 records for all internal hosts *(blocked on the above)*
+- [x] 🤖 Route53 records for public services (Grafana, Uptime Kuma, portal)
+- [x] 🤖 Let's Encrypt cert for `grafana.billandjessie.com` (DNS-01 via Route53)
+- [x] 🤖 Let's Encrypt cert for `status.billandjessie.com`
+- [x] 🤖 Certbot renewal via systemd timer
+- [ ] 🤖 Hosts files retired at both sites *(blocked on internal DNS records above)*
 
 ### Milestone 5 — Portal
 **Goal:** `billandjessie.com` live as a status/links portal.
@@ -80,7 +80,7 @@ Tasks:
 - [x] 🤖 Terraform: ACM certificate for `billandjessie.com`
 - [x] 🤖 Portal HTML created under `portal/`
 - [x] 🤖 GitHub Actions: deploy portal on changes to `portal/`
-- [ ] 🤖 Links to Grafana and Uptime Kuma working *(portal is live at https://billandjessie.com — links target grafana./status. subdomains, which won't resolve until Milestone 4 stands up the reverse proxy)*
+- [x] 🤖 Links to Grafana and Uptime Kuma working
 
 ### Milestone 6 — Rambles WAN Failover *(priority)*
 **Goal:** Automatic failover between Cable and Starlink at Rambles.

@@ -37,8 +37,8 @@ resource "aws_iam_role" "github_actions" {
 
 data "aws_iam_policy_document" "github_actions_permissions" {
   statement {
-    effect    = "Allow"
-    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
+    effect  = "Allow"
+    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
     resources = [
       "arn:aws:s3:::home-platform-terraform-state-${var.aws_account_id}",
       "arn:aws:s3:::home-platform-terraform-state-${var.aws_account_id}/*",
@@ -52,7 +52,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
   }
 
   statement {
-    effect  = "Allow"
+    effect = "Allow"
     actions = [
       "ec2:*", "vpc:*",
       "route53:*",

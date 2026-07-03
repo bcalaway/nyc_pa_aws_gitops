@@ -19,6 +19,7 @@ resource "aws_instance" "hub" {
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.ec2.id]
   key_name               = var.ec2_key_name
+  iam_instance_profile   = aws_iam_instance_profile.hub.name
 
   root_block_device {
     volume_size           = 40
