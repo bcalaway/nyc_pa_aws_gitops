@@ -34,6 +34,9 @@ Always `git push` immediately after every `git commit` without asking.
 | `/home-platform/router/nyc-admin-password` | NYC RB5009 admin password |
 | `/home-platform/router/rambles-admin-password` | Rambles RB5009 admin password (set when hardware arrives) |
 | `/home-platform/wireguard/server-private-key` | EC2 WireGuard hub private key |
+| `/home-platform/grafana/admin-password` | Grafana admin login |
+| `/home-platform/grafana/smtp-password` | Grafana Gmail SMTP password (placeholder until real App Password set) |
+| `/home-platform/uptime-kuma/admin-password` | Uptime Kuma admin login |
 
 ## New machine checklist
 
