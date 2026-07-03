@@ -7,6 +7,12 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          instance: aws-hub
+
 # Future scrape jobs, added as exporters come online (Milestone 8 stands up the NUCs):
 #   - node_exporter    — NYC/Rambles NUCs and NAS
 #   - snmp_exporter    — MikroTik routers and switches, both sites
