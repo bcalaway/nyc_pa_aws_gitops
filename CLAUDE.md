@@ -79,6 +79,15 @@ Unlike the Docker Compose stack, this is host-level config on EC2 and **not trac
 - Renewal: `certbot-renew.timer` (systemd, runs twice daily, reloads nginx via deploy-hook) — not an OS package unit, created manually since pip-installed certbot doesn't ship one
 - Port 80 redirects to HTTPS for both subdomains; both HTTPS server blocks send HSTS (`max-age=31536000; includeSubDomains`)
 
+## Syslog receiver on EC2 hub
+
+Also host-level, not tracked in Git (same caveat as nginx/certbot above).
+
+- `rsyslog` (native package, not containerized) listens on UDP 514, config at `/etc/rsyslog.d/network-devices.conf`
+- Writes one file per source IP to `/var/log/network-devices/<ip>.log` — Promtail (in the compose stack) bind-mounts that directory read-only and tails it, with one explicit `static_configs` entry per known device mapping IP → friendly device name (see `compose/aws/promtail/promtail-config.yaml`)
+- rsyslog owns port 514 natively; Promtail's container does **not** publish that port (it did originally, using Promtail's own built-in syslog receiver, but that only supports RFC5424 and choked on RouterOS/Cisco's legacy BSD syslog — see Gotchas below)
+- Devices are pointed at `10.0.3.1:514` (the hub's WireGuard IP) via each device's own remote-syslog config — RouterOS `/system logging`, Cisco `logging host`, Synology DSM's Log Center
+
 ## RouterOS config apply
 
 Script: `routeros/apply-config.py`. Requires `pip install paramiko boto3`.
@@ -118,3 +127,9 @@ The script replaces `PLACEHOLDER` in the .rsc file with the real password from S
 - **SG300 SSH auth happens *inside* the shell, not at the SSH protocol layer.** `transport.auth_none(username)` succeeds and `is_authenticated()` reports `True` with no password at all — the device instead prints a `User Name:` / `Password:` prompt once you open a shell channel, exactly like a Telnet session. Send credentials as if typing them, not via paramiko's `auth_password`/`auth_interactive` (both get rejected with `BadAuthenticationType`).
 
 - **SG300 web UI "Add" dialogs are unreliable via clicks (real or synthetic).** Its buttons are `<table class="btn_normal">` elements with an `onclick` attribute, not real `<button>`/`<input>` elements, inside a nested frameset. Neither `computer` tool clicks nor DOM `.click()` reliably opened the dialogs. If the web UI must be used, call the handler function directly — find it via `element.getAttribute('onclick')` (grep for the function name, e.g. `addRecord`) then invoke `frame.functionName()` in the correct child frame. In practice it was easier to enable SSH under Security → TCP/UDP Services (a normal checkbox, works fine via clicks) and do everything else via CLI.
+
+- **RouterOS `/system logging add topics=a,b,c` is AND, not OR.** A single rule listing multiple topics only fires for a log entry carrying *all* of them simultaneously — which never happens, since a message only ever has one severity topic at a time. Nothing gets forwarded and there's no error; it just silently never matches. Fix: one rule per topic, all pointing at the same action, exactly like RouterOS's own built-in default rules do (`topics=info action=X`, `topics=warning action=X`, etc. as separate lines).
+
+- **Promtail's built-in syslog scrape target only supports RFC5424, not legacy BSD syslog (RFC3164).** RouterOS and Cisco SG300 both send RFC3164 by default. Symptom: `promtail_syslog_target_parsing_errors_total` increments with `"expecting a version value in the range 1-999"` — the packets *are* arriving (check this counter, not just `promtail_sent_entries_total`, before concluding otherwise), they're just failing to parse. Fix: don't use Promtail's syslog target at all — run `rsyslog` (handles both formats) as the actual UDP 514 receiver, have it write one file per source IP, and let Promtail just tail those files. See "Syslog receiver on EC2 hub" above.
+
+- **A RouterOS 7.19.6 RB5009's own `/system logging` remote-syslog action can silently fail to transmit at all** — confirmed via `tcpdump` on the receiving end *and* RouterOS's own `/tool sniffer` on the sending router, both showing zero packets, even though the firewall's `output` chain counts them as sent. This looks like a genuine RouterOS bug/quirk specific to remote syslog over a WireGuard-only route, unresolved as of 2026-07-04. Doesn't affect Cisco SG300 traffic *forwarded through* the same router (that works fine) — only the router's own self-generated syslog.
