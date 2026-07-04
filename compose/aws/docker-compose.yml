@@ -16,6 +16,13 @@ services:
     ports:
       - "9100:9100"
 
+  snmp-exporter:
+    image: prom/snmp-exporter:v0.26.0
+    container_name: snmp-exporter
+    restart: unless-stopped
+    ports:
+      - "9116:9116"
+
   prometheus:
     image: prom/prometheus:v3.1.0
     container_name: prometheus

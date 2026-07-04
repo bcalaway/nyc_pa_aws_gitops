@@ -13,8 +13,26 @@ scrape_configs:
         labels:
           instance: aws-hub
 
+  # MikroTik RB5009s via snmp_exporter, over the WireGuard tunnel.
+  # Reaches routers through the hub, so no exporter needs to run at the sites.
+  - job_name: snmp
+    static_configs:
+      - targets: ["10.0.2.1"]
+        labels:
+          device: rambles-rb5009
+    metrics_path: /snmp
+    params:
+      module: [if_mib]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: snmp-exporter:9116
+
 # Future scrape jobs, added as exporters come online (Milestone 8 stands up the NUCs):
 #   - node_exporter    — NYC/Rambles NUCs and NAS
-#   - snmp_exporter    — MikroTik routers and switches, both sites
+#   - snmp_exporter    — NYC RB5009 and both sites' switches, once reachable/configured
 #   - blackbox_exporter — WAN health probes, all 4 connections independently
 #   - speedtest_exporter — periodic throughput per WAN interface
