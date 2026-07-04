@@ -39,6 +39,12 @@ Always `git push` immediately after every `git commit` without asking.
 | `/home-platform/uptime-kuma/admin-password` | Uptime Kuma admin login |
 | `/home-platform/switch/nyc-sw-desk-username` | sw-desk (Cisco SG300-10, 10.0.1.11) admin username — not "admin", a personal account |
 | `/home-platform/switch/nyc-sw-desk-password` | sw-desk admin password |
+| `/home-platform/switch/nyc-sw-main-username` | sw-main (Cisco SG300-10, 10.0.1.10) admin username |
+| `/home-platform/switch/nyc-sw-main-password` | sw-main admin password |
+| `/home-platform/switch/nyc-sw10g-username` | sw-10g (MikroTik, 10.0.1.12) admin username |
+| `/home-platform/switch/nyc-sw10g-password` | sw-10g admin password |
+| `/home-platform/nas/nyc-nas2-username` | nas2 (Synology, 10.0.1.7) admin username |
+| `/home-platform/nas/nyc-nas2-password` | nas2 admin password |
 
 ## New machine checklist
 
