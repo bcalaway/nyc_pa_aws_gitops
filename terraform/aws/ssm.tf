@@ -87,3 +87,23 @@ resource "aws_ssm_parameter" "router_rambles_admin_password" {
 
   tags = { Name = "router-rambles-admin-password" }
 }
+
+resource "aws_ssm_parameter" "switch_nyc_sw_desk_username" {
+  name  = "/home-platform/switch/nyc-sw-desk-username"
+  type  = "String"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "switch-nyc-sw-desk-username" }
+}
+
+resource "aws_ssm_parameter" "switch_nyc_sw_desk_password" {
+  name  = "/home-platform/switch/nyc-sw-desk-password"
+  type  = "SecureString"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "switch-nyc-sw-desk-password" }
+}
