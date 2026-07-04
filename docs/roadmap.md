@@ -52,7 +52,7 @@ Tasks:
 - [x] 🤖 Docker Compose stack for EC2: Prometheus, Grafana, Loki, Uptime Kuma
 - [ ] 🤖 `node_exporter` on NYC NUC and NAS *(pending NUC provisioning — Milestone 8)*
 - [ ] 🤖 `node_exporter` on Rambles NUC *(pending NUC provisioning — Milestone 8)*
-- [ ] 🤖 `snmp_exporter` for MikroTik switches and routers (both sites) *(both RB5009 routers + NYC's sw-10g/CRS309 done; NYC's two Cisco SG300-10 switches (sw-main, sw-desk) and Rambles' CRS310 still pending — see docs/network-inventory.md)*
+- [ ] 🤖 `snmp_exporter` for MikroTik switches and routers (both sites) *(both RB5009 routers, sw-10g/CRS309, and sw-desk (Cisco SG300-10) done; sw-main (Cisco SG300-10) and Rambles' CRS310 still pending — see docs/network-inventory.md)*
 - [ ] 🤖 `blackbox_exporter` on both NUCs — all 4 WAN connections probed independently
 - [ ] 🤖 `speedtest_exporter` on both NUCs — periodic throughput tests per WAN interface
 - [ ] 🤖 Prometheus scrape configs for all exporters *(self-scrape only so far; jobs added as exporters come online)*
