@@ -23,6 +23,9 @@ scrape_configs:
       - targets: ["10.0.2.1"]
         labels:
           device: rambles-rb5009
+      - targets: ["10.0.1.12"]
+        labels:
+          device: sw-10g
     metrics_path: /snmp
     params:
       module: [if_mib]
