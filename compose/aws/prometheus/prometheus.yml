@@ -32,6 +32,9 @@ scrape_configs:
       - targets: ["10.0.1.10"]
         labels:
           device: sw-main
+      - targets: ["10.0.1.7"]
+        labels:
+          device: nas2
     metrics_path: /snmp
     params:
       module: [if_mib]
