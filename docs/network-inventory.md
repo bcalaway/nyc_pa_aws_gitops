@@ -1,0 +1,32 @@
+# Network Inventory
+
+Running list of NYC and Rambles hosts worth preserving a stable IP for — feeds
+both RouterOS DHCP reservations (`routeros/*/initial-config.rsc`) and the
+internal Route53 records planned for Milestone 4 (`docs/adr/0006-route53-for-dns.md`).
+
+Add to this as IPs/MACs are learned. Once a host has both, add it as a DHCP
+reservation in the relevant `.rsc` file so it survives a router rebuild.
+
+## NYC (10.0.1.0/24)
+
+| Hostname | IP | MAC | Status |
+|----------|-----|-----|--------|
+| router (RB5009 itself) | 10.0.1.1 | — | n/a — not a DHCP client |
+| printer (HP-M455DN) | 10.0.1.5 | 2C:58:B9:AF:E5:8A | Reserved |
+| nas1 | ? | ? | Unknown — need IP |
+| nas2 | 10.0.1.7 | — | Static IP set on the device itself, outside the DHCP pool (10.0.1.64-254) — no router-side reservation needed |
+| sw-main | ? | ? | Unknown |
+| sw-desk | ? | ? | Unknown |
+| sw-10g | ? | ? | Unknown |
+| p7670 (laptop) | 10.0.1.40 | 98:59:7A:F2:10:B6 | Reserved |
+| furry | 10.0.1.41 | 7C:57:58:D0:17:5E | Reserved |
+| nuc4 (future NYC NUC) | 10.0.1.34 | 38:FC:98:99:7E:5B | Reserved (placeholder — not deployed yet, Milestone 8) |
+
+Other devices seen on NYC's live DHCP lease table but not yet named/tracked
+(Sonos speakers, a camera NVR, smart-home devices at .64/.65/.68/.69/.71/.73/.74)
+— not on Bill's original preserve list, left as ordinary dynamic leases unless
+that changes.
+
+## Rambles (10.0.2.0/24)
+
+No reservations yet — network is brand new (RB5009 deployed 2026-07-04).
