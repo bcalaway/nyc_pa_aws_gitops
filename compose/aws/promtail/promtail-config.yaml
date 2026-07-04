@@ -1,0 +1,56 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+# rsyslog (host-level, not in this compose stack -- see CLAUDE.md) receives
+# UDP 514 from network devices and writes one file per source IP under
+# /var/log/network-devices/. Promtail just tails those files.
+#
+# Promtail's own built-in syslog scrape target was tried first and dropped:
+# it only supports RFC5424 framing, while RouterOS/Cisco send legacy BSD
+# syslog (RFC3164), which failed parsing with "expecting a version value
+# in the range 1-999". rsyslog handles both formats natively.
+#
+# One static_configs entry per known device rather than a glob + relabel:
+# relabel_configs run before a glob expands into individual files, so a
+# regex against the per-file "filename" label never actually sees it at
+# that stage -- explicit per-device __path__ sidesteps that entirely.
+scrape_configs:
+  - job_name: network-devices
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: network-syslog
+          device: nyc-rb5009
+          __path__: /var/log/network-devices/10.0.1.1.log
+      - targets: [localhost]
+        labels:
+          job: network-syslog
+          device: rambles-rb5009
+          __path__: /var/log/network-devices/10.0.2.1.log
+      - targets: [localhost]
+        labels:
+          job: network-syslog
+          device: sw-main
+          __path__: /var/log/network-devices/10.0.1.10.log
+      - targets: [localhost]
+        labels:
+          job: network-syslog
+          device: sw-desk
+          __path__: /var/log/network-devices/10.0.1.11.log
+      - targets: [localhost]
+        labels:
+          job: network-syslog
+          device: sw-10g
+          __path__: /var/log/network-devices/10.0.1.12.log
+      - targets: [localhost]
+        labels:
+          job: network-syslog
+          device: nas2
+          __path__: /var/log/network-devices/10.0.1.7.log
