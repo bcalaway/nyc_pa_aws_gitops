@@ -29,6 +29,9 @@ scrape_configs:
       - targets: ["10.0.1.11"]
         labels:
           device: sw-desk
+      - targets: ["10.0.1.10"]
+        labels:
+          device: sw-main
     metrics_path: /snmp
     params:
       module: [if_mib]

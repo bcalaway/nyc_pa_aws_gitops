@@ -15,7 +15,7 @@ reservation in the relevant `.rsc` file so it survives a router rebuild.
 | printer (HP-M455DN) | 10.0.1.5 | 2C:58:B9:AF:E5:8A | Reserved |
 | nas1 | ? | ? | Unknown — need IP |
 | nas2 (Synology) | 10.0.1.7 | 00:11:32:EA:FE:7D | Static IP on the device itself, outside the DHCP pool (10.0.1.64-254) — no router-side reservation needed. Credentials in SSM (`/home-platform/nas/nyc-nas2-*`), SNMP not yet enabled |
-| sw-main (Cisco SG300-10) | 10.0.1.10 | EC:E1:A9:C5:86:0D | Static IP on the device itself, not DHCP. Credentials in SSM (`/home-platform/switch/nyc-sw-main-*`), SNMP not yet enabled |
+| sw-main (Cisco SG300-10) | 10.0.1.10 | EC:E1:A9:C5:86:0D | Static IP on the device itself, not DHCP. Credentials in SSM (`/home-platform/switch/nyc-sw-main-*`). SNMP enabled (community "public", read-only) and scraped by Prometheus (job=snmp, device=sw-main). SSH also enabled |
 | sw-desk (Cisco SG300-10) | 10.0.1.11 | 50:67:AE:3D:78:F5 | Static IP on the device itself, not DHCP. Credentials in SSM (`/home-platform/switch/nyc-sw-desk-*`). SNMP enabled (community "public", read-only) and scraped by Prometheus (job=snmp, device=sw-desk). SSH service also enabled now (was off by default) — see CLAUDE.md Gotchas for the auth quirks this device has |
 | sw-10g (MikroTik CRS309-1G-8S+) | 10.0.1.12 | 08:55:31:89:55:F4 | Static IP on the device itself, not DHCP. Credentials in SSM (`/home-platform/switch/nyc-sw10g-*`). SNMP enabled and scraped by Prometheus (job=snmp, device=sw-10g) |
 | p7670 (laptop) | 10.0.1.40 | 98:59:7A:F2:10:B6 | Reserved |
