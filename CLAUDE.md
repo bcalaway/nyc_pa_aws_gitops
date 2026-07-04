@@ -90,5 +90,17 @@ The script replaces `PLACEHOLDER` in the .rsc file with the real password from S
 - NYC RB5009: LAN 10.0.1.1/24, WireGuard 10.0.3.2
 - Rambles RB5009: LAN 10.0.2.1/24, WireGuard 10.0.3.3
 - EC2 WireGuard hub: 10.0.3.1 (interface ens5, not eth0)
-- Laptop: WireGuard 10.0.3.4
+- Laptop: no peer currently exists (10.0.3.4 was removed 2026-07-04) — see "EC2 access" above
 - Nighthawk RS700: AP mode at 10.0.1.2 (connect via LAN port, not WAN)
+- ZenWiFi AX6600 (Rambles): converted to AP mode 2026-07-04, hangs off the RB5009 same as the RS700 pattern
+- Both routers' `forward` chains trust each other's LAN subnet (not just the WireGuard subnet) — real cross-site LAN traffic works, not just router-to-router. See "Gotchas" below for why this wasn't originally obvious.
+
+## Gotchas (learned the hard way)
+
+- **AWS CLI from Git Bash mangles SSM parameter paths.** MSYS auto-converts leading-`/` arguments into Windows paths, so `aws ssm get-parameter --name /home-platform/...` silently fails with `ParameterNotFound` or a path-validation error from Git Bash. Use PowerShell for any AWS CLI call involving a path-style name (SSM, IAM paths, etc).
+
+- **Granting a new IAM permission and using it in the same Terraform apply can fail.** If a commit both adds a permission (e.g. `cloudfront:*`) to the GitHub Actions role's policy *and* creates a resource requiring it, the apply may run before the policy change has propagated (IAM is eventually consistent, typically a few seconds). Symptom: `AccessDeniedException` right after a successful policy update in the same run. Fix is just to re-run — or apply locally once with admin creds, which is unaffected since it's a different principal.
+
+- **Compose config changes need an explicit container restart.** Editing `prometheus.yml`, `loki-config.yaml`, etc. and re-deploying (`scripts/deploy-aws-stack.ps1`) updates the file on disk, but the running container doesn't reload it automatically — `docker compose restart <service>` is required. Grafana's dashboard *provisioning* is the one exception (polls its directory every 30s per `dashboards.yml`), but Grafana datasource/plugin config still needs a restart same as everything else.
+
+- **A freshly added Route53 record can take up to 24h to resolve on some networks.** Route53's SOA negative-cache TTL is 86400s by default. If a hosted zone existed *before* a record was added (ours did — the zone predates `billandjessie.com`'s apex A record by weeks), any resolver that queried it in the gap may have cached "no record" and will keep serving that until the negative-cache TTL expires, even though the record is now live and correct everywhere else. Verify with `--resolve` (bypasses DNS) or a fresh resolver (e.g. cellular data instead of home WiFi) before assuming something's actually broken.

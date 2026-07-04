@@ -185,3 +185,68 @@ WiFi clients see no change — same SSID/password, same subnet, same gateway IP.
 FiOS assigns addresses in **192.168.1.0/24** on ether1 (observed: 192.168.1.154/24,
 gateway 192.168.1.1). Useful to know if you need to reach the ONT or diagnose
 WAN-side issues.
+
+---
+
+## Router-to-router pings don't prove real LAN-to-LAN connectivity
+
+"Verify site-to-site connectivity" is ambiguous and easy to get wrong. A ping
+from one router to the other's WireGuard IP (or to the peer's own LAN gateway
+IP) only exercises:
+
+- traffic **sourced from the WireGuard interface itself** (10.0.3.x) — matches
+  the `wg-fwd` / `wireguard` firewall rules
+- traffic **destined for the router's own IP** — the `input` chain's
+  unconditional `action=accept protocol=icmp` rule lets this through
+  regardless of source subnet
+
+Neither proves an actual device behind one router (a NUC, a printer, a laptop)
+can reach a device behind the other. That needs the `forward` chain to trust
+the *other site's LAN subnet specifically* — which isn't implied by trusting
+the WireGuard subnet, since traffic between real LAN devices isn't
+source-NATed and arrives at the far router still tagged with the origin
+site's LAN subnet, not 10.0.3.x. Test with a real device's IP (not the
+router's own), from a real device on the other site's LAN (not the router
+itself), before calling site-to-site connectivity done. Same catch applies to
+`/ip service` address restrictions (SSH, WinBox, etc.) — those are also
+scoped to specific subnets and won't recognize the other site's LAN either.
+
+---
+
+## Inserting a firewall rule before a catch-all drop
+
+`/ip firewall filter add` with no position appends to the *end* of the chain.
+If the chain ends in `action=drop` (as ours do), a plain `add` lands after
+the drop and never runs. Use `place-before`:
+
+```
+/ip firewall filter add chain=forward action=accept src-address=10.0.2.0/24 \
+    comment=rambles-lan-fwd place-before=[find comment=drop-forward]
+```
+
+---
+
+## Rotating a WireGuard key without locking yourself out
+
+In a hub-and-spoke layout (each site peers only with the hub, not each
+other), rotating a site's key touches two places: the site's own private key,
+and the hub's peer entry for that site's *public* key. Get the order wrong
+and you lose remote access to the site entirely, because the only path to it
+is the tunnel you're about to break:
+
+1. **Update the site's own private key first**, while the tunnel is still up
+   with the old key — you'll lose the connection the instant it takes effect
+   (this is a locally-terminated, not gracefully renegotiated, change), but
+   you were going to anyway.
+2. **Immediately follow with the hub-side peer public-key update** so the two
+   sides converge again within seconds rather than staying mismatched.
+
+Doing it in the other order (hub first) cuts the hub's recognition of the
+site's *old* key before the site presents its *new* one — there's no window
+where either key works, and if the tunnel is your only path to the site,
+you're locked out until you find another way in. (Ask how we know.)
+
+If your own access path to a site is *itself* blocked by a restriction you're
+trying to fix (e.g. its SSH service doesn't trust your current source
+subnet), route through the EC2 hub as a jump host instead — its WireGuard
+source IP (10.0.3.1) is already trusted by every site's SSH allow-list.
