@@ -12,6 +12,9 @@ scrape_configs:
       - targets: ["node-exporter:9100"]
         labels:
           instance: aws-hub
+      - targets: ["10.0.1.7:9100"]
+        labels:
+          instance: nas2
 
   # MikroTik RB5009s via snmp_exporter, over the WireGuard tunnel.
   # Reaches routers through the hub, so no exporter needs to run at the sites.
