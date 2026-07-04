@@ -76,9 +76,13 @@
 /ip firewall filter add chain=input  action=accept src-address=10.0.1.0/24             comment=lan
 /ip firewall filter add chain=input  action=accept src-address=10.0.3.0/24              comment=wireguard
 /ip firewall filter add chain=input  action=drop                                        comment=drop-input
+# forward chain trusts Rambles' LAN too (10.0.2.0/24) -- without it, only
+# router-to-router traffic (sourced from the WireGuard subnet) crosses sites;
+# real LAN devices can't reach each other. See ADR-0001.
 /ip firewall filter add chain=forward action=accept connection-state=established,related comment=established
 /ip firewall filter add chain=forward action=accept src-address=10.0.1.0/24            comment=lan-fwd
 /ip firewall filter add chain=forward action=accept src-address=10.0.3.0/24            comment=wg-fwd
+/ip firewall filter add chain=forward action=accept src-address=10.0.2.0/24            comment=rambles-lan-fwd
 /ip firewall filter add chain=forward action=drop                                       comment=drop-forward
 
 # ---------------------------------------------------------------------------
