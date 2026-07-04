@@ -2,9 +2,13 @@
 # WireGuard IP: 10.0.3.3
 # Covers site subnet: 10.0.2.0/24
 # Hub: 3.82.89.106:51820 (AWS EC2 Elastic IP)
+#
+# Private key stored in SSM: /home-platform/wireguard/rambles-private-key
+# Substitute WG_PRIVATE_KEY_PLACEHOLDER manually before applying -- this is
+# separate from apply-config.py's PLACEHOLDER (admin password) substitution.
 
 /interface wireguard
-add name=wg-aws listen-port=51820 private-key="2D8Z2EbiNUchN4/xX/ZtGbPQByj8SlmIZ0n49XPmf04="
+add name=wg-aws listen-port=51820 private-key="WG_PRIVATE_KEY_PLACEHOLDER"
 
 /ip address
 add address=10.0.3.3/24 interface=wg-aws

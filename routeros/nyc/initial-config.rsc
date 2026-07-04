@@ -127,11 +127,14 @@
 
 # ---------------------------------------------------------------------------
 # 12. WireGuard — tunnel to AWS hub (10.0.3.1)
+#     Private key stored in SSM: /home-platform/wireguard/nyc-private-key
+#     Substitute WG_PRIVATE_KEY_PLACEHOLDER manually before applying -- this
+#     is separate from apply-config.py's PLACEHOLDER (admin password) sub.
 # ---------------------------------------------------------------------------
 /interface wireguard peers remove [find interface=wg-aws]
 /ip address remove [find interface=wg-aws]
 /interface wireguard remove [find name=wg-aws]
-/interface wireguard add name=wg-aws listen-port=51820 private-key="2KwOB22Jgzc6fKijCka95KTL5YsjWjuKYADlV4Mwd3c="
+/interface wireguard add name=wg-aws listen-port=51820 private-key="WG_PRIVATE_KEY_PLACEHOLDER"
 /ip address add address=10.0.3.2/24 interface=wg-aws
 /interface wireguard peers add interface=wg-aws public-key="22pH7f4JclotgwuM0sy5W85gLzym5ocobJOVlWzHy3U=" endpoint-address=3.82.89.106 endpoint-port=51820 allowed-address=10.0.3.0/24,10.0.2.0/24 persistent-keepalive=25
 /ip route add dst-address=10.0.3.0/24 gateway=wg-aws
