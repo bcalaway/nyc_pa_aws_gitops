@@ -53,7 +53,7 @@ If gh isn't authed yet, see the "gh CLI setup" section above.
 
 - IP: `3.82.89.106`, user: `ec2-user`
 - SSH key in SSM at `/home-platform/ec2/ssh-private-key` → save to `~/.ssh/home-platform.pem`
-- SSH is only open from WireGuard subnets — laptop WireGuard must be active, or temporarily open port 22 for your IP (see `docs/new-machine-setup.md`)
+- SSH is only open from WireGuard subnets. **There is currently no laptop WireGuard peer** (removed 2026-07-04 as redundant once Rambles' RB5009 was deployed — see Milestone 2 in `docs/roadmap.md`). If working from a device already on the NYC or Rambles LAN, that site's RB5009 routes to the hub automatically, no client needed. If working remotely (not on either site's LAN), either provision a fresh laptop peer or temporarily open port 22 for your IP (see `docs/new-machine-setup.md`).
 - **When connecting over the WireGuard tunnel, SSH to `10.0.3.1`, not the public IP `3.82.89.106`.** The laptop tunnel's `AllowedIPs` only covers `10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24` — traffic to the public IP goes out the normal internet path instead of the tunnel and gets blocked by the security group.
 
 ```powershell
