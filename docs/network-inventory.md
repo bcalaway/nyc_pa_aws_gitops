@@ -38,6 +38,6 @@ No reservations yet — network is brand new (RB5009 deployed 2026-07-04).
 | sw-desk | Working |
 | sw-main | Working |
 | sw-10g | Working |
-| nas2 | Not yet configured |
-| NYC RB5009 | **Broken** — RouterOS 7.19.6 bug, syslog packets never leave the router despite the firewall counting them as sent. Confirmed via tcpdump on the hub and RouterOS's own `/tool sniffer` on the router itself. sw-10g (older RouterOS 6.49.15) does NOT have this problem, so it's specific to this RouterOS version/RB5009, not RouterOS generally |
-| Rambles RB5009 | Not yet configured — same RouterOS 7.19.6 as NYC, likely to hit the same bug |
+| nas2 | Working (DSM Log Center, BSD/RFC3164, UDP) |
+| NYC RB5009 | **Broken** — RouterOS 7.19.6 bug, syslog packets never leave the router despite the firewall counting them as sent. Confirmed via tcpdump on the hub and RouterOS's own `/tool sniffer` on the router itself |
+| Rambles RB5009 | **Broken** — confirmed same bug, same RouterOS 7.19.6. sw-10g (older RouterOS 6.49.15) does NOT have this problem, so it's specific to this RouterOS version/RB5009 model, not RouterOS generally. Needs MikroTik-specific research (forum/support) to actually fix -- not something to keep guessing at |

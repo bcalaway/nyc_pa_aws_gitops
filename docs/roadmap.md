@@ -57,6 +57,7 @@ Tasks:
 - [ ] 🤖 `speedtest_exporter` on both NUCs — periodic throughput tests per WAN interface
 - [ ] 🤖 Prometheus scrape configs for all exporters *(self-scrape only so far; jobs added as exporters come online)*
 - [ ] 🤖 Grafana dashboards: NYC, Rambles, AWS, WAN status *(Router Traffic dashboard done — WAN throughput + interface status for both sites; AWS Hub dashboard done; WAN up/down status still pending blackbox_exporter)*
+- [x] 🤖 Log collection: rsyslog + Promtail on the AWS hub, receiving from network devices *(not originally scoped, added once Loki had nothing feeding it — sw-desk, sw-main, sw-10g, nas2 all working; both RB5009 routers blocked on a RouterOS 7.19.6 bug where self-generated syslog never leaves the router, see docs/network-inventory.md)*
 - [ ] 🤖 Uptime Kuma monitors: all services and WAN connections
 - [x] 🤖 Grafana anonymous access enabled
 - [x] 🤖 Alert: email via Gmail SMTP (credentials stored in SSM) *(wired up; needs a real Gmail App Password — SSM value is still a placeholder)*

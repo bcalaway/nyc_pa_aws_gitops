@@ -160,7 +160,27 @@
 /snmp community set [find default=yes] name=public addresses=10.0.3.0/24
 
 # ---------------------------------------------------------------------------
-# 15. Flush connection tracking — at the very end so no in-flight sessions
+# 15. Remote syslog -- forwards to rsyslog on the AWS hub (Milestone 3).
+#     One rule per topic, NOT one rule listing all four: RouterOS's topics=
+#     list is AND semantics, not OR -- a single rule needs every listed
+#     topic present simultaneously, which never happens (a message only
+#     ever carries one severity topic). See CLAUDE.md Gotchas.
+#
+#     KNOWN BROKEN as of 2026-07-04 on RouterOS 7.19.6: packets never
+#     leave this router at all, confirmed via tcpdump on the receiving
+#     end AND RouterOS's own /tool sniffer here -- yet the firewall's
+#     output chain counts them as sent. Left configured since it's
+#     harmless and may start working after a RouterOS upgrade. Needs
+#     MikroTik-specific research to actually fix.
+# ---------------------------------------------------------------------------
+/system logging action add name=remotehub target=remote remote=10.0.3.1 remote-port=514
+/system logging add topics=info action=remotehub
+/system logging add topics=warning action=remotehub
+/system logging add topics=error action=remotehub
+/system logging add topics=critical action=remotehub
+
+# ---------------------------------------------------------------------------
+# 16. Flush connection tracking — at the very end so no in-flight sessions
 #     are disrupted. Clears stale entries from the SSH session that dropped
 #     when we changed the LAN IP in section 6.
 # ---------------------------------------------------------------------------
