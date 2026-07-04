@@ -37,6 +37,8 @@ Always `git push` immediately after every `git commit` without asking.
 | `/home-platform/grafana/admin-password` | Grafana admin login |
 | `/home-platform/grafana/smtp-password` | Grafana Gmail SMTP password (placeholder until real App Password set) |
 | `/home-platform/uptime-kuma/admin-password` | Uptime Kuma admin login |
+| `/home-platform/switch/nyc-sw-desk-username` | sw-desk (Cisco SG300-10, 10.0.1.11) admin username — not "admin", a personal account |
+| `/home-platform/switch/nyc-sw-desk-password` | sw-desk admin password |
 
 ## New machine checklist
 
