@@ -144,7 +144,18 @@
 /system ntp client servers add address=time.cloudflare.com
 
 # ---------------------------------------------------------------------------
-# 14. Flush connection tracking — at the very end so no in-flight sessions
+# 14. SNMP — read-only, for snmp_exporter on the AWS hub (Milestone 3).
+#     Community is "public" (matches snmp_exporter's if_mib module default,
+#     avoiding a hand-patched 34k-line generated MIB config for one string).
+#     Real security boundary is the firewall: section 5's default-deny INPUT
+#     policy already drops all WAN-sourced traffic, SNMP included. The
+#     addresses= restriction below is defense in depth on top of that.
+# ---------------------------------------------------------------------------
+/snmp set enabled=yes contact="" location=nyc trap-version=2
+/snmp community set [find default=yes] name=public addresses=10.0.3.0/24
+
+# ---------------------------------------------------------------------------
+# 15. Flush connection tracking — at the very end so no in-flight sessions
 #     are disrupted. Clears any stale entries from the SSH session that
 #     dropped when we changed the LAN IP in section 6.
 # ---------------------------------------------------------------------------

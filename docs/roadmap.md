@@ -51,11 +51,11 @@ Tasks:
 - [x] 🤖 Docker Compose stack for EC2: Prometheus, Grafana, Loki, Uptime Kuma
 - [ ] 🤖 `node_exporter` on NYC NUC and NAS *(pending NUC provisioning — Milestone 8)*
 - [ ] 🤖 `node_exporter` on Rambles NUC *(pending NUC provisioning — Milestone 8)*
-- [ ] 🤖 `snmp_exporter` for MikroTik switches and routers (both sites) *(Rambles RB5009 done; NYC RB5009 + both switches still pending)*
+- [ ] 🤖 `snmp_exporter` for MikroTik switches and routers (both sites) *(both RB5009 routers done; both switches still pending)*
 - [ ] 🤖 `blackbox_exporter` on both NUCs — all 4 WAN connections probed independently
 - [ ] 🤖 `speedtest_exporter` on both NUCs — periodic throughput tests per WAN interface
 - [ ] 🤖 Prometheus scrape configs for all exporters *(self-scrape only so far; jobs added as exporters come online)*
-- [ ] 🤖 Grafana dashboards: NYC, Rambles, AWS, WAN status
+- [ ] 🤖 Grafana dashboards: NYC, Rambles, AWS, WAN status *(Router Traffic dashboard done — WAN throughput + interface status for both sites; AWS Hub dashboard done; WAN up/down status still pending blackbox_exporter)*
 - [ ] 🤖 Uptime Kuma monitors: all services and WAN connections
 - [x] 🤖 Grafana anonymous access enabled
 - [x] 🤖 Alert: email via Gmail SMTP (credentials stored in SSM) *(wired up; needs a real Gmail App Password — SSM value is still a placeholder)*

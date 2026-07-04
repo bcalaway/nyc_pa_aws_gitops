@@ -17,6 +17,9 @@ scrape_configs:
   # Reaches routers through the hub, so no exporter needs to run at the sites.
   - job_name: snmp
     static_configs:
+      - targets: ["10.0.1.1"]
+        labels:
+          device: nyc-rb5009
       - targets: ["10.0.2.1"]
         labels:
           device: rambles-rb5009

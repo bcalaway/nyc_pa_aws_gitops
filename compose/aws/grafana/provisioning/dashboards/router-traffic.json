@@ -1,0 +1,79 @@
+{
+  "title": "Router Traffic",
+  "uid": "router-traffic",
+  "tags": ["home-platform"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "WAN Traffic — NYC (ether1)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "rate(ifHCInOctets{device=\"nyc-rb5009\",ifName=\"ether1\"}[5m]) * 8", "legendFormat": "RX", "refId": "A" },
+        { "expr": "rate(ifHCOutOctets{device=\"nyc-rb5009\",ifName=\"ether1\"}[5m]) * 8", "legendFormat": "TX", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bps" }, "overrides": [] }
+    },
+    {
+      "id": 2,
+      "title": "WAN Traffic — Rambles (ether1)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "rate(ifHCInOctets{device=\"rambles-rb5009\",ifName=\"ether1\"}[5m]) * 8", "legendFormat": "RX", "refId": "A" },
+        { "expr": "rate(ifHCOutOctets{device=\"rambles-rb5009\",ifName=\"ether1\"}[5m]) * 8", "legendFormat": "TX", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bps" }, "overrides": [] }
+    },
+    {
+      "id": 3,
+      "title": "All Interfaces — Inbound",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "rate(ifHCInOctets[5m]) * 8", "legendFormat": "{{device}} {{ifName}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bps" }, "overrides": [] }
+    },
+    {
+      "id": 4,
+      "title": "All Interfaces — Outbound",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "rate(ifHCOutOctets[5m]) * 8", "legendFormat": "{{device}} {{ifName}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bps" }, "overrides": [] }
+    },
+    {
+      "id": 5,
+      "title": "Interface Status",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "ifOperStatus", "format": "table", "instant": true, "refId": "A" }
+      ],
+      "transformations": [
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true }, "indexByName": {}, "renameByName": {} } }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "1": { "text": "Up", "color": "green" }, "2": { "text": "Down", "color": "red" } } }
+          ]
+        },
+        "overrides": []
+      }
+    }
+  ]
+}
