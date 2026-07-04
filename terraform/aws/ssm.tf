@@ -107,3 +107,63 @@ resource "aws_ssm_parameter" "switch_nyc_sw_desk_password" {
 
   tags = { Name = "switch-nyc-sw-desk-password" }
 }
+
+resource "aws_ssm_parameter" "switch_nyc_sw_main_username" {
+  name  = "/home-platform/switch/nyc-sw-main-username"
+  type  = "String"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "switch-nyc-sw-main-username" }
+}
+
+resource "aws_ssm_parameter" "switch_nyc_sw_main_password" {
+  name  = "/home-platform/switch/nyc-sw-main-password"
+  type  = "SecureString"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "switch-nyc-sw-main-password" }
+}
+
+resource "aws_ssm_parameter" "switch_nyc_sw10g_username" {
+  name  = "/home-platform/switch/nyc-sw10g-username"
+  type  = "String"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "switch-nyc-sw10g-username" }
+}
+
+resource "aws_ssm_parameter" "switch_nyc_sw10g_password" {
+  name  = "/home-platform/switch/nyc-sw10g-password"
+  type  = "SecureString"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "switch-nyc-sw10g-password" }
+}
+
+resource "aws_ssm_parameter" "nas_nyc_nas2_username" {
+  name  = "/home-platform/nas/nyc-nas2-username"
+  type  = "String"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "nas-nyc-nas2-username" }
+}
+
+resource "aws_ssm_parameter" "nas_nyc_nas2_password" {
+  name  = "/home-platform/nas/nyc-nas2-password"
+  type  = "SecureString"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "nas-nyc-nas2-password" }
+}
