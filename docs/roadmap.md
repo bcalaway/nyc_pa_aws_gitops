@@ -38,9 +38,9 @@ Tasks:
 - [x] 🤖 WireGuard server config (hub, 3 peers: NYC, Rambles, laptop)
 - [x] Keys generated, stored in SSM Parameter Store
 - [x] NYC RB5009 deployed, WireGuard client configured
-- [x] Rambles RB5009 deployed, WireGuard client configured *(config applied; needs to be plugged in at Rambles)*
+- [x] Rambles RB5009 deployed, WireGuard client configured
 - [x] Laptop WireGuard client configured
-- [ ] Verify: NYC → Rambles connectivity *(pending Rambles hardware)*
+- [x] Verify: NYC → Rambles connectivity
 - [x] Verify: Both sites → EC2 connectivity
 - [x] RouterOS configs committed to `routeros/`
 
