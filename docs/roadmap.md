@@ -42,7 +42,7 @@ Tasks:
 - [x] Laptop WireGuard client configured *(peer removed 2026-07-04 after Rambles RB5009 deployment made it redundant; key was exposed in Git and revoked rather than rotated)*
 - [x] Verify: NYC → Rambles connectivity
 - [x] Verify: Both sites → EC2 connectivity
-- [ ] 🧑 Re-provision a laptop WireGuard peer with a fresh keypair when back in NYC with the actual laptop (only needed for remote access when not on either site's LAN)
+- [x] 🧑 Re-provision a laptop WireGuard peer with a fresh keypair when back in NYC with the actual laptop (only needed for remote access when not on either site's LAN)
 - [x] RouterOS configs committed to `routeros/`
 
 ### Milestone 3 — Observability Stack

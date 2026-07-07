@@ -34,6 +34,8 @@ Always `git push` immediately after every `git commit` without asking.
 | `/home-platform/router/nyc-admin-password` | NYC RB5009 admin password |
 | `/home-platform/router/rambles-admin-password` | Rambles RB5009 admin password (set when hardware arrives) |
 | `/home-platform/wireguard/server-private-key` | EC2 WireGuard hub private key |
+| `/home-platform/wireguard/laptop-private-key` | Laptop WireGuard client private key |
+| `/home-platform/wireguard/laptop-public-key` | Laptop WireGuard client public key |
 | `/home-platform/grafana/admin-password` | Grafana admin login |
 | `/home-platform/grafana/smtp-password` | Grafana Gmail SMTP password (placeholder until real App Password set) |
 | `/home-platform/uptime-kuma/admin-password` | Uptime Kuma admin login |
@@ -61,7 +63,7 @@ If gh isn't authed yet, see the "gh CLI setup" section above.
 
 - IP: `3.82.89.106`, user: `ec2-user`
 - SSH key in SSM at `/home-platform/ec2/ssh-private-key` → save to `~/.ssh/home-platform.pem`
-- SSH is only open from WireGuard subnets. **There is currently no laptop WireGuard peer** (removed 2026-07-04 as redundant once Rambles' RB5009 was deployed — see Milestone 2 in `docs/roadmap.md`). If working from a device already on the NYC or Rambles LAN, that site's RB5009 routes to the hub automatically, no client needed. If working remotely (not on either site's LAN), either provision a fresh laptop peer or temporarily open port 22 for your IP (see `docs/new-machine-setup.md`).
+- SSH is only open from WireGuard subnets. The laptop WireGuard peer was re-provisioned 2026-07-07 with a fresh keypair (private key in SSM at `/home-platform/wireguard/laptop-private-key` and imported into the local WireGuard app as tunnel `laptop-wireguard`; never committed to Git). If working from a device already on the NYC or Rambles LAN, that site's RB5009 also routes to the hub automatically, no client needed — but make sure the local `laptop-wireguard` tunnel is deactivated first if so, since an active tunnel takes priority for the `10.0.3.0/24` route and will break connectivity if its key is ever revoked again.
 - **When connecting over the WireGuard tunnel, SSH to `10.0.3.1`, not the public IP `3.82.89.106`.** The laptop tunnel's `AllowedIPs` only covers `10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24` — traffic to the public IP goes out the normal internet path instead of the tunnel and gets blocked by the security group.
 
 ```powershell
@@ -107,7 +109,7 @@ The script replaces `PLACEHOLDER` in the .rsc file with the real password from S
 - NYC RB5009: LAN 10.0.1.1/24, WireGuard 10.0.3.2
 - Rambles RB5009: LAN 10.0.2.1/24, WireGuard 10.0.3.3
 - EC2 WireGuard hub: 10.0.3.1 (interface ens5, not eth0)
-- Laptop: no peer currently exists (10.0.3.4 was removed 2026-07-04) — see "EC2 access" above
+- Laptop: WireGuard 10.0.3.4 (re-provisioned 2026-07-07 — see "EC2 access" above)
 - Nighthawk RS700: AP mode at 10.0.1.2 (connect via LAN port, not WAN)
 - ZenWiFi AX6600 (Rambles): converted to AP mode 2026-07-04, hangs off the RB5009 same as the RS700 pattern
 - Both routers' `forward` chains trust each other's LAN subnet (not just the WireGuard subnet) — real cross-site LAN traffic works, not just router-to-router. See "Gotchas" below for why this wasn't originally obvious.
