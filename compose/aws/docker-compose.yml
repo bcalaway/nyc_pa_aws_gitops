@@ -37,6 +37,13 @@ services:
     ports:
       - "9090:9090"
 
+  cost-exporter:
+    build: ./cost-exporter
+    container_name: cost-exporter
+    restart: unless-stopped
+    ports:
+      - "9199:9199"
+
   loki:
     image: grafana/loki:3.3.2
     container_name: loki

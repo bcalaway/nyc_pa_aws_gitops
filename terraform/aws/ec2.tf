@@ -28,6 +28,14 @@ resource "aws_instance" "hub" {
     encrypted             = true
   }
 
+  # Default hop limit of 1 blocks containers (one extra network hop via the
+  # Docker bridge) from reaching IMDS to pick up the instance profile's
+  # credentials -- needed by cost-exporter's boto3 client.
+  metadata_options {
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+
   user_data = <<-EOF
     #!/bin/bash
     dnf update -y

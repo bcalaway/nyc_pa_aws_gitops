@@ -61,6 +61,8 @@ Tasks:
 - [ ] 🤖 Uptime Kuma monitors: all services and WAN connections
 - [x] 🤖 Grafana anonymous access enabled
 - [x] 🤖 Alert: email via Gmail SMTP (credentials stored in SSM) *(wired up; needs a real Gmail App Password — SSM value is still a placeholder)*
+- [ ] 🧑 Enable Cost Explorer in the Billing console (one-time toggle; can take up to 24h to populate history) — required before `cost-exporter` below will return data
+- [x] 🤖 `cost-exporter`: polls Cost Explorer daily, feeds Prometheus/Grafana for AWS cost tracking (running + historical)
 
 ### Milestone 4 — DNS and TLS
 **Goal:** All services accessible by name with valid HTTPS certs.
