@@ -125,6 +125,7 @@ Tasks:
 
 Tasks:
 - [ ] 🧑 First-time RB5009 setup: set IP + enable SSH via Winbox web UI (Claude provides exact values)
+- [ ] 🤖 Rename routers to match switch naming convention: `rt-nyc` / `rt-rambles` (currently `nyc-rb5009` / `rambles-rb5009`) — RouterOS `/system identity`, SNMP device labels in `prometheus.yml`, Grafana dashboards, Uptime Kuma monitors, `docs/network-inventory.md`. Doesn't depend on the rest of this milestone, can be done anytime.
 - [ ] 🤖 RouterOS export scripts for both sites committed to Git
 - [ ] 🤖 Ansible playbook for applying RouterOS config via SSH
 - [ ] 🤖 DHCP reservations defined in Git
