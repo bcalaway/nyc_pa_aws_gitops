@@ -26,10 +26,18 @@ The platform requires secrets management for WireGuard keys, TLS certificates, G
 - Natively supported by Terraform (`aws_ssm_parameter`) and Ansible (`amazon.aws.aws_ssm`)
 - IAM controls access — integrates with GitHub Actions OIDC
 - Simple, already in the AWS account
+- Standard parameters are free (up to 10,000 per account)
+
+**Option D: AWS Secrets Manager**
+- Same AWS-native integration story as SSM (Terraform, Ansible, IAM/OIDC)
+- Native automatic rotation via Lambda, and cross-region replication — neither of which applies here: none of these secrets (WireGuard keys, router/switch/NAS passwords, admin logins) support AWS's automatic rotation, and there's no multi-region requirement
+- $0.40/secret/month — at 22+ parameters, that's real ongoing cost (~$9/month) for capabilities this project can't use, versus $0 for the equivalent in SSM
 
 ## Decision
 
 AWS SSM Parameter Store for all secrets. SecureString type for sensitive values.
+
+Chosen over Secrets Manager specifically for cost: Secrets Manager's per-secret pricing only pays off when using its native rotation or replication features, and this project doesn't use either.
 
 No secrets in Git. Ever.
 
