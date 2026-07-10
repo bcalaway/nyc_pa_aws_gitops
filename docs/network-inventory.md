@@ -29,7 +29,10 @@ that changes.
 
 ## Rambles (10.0.2.0/24)
 
-No reservations yet — network is brand new (RB5009 deployed 2026-07-04).
+| Hostname | IP | MAC | Status |
+|----------|-----|-----|--------|
+| router (RB5009 itself) | 10.0.2.1 | — | n/a — not a DHCP client |
+| jetkvm-nuc5 | 10.0.2.226 | 30:52:53:07:DB:22 | Reserved. Remote KVM for nuc5 (the Rambles NUC, MINISFORUM MS-01) — this is the KVM device's own IP, **not** nuc5's own network interface. nuc5 itself has no IP/MAC yet (Rocky Linux 10 not installed — Milestone 8) |
 
 ## Log collection (syslog -> rsyslog -> Loki, see CLAUDE.md)
 
