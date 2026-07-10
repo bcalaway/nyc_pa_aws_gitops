@@ -112,7 +112,7 @@ Tasks:
 
 Tasks:
 - [ ] 🧑 Install Rocky Linux 10 on NYC NUC (ISO on USB)
-- [ ] 🧑 Install Rocky Linux 10 on Rambles NUC *(NUC has arrived — see docs/adr/0004-rocky-linux-10-on-nucs.md, revised from 9 to 10 on 2026-07-10 before either NUC was installed)*
+- [x] 🧑 Install Rocky Linux 10 on Rambles NUC *(done 2026-07-10 — nuc5, 10.0.2.10, see docs/network-inventory.md)*
 - [ ] 🧑 Run bootstrap script on each NUC (Claude provides one-liner)
 - [ ] 🤖 Ansible role: base system (packages, neovim, firewalld, SELinux)
 - [ ] 🤖 Ansible role: Docker + Docker Compose

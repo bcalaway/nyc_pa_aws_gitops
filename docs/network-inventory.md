@@ -32,7 +32,8 @@ that changes.
 | Hostname | IP | MAC | Status |
 |----------|-----|-----|--------|
 | router (RB5009 itself) | 10.0.2.1 | — | n/a — not a DHCP client |
-| kvm-nuc5 | 10.0.2.226 | 30:52:53:07:DB:22 | Reserved. Remote KVM for nuc5 (the Rambles NUC, MINISFORUM MS-01) — this is the KVM device's own IP, **not** nuc5's own network interface. nuc5 itself has no IP/MAC yet (Rocky Linux 10 not installed — Milestone 8) |
+| kvm-nuc5 | 10.0.2.226 | 30:52:53:07:DB:22 | Reserved. Remote KVM for nuc5 (the Rambles NUC, MINISFORUM MS-01) — this is the KVM device's own IP, **not** nuc5's own network interface |
+| nuc5 | 10.0.2.10 | ? | Static IP set during install (outside the DHCP pool, not a router-side reservation). Rocky Linux 10.2 installed 2026-07-10. SSH/sudo access confirmed (user `bcalaway`, credentials in SSM at `/home-platform/nuc/rambles-nuc5-*`). Nothing else provisioned yet — Docker, exporters, etc. still pending (Milestone 8) |
 
 ## Log collection (syslog -> rsyslog -> Loki, see CLAUDE.md)
 
