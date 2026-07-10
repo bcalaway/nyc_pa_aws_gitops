@@ -130,6 +130,7 @@ Tasks:
 - [ ] 🤖 WireGuard config defined in Git
 - [ ] 🤖 Dual-WAN config defined in Git
 - [ ] 🤖 GitHub Actions: RouterOS changes applied on merge (manual trigger)
+- [ ] 🧑🤖 Rename NYC and Rambles RB5009s to something in line with the switch naming convention (sw-main, sw-desk, sw-10g) instead of the generic nyc-rb5009/rambles-rb5009 -- Bill and Claude to land on names together. Touches `/system identity` on both routers plus every reference in `docs/network-inventory.md`, `CLAUDE.md`, Prometheus/Promtail configs, and Grafana dashboards once decided
 
 ### Milestone 10 — NAS Backup
 **Goal:** NUC Docker volumes backed up to NAS on schedule.
