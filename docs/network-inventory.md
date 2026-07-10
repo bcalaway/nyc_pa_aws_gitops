@@ -33,6 +33,14 @@ router and sw-main. Not resolved as of 2026-07-10 (Bill: not sure / doesn't
 matter for now). The camera NVR is the one exception confirmed on a
 *different* router port (ether6) entirely, bypassing the switch chain.
 
+**Link speeds** (verified live 2026-07-11 via `/interface ethernet monitor`
+on the router/sw-10g and `show interfaces status` on the SG300s — not
+assumed from the "sw-10g" name): every link in the chain is 1Gbps —
+router↔sw-main, sw-main↔sw-10g (Po2 LAG), sw-10g↔sw-desk (Po1 LAG),
+sw-desk↔printer, router↔NVR — **except sw-10g↔nas2**, which negotiates a
+real 10Gbps over an installed SFP-10G-SR module. That's the only 10G
+device actually attached to sw-10g right now.
+
 | Hostname | IP | MAC | Status |
 |----------|-----|-----|--------|
 | router (RB5009 itself) | 10.0.1.1 | — | n/a — not a DHCP client |
