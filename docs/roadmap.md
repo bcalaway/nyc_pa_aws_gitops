@@ -86,6 +86,7 @@ Tasks:
 - [x] 🤖 Portal HTML created under `portal/`
 - [x] 🤖 GitHub Actions: deploy portal on changes to `portal/`
 - [x] 🤖 Links to Grafana and Uptime Kuma working
+- [x] 🤖 Network diagram page (`portal/network.html`, linked from the landing page) — NYC/Rambles/AWS hub topology, hand-maintained SVG, update when topology changes
 
 ### Milestone 6 — Rambles WAN Failover *(priority)*
 **Goal:** Automatic failover between Cable and Starlink at Rambles.
