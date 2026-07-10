@@ -120,7 +120,7 @@
 # 10. DHCP reservations — add Rambles devices here
 # ---------------------------------------------------------------------------
 /ip dhcp-server lease remove [find]
-/ip dhcp-server lease add mac-address=30:52:53:07:DB:22 address=10.0.2.226 comment=jetkvm-nuc5
+/ip dhcp-server lease add mac-address=30:52:53:07:DB:22 address=10.0.2.226 comment=kvm-nuc5
 
 # ---------------------------------------------------------------------------
 # 11. DNS
