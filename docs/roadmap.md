@@ -9,7 +9,7 @@ Tasks are tagged: 🧑 = Bill does this physically / approves | 🤖 = Claude do
 
 ## Priority
 
-Rambles WAN failover (Cable → Starlink) is the near-term priority. Everything else can be built in milestone order.
+Rambles WAN failover (Blue Ridge Cable → Starlink) is the near-term priority. Everything else can be built in milestone order.
 
 ## Milestones
 
@@ -89,13 +89,13 @@ Tasks:
 - [x] 🤖 Network diagram page (`portal/network.html`, linked from the landing page) — NYC/Rambles/AWS hub topology, hand-maintained SVG, update when topology changes
 
 ### Milestone 6 — Rambles WAN Failover *(priority)*
-**Goal:** Automatic failover between Cable and Starlink at Rambles.
+**Goal:** Automatic failover between Blue Ridge Cable and Starlink at Rambles.
 
 Tasks:
 - [ ] 🧑 Connect Starlink ethernet adapter to RB5009 WAN2 port
 - [ ] 🧑 Enable Starlink bypass mode in the Starlink app
 - [ ] 🤖 RouterOS dual-WAN policy routing configured (Claude pushes via SSH)
-- [ ] 🧑 Failover tested: unplug Cable → confirm Starlink takes over
+- [ ] 🧑 Failover tested: unplug Blue Ridge Cable → confirm Starlink takes over
 - [ ] 🤖 Both WAN connections monitored independently in Grafana
 - [ ] 🤖 Config committed to `routeros/rambles/`
 

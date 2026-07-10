@@ -25,7 +25,7 @@
 |------|------------|----------|------|------|
 | NYC | FiOS | Verizon | Fiber | Primary WAN |
 | NYC | Building WiFi | Building | WiFi → GL.iNet bridge | Backup WAN |
-| Rambles | Cable | ISP | 2Gb Cable | Primary WAN |
+| Rambles | Cable | Blue Ridge | 2Gb Cable | Primary WAN |
 | Rambles | Starlink | SpaceX | Satellite | Backup WAN (bypass mode) |
 
 ## Planned / Future

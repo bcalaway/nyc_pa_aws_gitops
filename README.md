@@ -190,7 +190,7 @@ Storage
 
 Internet
 
-* 2Gb Cable (primary WAN)
+* Blue Ridge, 2Gb Cable (primary WAN)
 
 Backup Internet
 
@@ -249,7 +249,7 @@ Internet traffic remains local.
 
 NYC → Internet uses FiOS, not NYC → AWS → Internet.
 
-Rambles → Internet uses Cable or Starlink.
+Rambles → Internet uses Blue Ridge Cable or Starlink.
 
 AWS carries:
 
@@ -264,7 +264,7 @@ AWS carries:
 
 ## Rambles
 
-Primary: 2Gb Cable
+Primary: Blue Ridge, 2Gb Cable
 
 Secondary: Starlink (ethernet adapter, bypass mode)
 
@@ -384,7 +384,7 @@ All 4 internet connections are monitored continuously and independently, regardl
 |---------|-----------------|-----------|
 | NYC     | Verizon FiOS    | WAN1      |
 | NYC     | Building WiFi   | WAN2      |
-| Rambles | Cable           | WAN1      |
+| Rambles | Blue Ridge Cable | WAN1     |
 | Rambles | Starlink        | WAN2      |
 
 `blackbox_exporter` uses policy routing to force probes out each WAN interface independently. This gives continuous uptime, latency, and packet loss metrics for every connection regardless of failover state.
@@ -428,7 +428,7 @@ NYC:
 * Plex
 
 Rambles:
-* Cable / Starlink WAN status
+* Blue Ridge Cable / Starlink WAN status
 * Router (RB5009)
 * Switch (CRS310)
 * ASUS WiFi
@@ -607,7 +607,7 @@ Same philosophy applies to Linux NUCs and AWS EC2.
 4. **DNS migration** — billandjessie.com moved to Route53, records in Terraform
 5. **TLS** — Let's Encrypt certs for Grafana, Uptime Kuma, and other public services
 6. **Portal** — `billandjessie.com` landing page on S3 + CloudFront
-7. **Rambles WAN failover** — RB5009 dual-WAN with Cable primary, Starlink secondary *(priority)*
+7. **Rambles WAN failover** — RB5009 dual-WAN with Blue Ridge Cable primary, Starlink secondary *(priority)*
 8. **NYC WAN failover** — RB5009 dual-WAN with FiOS primary, GL.iNet/building WiFi secondary
 9. **NUC provisioning** — Rocky Linux 10, Ansible playbooks, Docker Compose stacks
 10. **Router GitOps** — RouterOS config in Git, applied via Ansible

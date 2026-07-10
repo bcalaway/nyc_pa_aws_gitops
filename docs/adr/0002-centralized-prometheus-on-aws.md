@@ -44,7 +44,7 @@ All 4 WAN connections are monitored independently regardless of failover state:
 |---------|---------------|
 | NYC     | Verizon FiOS  |
 | NYC     | Building WiFi |
-| Rambles | Cable         |
+| Rambles | Blue Ridge Cable |
 | Rambles | Starlink      |
 
 `blackbox_exporter` uses policy routing to force probes out each interface independently.

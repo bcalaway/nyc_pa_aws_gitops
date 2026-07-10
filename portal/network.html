@@ -75,12 +75,12 @@
       <rect x="400" y="16" width="200" height="46" rx="10" fill="#1a1d24" stroke="#2a2e37"/>
       <text x="500" y="44" text-anchor="middle" fill="#e6e6e6" font-size="15" font-weight="600">Internet</text>
 
-      <!-- WAN lines -->
-      <line x1="440" y1="62" x2="240" y2="330" stroke="#5b6068" stroke-width="1.5"/>
-      <text x="300" y="180" fill="#9aa0a6" font-size="12">FiOS (WAN1)</text>
+      <!-- WAN lines — routed around the AWS Hub box (elbow paths), not through it -->
+      <path d="M 400,40 L 170,40 L 170,330" fill="none" stroke="#5b6068" stroke-width="1.5"/>
+      <text x="178" y="205" fill="#9aa0a6" font-size="12">FiOS (WAN1)</text>
 
-      <line x1="560" y1="62" x2="760" y2="330" stroke="#5b6068" stroke-width="1.5"/>
-      <text x="660" y="180" fill="#9aa0a6" font-size="12">Cable (WAN1)</text>
+      <path d="M 600,40 L 830,40 L 830,330" fill="none" stroke="#5b6068" stroke-width="1.5"/>
+      <text x="705" y="205" fill="#9aa0a6" font-size="12">Blue Ridge (WAN1)</text>
 
       <line x1="500" y1="62" x2="500" y2="112" stroke="#5b6068" stroke-width="1.5"/>
       <text x="512" y="90" fill="#9aa0a6" font-size="12">public IP</text>
