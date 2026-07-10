@@ -187,3 +187,23 @@ resource "aws_ssm_parameter" "nuc_rambles_nuc5_password" {
 
   tags = { Name = "nuc-rambles-nuc5-password" }
 }
+
+resource "aws_ssm_parameter" "ansible_nuc_private_key" {
+  name  = "/home-platform/ansible/nuc-private-key"
+  type  = "SecureString"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "ansible-nuc-private-key" }
+}
+
+resource "aws_ssm_parameter" "ansible_nuc_public_key" {
+  name  = "/home-platform/ansible/nuc-public-key"
+  type  = "String"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "ansible-nuc-public-key" }
+}
