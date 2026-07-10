@@ -35,6 +35,7 @@ that changes.
 |----------|-----|-----|--------|
 | router (RB5009 itself) | 10.0.2.1 | — | n/a — not a DHCP client |
 | kvm-nuc5 | 10.0.2.226 | 30:52:53:07:DB:22 | Reserved. Remote KVM for nuc5 (the Rambles NUC, MINISFORUM MS-01) — this is the KVM device's own IP, **not** nuc5's own network interface |
+| switch (MikroTik CRS310-8G+2S+IN) | ? | ? | Unknown — no management IP found via DHCP leases, ARP, or MikroTik neighbor discovery from the router (2026-07-10). Passing traffic fine (nuc5/kvm-nuc5 reachable through it) but not remotely manageable/SNMP-monitorable until its IP is set or discovered. Needs physical/console access, same as sw-desk/sw-main's initial setup at NYC — see Gotchas in CLAUDE.md |
 | nuc5 | 10.0.2.10 | ? | Static IP set during install (outside the DHCP pool, not a router-side reservation). Rocky Linux 10.2 installed 2026-07-10. SSH/sudo access via key (`/home-platform/ansible/nuc-private-key`, passwordless sudo) — password auth (`/home-platform/nuc/rambles-nuc5-*`) still valid too. Fully provisioned via Ansible (Milestone 8): Docker + Compose, `node_exporter`/`blackbox_exporter`/`speedtest_exporter` running (`compose/nuc/`), scraped by Prometheus on the AWS hub over WireGuard |
 
 ## Log collection (syslog -> rsyslog -> Loki, see CLAUDE.md)
