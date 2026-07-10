@@ -1,0 +1,44 @@
+services:
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    restart: unless-stopped
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    ports:
+      - "9100:9100"
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.28.0
+    container_name: blackbox-exporter
+    restart: unless-stopped
+    cap_add:
+      - NET_RAW
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    ports:
+      - "9115:9115"
+
+  speedtest-exporter:
+    image: ghcr.io/miguelndecarvalho/speedtest-exporter:v3.5.4
+    container_name: speedtest-exporter
+    restart: unless-stopped
+    environment:
+      SPEEDTEST_CACHE_FOR: "1800"
+    ports:
+      - "9798:9798"
+    # Image's built-in healthcheck wgets "localhost", which resolves to the
+    # IPv6 loopback first inside the container and always fails to connect
+    # even though the app only listens on IPv4 -- cosmetic-only mismatch,
+    # confirmed the exporter itself works fine. Disabled to stop docker ps
+    # from reporting a false "unhealthy".
+    healthcheck:
+      disable: true

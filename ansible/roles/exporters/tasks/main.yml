@@ -1,0 +1,54 @@
+---
+- name: Create compose directory
+  ansible.builtin.file:
+    path: /opt/compose/nuc
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Create blackbox config subdirectory
+  ansible.builtin.file:
+    path: /opt/compose/nuc/blackbox
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Copy docker-compose.yml
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../compose/nuc/docker-compose.yml"
+    dest: /opt/compose/nuc/docker-compose.yml
+    mode: "0644"
+  notify: Restart exporter stack
+
+- name: Copy blackbox exporter config
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../compose/nuc/blackbox/blackbox.yml"
+    dest: /opt/compose/nuc/blackbox/blackbox.yml
+    mode: "0644"
+  notify: Restart exporter stack
+
+- name: Open firewalld ports for exporter scraping from the WireGuard subnet
+  ansible.builtin.command:
+    argv:
+      - firewall-cmd
+      - --permanent
+      - "--add-rich-rule=rule family=ipv4 source address=10.0.3.0/24 port port={{ item }} protocol=tcp accept"
+  loop:
+    - "9100"
+    - "9115"
+    - "9798"
+  register: fw_add
+  changed_when: "'ALREADY_ENABLED' not in (fw_add.stderr | default(''))"
+  notify: Reload firewalld
+
+- name: Flush handlers so firewall rules are live before compose starts
+  ansible.builtin.meta: flush_handlers
+
+- name: Start exporter stack
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: /opt/compose/nuc
+  register: compose_up
+  changed_when: "'Started' in compose_up.stdout or 'Created' in compose_up.stdout"

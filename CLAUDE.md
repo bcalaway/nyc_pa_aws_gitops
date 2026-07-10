@@ -47,6 +47,22 @@ Always `git push` immediately after every `git commit` without asking.
 | `/home-platform/switch/nyc-sw10g-password` | sw-10g admin password |
 | `/home-platform/nas/nyc-nas2-username` | nas2 (Synology, 10.0.1.7) admin username |
 | `/home-platform/nas/nyc-nas2-password` | nas2 admin password |
+| `/home-platform/nuc/rambles-nuc5-username` | nuc5 (Rambles NUC, 10.0.2.10) SSH username (`bcalaway`) — password auth, still valid as a fallback |
+| `/home-platform/nuc/rambles-nuc5-password` | nuc5 SSH/sudo password |
+| `/home-platform/ansible/nuc-private-key` | SSH private key Ansible uses to manage NUCs (key-based, passwordless sudo configured for `bcalaway`) |
+| `/home-platform/ansible/nuc-public-key` | Matching public key — already installed in nuc5's `authorized_keys`; add to any new NUC the same way |
+
+## Ansible NUC provisioning
+
+`ansible/` provisions the NUCs (base system, Docker, exporter stack from `compose/nuc/`). Ansible's control node doesn't support Windows, and this workstation has neither WSL nor Docker, so playbooks don't run locally — they run **from the EC2 hub**, which already has WireGuard routes to both site LANs.
+
+```powershell
+scripts/deploy-nucs.ps1
+```
+
+This fetches the Ansible NUC private key from SSM, installs `ansible-core` on EC2 if missing, copies `ansible/` and `compose/nuc/` there, and runs `ansible-playbook site.yml` over SSH. Currently only `nuc5` (Rambles) is in `ansible/inventory/hosts.yml` — add `nuc4` once NYC's NUC has Rocky Linux installed.
+
+To add a new NUC to Ansible management: install the public key from SSM (`/home-platform/ansible/nuc-public-key`) into its `authorized_keys`, and configure passwordless sudo for its admin user (see the `bcalaway-ansible` sudoers drop-in on nuc5 for the pattern).
 
 ## New machine checklist
 

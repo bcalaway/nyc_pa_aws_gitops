@@ -50,12 +50,13 @@ Tasks:
 
 Tasks:
 - [x] 🤖 Docker Compose stack for EC2: Prometheus, Grafana, Loki, Uptime Kuma
-- [ ] 🤖 `node_exporter` on NYC NUC and NAS *(pending NUC provisioning — Milestone 8)*
-- [ ] 🤖 `node_exporter` on Rambles NUC *(pending NUC provisioning — Milestone 8)*
+- [x] 🤖 `node_exporter` on NAS *(nas2, 10.0.1.7)*
+- [x] 🤖 `node_exporter` on Rambles NUC *(nuc5, 10.0.2.10 — see Milestone 8)*
+- [ ] 🤖 `node_exporter` on NYC NUC *(pending NUC provisioning — Milestone 8)*
 - [ ] 🤖 `snmp_exporter` for MikroTik switches and routers (both sites) *(all of NYC done: both RB5009 routers, sw-10g/CRS309, sw-main + sw-desk (Cisco SG300-10); only Rambles' CRS310 switch still pending — see docs/network-inventory.md)*
-- [ ] 🤖 `blackbox_exporter` on both NUCs — all 4 WAN connections probed independently
-- [ ] 🤖 `speedtest_exporter` on both NUCs — periodic throughput tests per WAN interface
-- [ ] 🤖 Prometheus scrape configs for all exporters *(self-scrape only so far; jobs added as exporters come online)*
+- [x] 🤖 `blackbox_exporter` on Rambles NUC *(icmp probes to 1.1.1.1/8.8.8.8 — single WAN only until Milestone 6 dual-WAN lands, then splits per-interface. NYC NUC pending Milestone 8)*
+- [x] 🤖 `speedtest_exporter` on Rambles NUC *(NYC NUC pending Milestone 8)*
+- [x] 🤖 Prometheus scrape configs for all exporters *(node/blackbox/speedtest for nuc5 added; nuc4/NYC jobs to follow once that NUC is installed)*
 - [ ] 🤖 Grafana dashboards: NYC, Rambles, AWS, WAN status *(Router Traffic dashboard done — WAN throughput + interface status for both sites; AWS Hub dashboard done; WAN up/down status still pending blackbox_exporter)*
 - [x] 🤖 Log collection: rsyslog + Promtail on the AWS hub, receiving from network devices *(not originally scoped, added once Loki had nothing feeding it — sw-desk, sw-main, sw-10g, nas2 all working; both RB5009 routers blocked on a RouterOS 7.19.6 bug where self-generated syslog never leaves the router, see docs/network-inventory.md)*
 - [x] 🤖 Uptime Kuma monitors: all services *(15 monitors: internal + public service health, both WireGuard tunnels, all NYC/Rambles network devices — WAN connections still pending Milestones 6/7)*
@@ -113,12 +114,13 @@ Tasks:
 Tasks:
 - [ ] 🧑 Install Rocky Linux 10 on NYC NUC (ISO on USB)
 - [x] 🧑 Install Rocky Linux 10 on Rambles NUC *(done 2026-07-10 — nuc5, 10.0.2.10, see docs/network-inventory.md)*
-- [ ] 🧑 Run bootstrap script on each NUC (Claude provides one-liner)
-- [ ] 🤖 Ansible role: base system (packages, neovim, firewalld, SELinux)
-- [ ] 🤖 Ansible role: Docker + Docker Compose
-- [ ] 🤖 Ansible role: deploy Docker Compose stacks from Git
-- [ ] 🤖 Ansible role: exporters (node, blackbox, speedtest)
-- [ ] 🤖 Playbook tested: fresh install → operational in one run
+- [x] 🤖 Ansible-managed SSH key access to nuc5 *(dedicated keypair, private key in SSM at `/home-platform/ansible/nuc-private-key`, passwordless sudo for `bcalaway` — see CLAUDE.md)*
+- [x] 🤖 Ansible role: base system (packages, neovim via EPEL, firewalld, SELinux) *(`ansible/roles/base/`)*
+- [x] 🤖 Ansible role: Docker + Docker Compose *(`ansible/roles/docker/` — Docker's `rhel/10` repo already exists)*
+- [x] 🤖 Ansible role: deploy Docker Compose stacks from Git *(`ansible/roles/exporters/` deploys `compose/nuc/`)*
+- [x] 🤖 Ansible role: exporters (node, blackbox, speedtest) *(same role as above — `compose/nuc/docker-compose.yml`)*
+- [x] 🤖 Playbook tested: fresh install → operational in one run *(nuc5 only — confirmed idempotent on repeat runs. Control node is the EC2 hub, not a local workstation: Ansible doesn't support Windows control nodes and this box has neither WSL nor Docker, so `scripts/deploy-nucs.ps1` pushes `ansible/` + `compose/nuc/` to EC2 and triggers the run there over SSH, reusing EC2's existing WireGuard routes to both site LANs)*
+- [ ] 🤖 Re-run against nuc4 (NYC) once that NUC is installed — just add it to `ansible/inventory/hosts.yml`
 
 ### Milestone 9 — Router GitOps
 **Goal:** Full RouterOS configuration in Git, applied via Ansible.

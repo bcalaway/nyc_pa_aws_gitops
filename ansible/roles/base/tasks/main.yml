@@ -1,0 +1,39 @@
+---
+- name: Update all packages
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    update_cache: true
+
+- name: Install EPEL repo (neovim lives there, not in BaseOS/AppStream)
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: Install baseline packages
+  ansible.builtin.dnf:
+    name:
+      - neovim
+      - firewalld
+      - tar
+      - curl
+      - git
+      - dnf-plugins-core
+    state: present
+
+- name: Ensure firewalld is running and enabled
+  ansible.builtin.systemd:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Check SELinux status
+  ansible.builtin.command: getenforce
+  register: se_status
+  changed_when: false
+
+- name: Fail if SELinux is not enforcing
+  ansible.builtin.assert:
+    that: "'Enforcing' in se_status.stdout"
+    fail_msg: "SELinux is not enforcing on {{ inventory_hostname }} (found: {{ se_status.stdout }})"
+    success_msg: "SELinux enforcing on {{ inventory_hostname }}"

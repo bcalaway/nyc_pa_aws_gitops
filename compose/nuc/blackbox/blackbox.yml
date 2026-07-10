@@ -1,0 +1,9 @@
+# Single icmp module for now — enough to probe "is this site's internet up"
+# via the active WAN. Per-WAN-interface probing (Milestones 6/7, dual-WAN
+# policy routing) needs source-address-bound probes and will extend this.
+modules:
+  icmp:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: "ip4"

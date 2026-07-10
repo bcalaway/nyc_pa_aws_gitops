@@ -1,0 +1,7 @@
+---
+- name: Provision NUCs
+  hosts: nucs
+  roles:
+    - base
+    - docker
+    - exporters
