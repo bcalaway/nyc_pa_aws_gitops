@@ -176,7 +176,7 @@ Server
   * NVIDIA RTX 2060
   * 64GB RAM
   * 2TB SSD
-  * OS: Rocky Linux 9
+  * OS: Rocky Linux 10
 
 Storage
 
@@ -214,7 +214,7 @@ Server
   * Intel Core i9-13900H
   * 32GB RAM
   * 1TB SSD
-  * OS: Rocky Linux 9
+  * OS: Rocky Linux 10
 
 ---
 
@@ -321,7 +321,7 @@ DHCP and DNS served by the router (Tier 1 — survives NUC failure).
 
 NUCs are application nodes, not infrastructure.
 
-Provisioned with Ansible from a fresh Rocky Linux 9 install.
+Provisioned with Ansible from a fresh Rocky Linux 10 install.
 
 Workloads run as Docker Compose stacks defined in Git.
 
@@ -609,7 +609,7 @@ Same philosophy applies to Linux NUCs and AWS EC2.
 6. **Portal** — `billandjessie.com` landing page on S3 + CloudFront
 7. **Rambles WAN failover** — RB5009 dual-WAN with Cable primary, Starlink secondary *(priority)*
 8. **NYC WAN failover** — RB5009 dual-WAN with FiOS primary, GL.iNet/building WiFi secondary
-9. **NUC provisioning** — Rocky Linux 9, Ansible playbooks, Docker Compose stacks
+9. **NUC provisioning** — Rocky Linux 10, Ansible playbooks, Docker Compose stacks
 10. **Router GitOps** — RouterOS config in Git, applied via Ansible
 11. **NAS backup** — restic from NUCs to NAS on schedule
 12. **Sensors** — temperature and environmental monitoring (future, hardware TBD)

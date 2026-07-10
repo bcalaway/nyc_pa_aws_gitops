@@ -108,11 +108,11 @@ Tasks:
 - [ ] 🤖 Config committed to `routeros/nyc/`
 
 ### Milestone 8 — NUC Provisioning
-**Goal:** Fresh Rocky Linux 9 install to fully operational NUC in one Ansible playbook run.
+**Goal:** Fresh Rocky Linux 10 install to fully operational NUC in one Ansible playbook run.
 
 Tasks:
-- [ ] 🧑 Install Rocky Linux 9 on NYC NUC (ISO on USB)
-- [ ] 🧑 Install Rocky Linux 9 on Rambles NUC when it arrives
+- [ ] 🧑 Install Rocky Linux 10 on NYC NUC (ISO on USB)
+- [ ] 🧑 Install Rocky Linux 10 on Rambles NUC *(NUC has arrived — see docs/adr/0004-rocky-linux-10-on-nucs.md, revised from 9 to 10 on 2026-07-10 before either NUC was installed)*
 - [ ] 🧑 Run bootstrap script on each NUC (Claude provides one-liner)
 - [ ] 🤖 Ansible role: base system (packages, neovim, firewalld, SELinux)
 - [ ] 🤖 Ansible role: Docker + Docker Compose
