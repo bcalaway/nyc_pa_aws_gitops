@@ -167,3 +167,23 @@ resource "aws_ssm_parameter" "nas_nyc_nas2_password" {
 
   tags = { Name = "nas-nyc-nas2-password" }
 }
+
+resource "aws_ssm_parameter" "nuc_rambles_nuc5_username" {
+  name  = "/home-platform/nuc/rambles-nuc5-username"
+  type  = "String"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "nuc-rambles-nuc5-username" }
+}
+
+resource "aws_ssm_parameter" "nuc_rambles_nuc5_password" {
+  name  = "/home-platform/nuc/rambles-nuc5-password"
+  type  = "SecureString"
+  value = "PLACEHOLDER"
+
+  lifecycle { ignore_changes = [value] }
+
+  tags = { Name = "nuc-rambles-nuc5-password" }
+}
