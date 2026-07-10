@@ -20,7 +20,7 @@ scp -i $sshKey -r "$localDir\*" "${ec2Host}:${remoteDir}/"
 scp -i $sshKey "$localDir\.env" "${ec2Host}:${remoteDir}/.env"
 
 Write-Host "Starting stack..."
-ssh -i $sshKey $ec2Host "cd $remoteDir && docker compose pull && docker compose up -d"
+ssh -i $sshKey $ec2Host "cd $remoteDir && docker compose pull && docker compose build && docker compose up -d"
 
 Write-Host "Done. Services on EC2 (reachable via WireGuard):"
 Write-Host "  Grafana:      http://10.0.3.1:3000"

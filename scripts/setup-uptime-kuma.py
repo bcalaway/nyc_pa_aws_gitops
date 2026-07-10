@@ -19,8 +19,22 @@ MONITORS = [
     dict(type=MonitorType.HTTP, name="Grafana", url="http://grafana:3000/api/health", interval=60),
     dict(type=MonitorType.HTTP, name="Prometheus", url="http://prometheus:9090/-/healthy", interval=60),
     dict(type=MonitorType.HTTP, name="Loki", url="http://loki:3100/ready", interval=60),
+    dict(type=MonitorType.HTTP, name="cost-exporter", url="http://cost-exporter:9199/metrics", interval=60),
     dict(type=MonitorType.PING, name="NYC WireGuard tunnel", hostname="10.0.3.2", interval=60),
     dict(type=MonitorType.PING, name="Rambles WireGuard tunnel", hostname="10.0.3.3", interval=60),
+
+    # Public-facing endpoints -- exercise the real path (DNS, TLS, nginx, backend).
+    dict(type=MonitorType.HTTP, name="Grafana (public)", url="https://grafana.billandjessie.com/api/health", interval=60),
+    dict(type=MonitorType.HTTP, name="Status page (public)", url="https://status.billandjessie.com", interval=60),
+    dict(type=MonitorType.HTTP, name="Portal (public)", url="https://billandjessie.com", interval=60),
+
+    # Network devices, pinged from the hub over the WireGuard tunnel.
+    dict(type=MonitorType.PING, name="NYC RB5009", hostname="10.0.1.1", interval=60),
+    dict(type=MonitorType.PING, name="Rambles RB5009", hostname="10.0.2.1", interval=60),
+    dict(type=MonitorType.PING, name="sw-main", hostname="10.0.1.10", interval=60),
+    dict(type=MonitorType.PING, name="sw-desk", hostname="10.0.1.11", interval=60),
+    dict(type=MonitorType.PING, name="sw-10g", hostname="10.0.1.12", interval=60),
+    dict(type=MonitorType.PING, name="nas2", hostname="10.0.1.7", interval=60),
 ]
 
 

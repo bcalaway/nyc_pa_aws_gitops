@@ -46,6 +46,21 @@ resource "aws_iam_role_policy" "hub_route53" {
   policy = data.aws_iam_policy_document.hub_route53.json
 }
 
+data "aws_iam_policy_document" "hub_cost_explorer" {
+  statement {
+    effect = "Allow"
+    # Cost Explorer's API doesn't support resource-level permissions.
+    actions   = ["ce:GetCostAndUsage", "ce:GetCostForecast"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "hub_cost_explorer" {
+  name   = "home-platform-hub-cost-explorer"
+  role   = aws_iam_role.hub.id
+  policy = data.aws_iam_policy_document.hub_cost_explorer.json
+}
+
 resource "aws_iam_instance_profile" "hub" {
   name = "home-platform-hub"
   role = aws_iam_role.hub.name

@@ -22,10 +22,18 @@ resource "aws_instance" "hub" {
   iam_instance_profile   = aws_iam_instance_profile.hub.name
 
   root_block_device {
-    volume_size           = 40
+    volume_size           = 200
     volume_type           = "gp3"
     delete_on_termination = true
     encrypted             = true
+  }
+
+  # Default hop limit of 1 blocks containers (one extra network hop via the
+  # Docker bridge) from reaching IMDS to pick up the instance profile's
+  # credentials -- needed by cost-exporter's boto3 client.
+  metadata_options {
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
   }
 
   user_data = <<-EOF

@@ -32,9 +32,17 @@ services:
       - prometheus-data:/prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.retention.time=30d
+      - --storage.tsdb.retention.time=5y
+      - --storage.tsdb.retention.size=160GB
     ports:
       - "9090:9090"
+
+  cost-exporter:
+    build: ./cost-exporter
+    container_name: cost-exporter
+    restart: unless-stopped
+    ports:
+      - "9199:9199"
 
   loki:
     image: grafana/loki:3.3.2

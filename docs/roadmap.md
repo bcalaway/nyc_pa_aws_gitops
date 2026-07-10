@@ -42,7 +42,7 @@ Tasks:
 - [x] Laptop WireGuard client configured *(peer removed 2026-07-04 after Rambles RB5009 deployment made it redundant; key was exposed in Git and revoked rather than rotated)*
 - [x] Verify: NYC → Rambles connectivity
 - [x] Verify: Both sites → EC2 connectivity
-- [ ] 🧑 Re-provision a laptop WireGuard peer with a fresh keypair when back in NYC with the actual laptop (only needed for remote access when not on either site's LAN)
+- [x] 🧑 Re-provision a laptop WireGuard peer with a fresh keypair when back in NYC with the actual laptop (only needed for remote access when not on either site's LAN)
 - [x] RouterOS configs committed to `routeros/`
 
 ### Milestone 3 — Observability Stack
@@ -58,9 +58,11 @@ Tasks:
 - [ ] 🤖 Prometheus scrape configs for all exporters *(self-scrape only so far; jobs added as exporters come online)*
 - [ ] 🤖 Grafana dashboards: NYC, Rambles, AWS, WAN status *(Router Traffic dashboard done — WAN throughput + interface status for both sites; AWS Hub dashboard done; WAN up/down status still pending blackbox_exporter)*
 - [x] 🤖 Log collection: rsyslog + Promtail on the AWS hub, receiving from network devices *(not originally scoped, added once Loki had nothing feeding it — sw-desk, sw-main, sw-10g, nas2 all working; both RB5009 routers blocked on a RouterOS 7.19.6 bug where self-generated syslog never leaves the router, see docs/network-inventory.md)*
-- [ ] 🤖 Uptime Kuma monitors: all services and WAN connections
+- [x] 🤖 Uptime Kuma monitors: all services *(15 monitors: internal + public service health, both WireGuard tunnels, all NYC/Rambles network devices — WAN connections still pending Milestones 6/7)*
 - [x] 🤖 Grafana anonymous access enabled
 - [x] 🤖 Alert: email via Gmail SMTP (credentials stored in SSM) *(wired up; needs a real Gmail App Password — SSM value is still a placeholder)*
+- [ ] 🧑 Enable Cost Explorer in the Billing console (one-time toggle; can take up to 24h to populate history) — required before `cost-exporter` below will return data
+- [x] 🤖 `cost-exporter`: polls Cost Explorer daily, feeds Prometheus/Grafana for AWS cost tracking (running + historical)
 
 ### Milestone 4 — DNS and TLS
 **Goal:** All services accessible by name with valid HTTPS certs.
@@ -123,6 +125,7 @@ Tasks:
 
 Tasks:
 - [ ] 🧑 First-time RB5009 setup: set IP + enable SSH via Winbox web UI (Claude provides exact values)
+- [ ] 🤖 Rename routers to match switch naming convention: `rt-nyc` / `rt-rambles` (currently `nyc-rb5009` / `rambles-rb5009`) — RouterOS `/system identity`, SNMP device labels in `prometheus.yml`, Grafana dashboards, Uptime Kuma monitors, `docs/network-inventory.md`. Doesn't depend on the rest of this milestone, can be done anytime.
 - [ ] 🤖 RouterOS export scripts for both sites committed to Git
 - [ ] 🤖 Ansible playbook for applying RouterOS config via SSH
 - [ ] 🤖 DHCP reservations defined in Git
