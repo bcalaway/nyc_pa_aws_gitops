@@ -1,8 +1,10 @@
 # Network Inventory
 
 Running list of NYC and Rambles hosts worth preserving a stable IP for — feeds
-both RouterOS DHCP reservations (`routeros/*/initial-config.rsc`) and the
-internal Route53 records planned for Milestone 4 (`docs/adr/0006-route53-for-dns.md`).
+both RouterOS DHCP reservations and the internal DNS static entries
+(`routeros/*/initial-config.rsc`), per [ADR-0009](adr/0009-dhcp-dns-on-router.md).
+Each host is resolvable at `<hostname>.<site>.billandjessie.com` from either
+site (entries are mirrored on both routers).
 
 Add to this as IPs/MACs are learned. Once a host has both, add it as a DHCP
 reservation in the relevant `.rsc` file so it survives a router rebuild.

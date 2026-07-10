@@ -52,3 +52,7 @@ Split-horizon: internal records resolve to private IPs. Public records limited t
 - Let's Encrypt certs issued via DNS-01 challenge against Route53 (no open ports required)
 - Migration requires updating NS records at GoDaddy — one-time manual step
 - Existing hosts file entries (`router`, `nas1`, `nas2`, etc.) preserved at same IPs, converted to DNS records
+
+## Update 2026-07-10 — internal records superseded by ADR-0009
+
+The `<device>.<site>.billandjessie.com` naming convention above is still in use, but the *internal* records (private IPs) are implemented as RouterOS static DNS entries per [ADR-0009](0009-dhcp-dns-on-router.md), not as Route53 records under `terraform/dns/` (that directory was never created). Reasoning: LAN clients get their site's router as their DNS server via DHCP, so the router's own resolver is what actually needs to answer for these names — a Route53 record wouldn't be queried by a normal LAN client at all. Route53 remains authoritative only for the public-facing records (`grafana.`, `status.`, apex/portal).

@@ -125,9 +125,27 @@
 /ip dhcp-server lease add mac-address=2C:58:B9:AF:E5:8A address=10.0.1.5  comment=HP-M455DN
 
 # ---------------------------------------------------------------------------
-# 11. DNS
+# 11. DNS — static entries for known hosts at both sites (ADR-0009: router
+#     DNS resolver is authoritative for internal names, not Route53 — LAN
+#     clients get this router as their DNS server via DHCP, so that's what
+#     actually needs to answer for these names). Mirrored on both routers'
+#     configs so a hostname resolves regardless of which site you're on.
+#     Source data: docs/network-inventory.md.
 # ---------------------------------------------------------------------------
 /ip dns set servers=1.1.1.1,8.8.8.8 allow-remote-requests=yes
+/ip dns static remove [find]
+/ip dns static add name=router.nyc.billandjessie.com address=10.0.1.1
+/ip dns static add name=printer.nyc.billandjessie.com address=10.0.1.5
+/ip dns static add name=nas2.nyc.billandjessie.com address=10.0.1.7
+/ip dns static add name=sw-main.nyc.billandjessie.com address=10.0.1.10
+/ip dns static add name=sw-desk.nyc.billandjessie.com address=10.0.1.11
+/ip dns static add name=sw-10g.nyc.billandjessie.com address=10.0.1.12
+/ip dns static add name=p7670.nyc.billandjessie.com address=10.0.1.40
+/ip dns static add name=furry.nyc.billandjessie.com address=10.0.1.41
+/ip dns static add name=nuc4.nyc.billandjessie.com address=10.0.1.34
+/ip dns static add name=router.rambles.billandjessie.com address=10.0.2.1
+/ip dns static add name=kvm-nuc5.rambles.billandjessie.com address=10.0.2.226
+/ip dns static add name=nuc5.rambles.billandjessie.com address=10.0.2.10
 
 # ---------------------------------------------------------------------------
 # 12. WireGuard — tunnel to AWS hub (10.0.3.1)

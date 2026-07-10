@@ -68,13 +68,13 @@ Tasks:
 **Goal:** All services accessible by name with valid HTTPS certs.
 
 Tasks:
-- [ ] 🧑 Bill provides current hosts file IP reservations so Claude can preserve them
-- [ ] 🤖 Route53 records for all internal hosts *(blocked on the above)*
+- [x] 🧑 Bill provides current hosts file IP reservations so Claude can preserve them *(docs/network-inventory.md)*
+- [x] 🤖 Internal DNS records for all known hosts *(RouterOS static DNS entries per ADR-0009, not Route53 — see ADR-0006 vs ADR-0009 note below. 12 hosts across both sites, mirrored on both routers' `/ip dns static` tables so a name resolves regardless of which site you're on. Source: `docs/network-inventory.md`, committed in `routeros/nyc/initial-config.rsc` and `routeros/rambles/initial-config.rsc`)*
 - [x] 🤖 Route53 records for public services (Grafana, Uptime Kuma, portal)
 - [x] 🤖 Let's Encrypt cert for `grafana.billandjessie.com` (DNS-01 via Route53)
 - [x] 🤖 Let's Encrypt cert for `status.billandjessie.com`
 - [x] 🤖 Certbot renewal via systemd timer
-- [ ] 🤖 Hosts files retired at both sites *(blocked on internal DNS records above)*
+- [x] 🤖 Hosts files retired at both sites *(never existed as actual OS hosts files — this was always about giving devices resolvable names, which the RouterOS static DNS entries above now do)*
 
 ### Milestone 5 — Portal
 **Goal:** `billandjessie.com` live as a status/links portal.
@@ -129,7 +129,7 @@ Tasks:
 - [ ] 🤖 RouterOS export scripts for both sites committed to Git
 - [ ] 🤖 Ansible playbook for applying RouterOS config via SSH
 - [ ] 🤖 DHCP reservations defined in Git
-- [ ] 🤖 Internal DNS records defined in Git
+- [x] 🤖 Internal DNS records defined in Git *(RouterOS `/ip dns static` entries, see Milestone 4)*
 - [ ] 🤖 WireGuard config defined in Git
 - [ ] 🤖 Dual-WAN config defined in Git
 - [ ] 🤖 GitHub Actions: RouterOS changes applied on merge (manual trigger)
