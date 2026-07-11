@@ -13,7 +13,7 @@
         "name": "device",
         "type": "query",
         "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-        "query": "label_values({job=\"network-syslog\"}, device)",
+        "query": "label_values({job=~\"network-syslog|systemd-journal\"}, device)",
         "refresh": 2,
         "multi": true,
         "includeAll": true,
@@ -36,7 +36,7 @@
       "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
       "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
       "targets": [
-        { "expr": "sum(count_over_time({job=\"network-syslog\", device=~\"$device\"} |~ \"(?i)$search\" [$__range]))", "refId": "A" }
+        { "expr": "sum(count_over_time({job=~\"network-syslog|systemd-journal\", device=~\"$device\"} |~ \"(?i)$search\" [$__range]))", "refId": "A" }
       ],
       "fieldConfig": { "defaults": {}, "overrides": [] }
     },
@@ -47,7 +47,7 @@
       "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 },
       "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
       "targets": [
-        { "expr": "sum by (device) (count_over_time({job=\"network-syslog\", device=~\"$device\"} |~ \"(?i)$search\" [$__interval]))", "legendFormat": "{{device}}", "refId": "A" }
+        { "expr": "sum by (device) (count_over_time({job=~\"network-syslog|systemd-journal\", device=~\"$device\"} |~ \"(?i)$search\" [$__interval]))", "legendFormat": "{{device}}", "refId": "A" }
       ],
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
     },
@@ -58,7 +58,7 @@
       "gridPos": { "h": 16, "w": 24, "x": 0, "y": 8 },
       "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
       "targets": [
-        { "expr": "{job=\"network-syslog\", device=~\"$device\"} |~ \"(?i)$search\"", "refId": "A" }
+        { "expr": "{job=~\"network-syslog|systemd-journal\", device=~\"$device\"} |~ \"(?i)$search\"", "refId": "A" }
       ],
       "options": {
         "showTime": true,
