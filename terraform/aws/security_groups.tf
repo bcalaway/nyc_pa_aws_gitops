@@ -39,13 +39,18 @@ resource "aws_security_group" "ec2" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Uptime Kuma (public)
+  # Uptime Kuma — NOT public. Public access is https://status.billandjessie.com
+  # via nginx on 443 (below); this raw port was open to 0.0.0.0/0 with no TLS,
+  # bypassing that path entirely (security review finding, 2026-07-11).
+  # Restricted to the WireGuard subnet for direct debugging, matching how
+  # Prometheus/Loki are scoped -- same as Grafana, whose own port 3000 was
+  # never opened here at all.
   ingress {
-    description = "Uptime Kuma HTTPS"
+    description = "Uptime Kuma (internal only, use status.billandjessie.com for public access)"
     from_port   = 3001
     to_port     = 3001
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["10.0.3.0/24"]
   }
 
   # Prometheus scrape from WireGuard peers
