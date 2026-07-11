@@ -134,7 +134,7 @@
 # ---------------------------------------------------------------------------
 /ip dns set servers=1.1.1.1,8.8.8.8 allow-remote-requests=yes
 /ip dns static remove [find]
-/ip dns static add name=router.nyc.billandjessie.com address=10.0.1.1
+/ip dns static add name=rt-nyc.nyc.billandjessie.com address=10.0.1.1
 /ip dns static add name=printer.nyc.billandjessie.com address=10.0.1.5
 /ip dns static add name=nas2.nyc.billandjessie.com address=10.0.1.7
 /ip dns static add name=sw-main.nyc.billandjessie.com address=10.0.1.10
@@ -143,7 +143,7 @@
 /ip dns static add name=p7670.nyc.billandjessie.com address=10.0.1.40
 /ip dns static add name=furry.nyc.billandjessie.com address=10.0.1.41
 /ip dns static add name=nuc4.nyc.billandjessie.com address=10.0.1.34
-/ip dns static add name=router.rambles.billandjessie.com address=10.0.2.1
+/ip dns static add name=rt-rambles.rambles.billandjessie.com address=10.0.2.1
 /ip dns static add name=kvm-nuc5.rambles.billandjessie.com address=10.0.2.226
 /ip dns static add name=nuc5.rambles.billandjessie.com address=10.0.2.10
 /ip dns static add name=hue-nyc.nyc.billandjessie.com address=10.0.1.71
