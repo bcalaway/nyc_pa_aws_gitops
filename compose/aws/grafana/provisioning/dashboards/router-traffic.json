@@ -39,7 +39,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "rate(ifHCInOctets[5m]) * 8", "legendFormat": "{{device}} {{ifName}}", "refId": "A" }
+        { "expr": "label_replace(rate(ifHCInOctets{device=~\"nyc-rb5009|rambles-rb5009\"}[5m]) * 8, \"device\", \"rt-$1\", \"device\", \"(nyc|rambles)-rb5009\") or rate(ifHCInOctets{device!~\"nyc-rb5009|rambles-rb5009\"}[5m]) * 8", "legendFormat": "{{device}} {{ifName}}", "refId": "A" }
       ],
       "fieldConfig": { "defaults": { "unit": "bps" }, "overrides": [] }
     },
@@ -50,7 +50,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "rate(ifHCOutOctets[5m]) * 8", "legendFormat": "{{device}} {{ifName}}", "refId": "A" }
+        { "expr": "label_replace(rate(ifHCOutOctets{device=~\"nyc-rb5009|rambles-rb5009\"}[5m]) * 8, \"device\", \"rt-$1\", \"device\", \"(nyc|rambles)-rb5009\") or rate(ifHCOutOctets{device!~\"nyc-rb5009|rambles-rb5009\"}[5m]) * 8", "legendFormat": "{{device}} {{ifName}}", "refId": "A" }
       ],
       "fieldConfig": { "defaults": { "unit": "bps" }, "overrides": [] }
     },
