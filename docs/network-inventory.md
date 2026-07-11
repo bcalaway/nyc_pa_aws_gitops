@@ -46,7 +46,7 @@ device actually attached to sw-10g right now.
 | rt-nyc (RB5009 itself) | 10.0.1.1 | — | n/a — not a DHCP client. Renamed from `nyc-rb5009` 2026-07-11 to match the switch naming convention |
 | printer (HP-M455DN) | 10.0.1.5 | 2C:58:B9:AF:E5:8A | Reserved. Directly attached to sw-desk (gi5) |
 | nas1 | ? | ? | Unknown — need IP |
-| nas2 (Synology) | 10.0.1.7 | 00:11:32:EA:FE:7D | Static IP on the device itself, outside the DHCP pool (10.0.1.64-254) — no router-side reservation needed. Directly attached to sw-10g (sfp-sfpplus1). Credentials in SSM (`/home-platform/nas/nyc-nas2-*`). SNMP enabled (community "public", read-only, if_mib only — no CPU/disk) and scraped by Prometheus (job=snmp, device=nas2). Also runs `node_exporter` v1.8.2 directly (no Docker/Container Manager installed) at `/volume1/homes/bcalaway/node_exporter/node_exporter-1.8.2.linux-amd64/node_exporter`, scraped as job=node-exporter/instance=nas2 — real CPU/memory/disk/network data, feeds the "NAS2" Grafana dashboard. DSM Task Scheduler boot-up task "node exporter" configured (owner bcalaway, verified directly in `esynoscheduler.db`) so it survives a reboot |
+| nas2 (Synology) | 10.0.1.7 | 00:11:32:EA:FE:7D | Static IP on the device itself, outside the DHCP pool (10.0.1.64-254) — no router-side reservation needed. Directly attached to sw-10g (sfp-sfpplus1). Credentials in SSM (`/home-platform/nas/nyc-nas2-*`). SNMP enabled (community "public", read-only, if_mib only — no CPU/disk) and scraped by Prometheus (job=snmp, device=nas2). Also runs `node_exporter` v1.8.2 directly (no Docker/Container Manager installed) at `/volume1/homes/bcalaway/node_exporter/node_exporter-1.8.2.linux-amd64/node_exporter`, scraped as job=node-exporter/instance=nas2 — real CPU/memory/disk/network data, feeds the "NAS2" Grafana dashboard. DSM Task Scheduler boot-up task "node exporter" configured (owner bcalaway, verified directly in `esynoscheduler.db`) so it survives a reboot. **Security review 2026-07-11 (finding #6 — nas2 wasn't covered by the earlier router/switch/AWS pass): no config changes made, several findings reported for Bill's decision — see "nas2 security review" notes below the table** |
 | sw-main (Cisco SG300-10) | 10.0.1.10 | EC:E1:A9:C5:86:0D | Static IP on the device itself, not DHCP. First switch in the chain — uplinks to router ether4 (its gi4). Credentials in SSM (`/home-platform/switch/nyc-sw-main-*`). SNMP enabled (community "public", read-only, restricted to the AWS hub 10.0.3.1 only as of 2026-07-11 — see `switches/nyc/sw-main-services.txt`) and scraped by Prometheus (job=snmp, device=sw-main). SSH also enabled. Firmware v1.3.0.62 (2013) — SG300 series is long EOL, no further patches expected |
 | sw-desk (Cisco SG300-10) | 10.0.1.11 | 50:67:AE:3D:78:F5 | Static IP on the device itself, not DHCP. Last switch in the chain — uplinks to sw-10g (Po1), printer on gi5, nothing else attached. Credentials in SSM (`/home-platform/switch/nyc-sw-desk-*`). SNMP enabled (community "public", read-only, restricted to the AWS hub 10.0.3.1 only as of 2026-07-11 — see `switches/nyc/sw-desk-services.txt`) and scraped by Prometheus (job=snmp, device=sw-desk). SSH service also enabled now (was off by default) — see CLAUDE.md Gotchas for the auth quirks this device has |
 | sw-10g (MikroTik CRS309-1G-8S+) | 10.0.1.12 | 08:55:31:89:55:F4 | Static IP on the device itself, not DHCP. Middle of the chain — sw-main uplinks in via a 2-port LAG (Po2 on sw-main), nas2 direct on sfp-sfpplus1, sw-desk direct on sfp-sfpplus4, furry also direct (normally off). Credentials in SSM (`/home-platform/switch/nyc-sw10g-*`). SNMP enabled and scraped by Prometheus (job=snmp, device=sw-10g) |
@@ -63,6 +63,99 @@ device actually attached to sw-10g right now.
 The Sonos speakers and NVR don't have DHCP reservations or DNS entries yet —
 added here for inventory/topology purposes only. Say the word if any of them
 should get a stable IP + hostname too.
+
+### nas2 security review (2026-07-11, finding #6)
+
+Investigated via SSH through the EC2 hub (`direct-tcpip` channel to
+10.0.1.7:22, matching the jump pattern used elsewhere) using the `bcalaway`
+credentials from SSM. DSM 7.3.2-86009 (build date 2026/06/18). **No changes
+were made** — every finding below was either already fine or judged too
+ambiguous/risky to touch without Bill's go-ahead, per the conservative brief
+for this pass. Verified read-only throughout: SSH access and the existing
+SNMP/`node_exporter` monitoring were untouched and are still working (both
+were only ever read from, never reconfigured).
+
+- **SSH exposure**: `sshd_config` has no `AllowUsers`/`ListenAddress`
+  restriction and DSM's Terminal setting has `enable_ssh: true`,
+  `enable_telnet: false` (good — Telnet is off). There's no SSH-specific
+  source-IP allowlist in DSM; access control for SSH is governed by the same
+  DSM firewall as everything else (see next finding). `/etc/hosts.allow` and
+  `/etc/hosts.deny` are both stock/empty — no tcpd-level restriction either.
+  **Not changed** — tightening this meaningfully means turning on the DSM
+  firewall (see below), which is a bigger, riskier change than an isolated
+  SSH tweak, and the router has no port-forward to 10.0.1.7 regardless (see
+  below), so SSH is not WAN-reachable via the direct path today.
+
+- **DSM firewall (Control Panel → Security → Firewall): OFF.**
+  `/usr/syno/etc/firewall.d/firewall_settings.json` shows `"status": false`,
+  confirmed independently via `iptables -t filter` showing empty INPUT/
+  FORWARD/OUTPUT chains (default ACCEPT, no rules at all) and via
+  `SYNO.Core.Security.Firewall.Profile` (only a stock `default`/`custom`
+  profile pair exists, neither active). This means there is **no IP-based
+  access control at the OS level** for any DSM service (5000/5001 web UI,
+  SSH, SMB/AFP/NFS, etc.) — everything currently listens on `0.0.0.0`/`:::`
+  wide open, relying entirely on the LAN boundary (no WAN port-forward) for
+  protection. **Not changed** — authoring DSM firewall rules risks blocking
+  Plex remote streaming, file-share access, or QuickConnect if done
+  incorrectly, and the task brief explicitly calls out DSM firewall rules
+  affecting Plex/app functionality as off-limits without sign-off. Flagging
+  as the top recommendation: enable the DSM firewall with an allow-list for
+  `10.0.1.0/24,10.0.3.0/24` (matching the pattern already used for
+  sw-main/sw-desk SNMP) plus whatever QuickConnect/Plex needs, ideally
+  tested by Bill or with an explicit go-ahead given the family-facing risk.
+
+- **WAN reachability of the DSM web UI**: no `dst-nat`/port-forward rule
+  exists on the NYC router for 10.0.1.7 or ports 5000/5001 (checked
+  `routeros/nyc/initial-config.rsc` — the only NAT rule present is the
+  standard `srcnat`/masquerade for outbound traffic), so the direct
+  IP:port path is not exposed. **However, QuickConnect is enabled**
+  (`SYNO.Core.QuickConnect` → `"enabled": true`, `server_alias:
+  "bcalaway-nas2"`, relay domain `quickconnect.to`), with the `dsm_portal`
+  permission explicitly turned on alongside `mobile_apps`, `cloudstation`,
+  and `file_sharing`. QuickConnect uses Synology's relay/NAT-traversal
+  service to make the DSM portal reachable from the internet without any
+  port-forward — functionally this **is** internet exposure of the admin
+  panel, just via a different mechanism than a forwarded port. **Not
+  changed** — QuickConnect may be in active use for legitimate remote
+  Plex/file access by the family, so disabling it (or just the
+  `dsm_portal` permission within it) needs Bill's confirmation it's safe
+  to turn off first. Flagging as the second-highest-priority finding.
+
+- **Account security**: the generic `admin` account still exists and is
+  enabled — `/etc/shadow` shows a real password hash for `admin` (not
+  locked/disabled), alongside the named `bcalaway` account which already
+  has administrator rights (`groups=100(users),101(administrators)`).
+  Per this project's convention (named personal accounts, not generic
+  `admin`), `admin` should ideally be disabled — but whether anything
+  (scheduled tasks, other integrations) still authenticates as `admin`
+  is unknown, and the task brief says not to touch this if there's any
+  ambiguity about lockout risk. **Not changed** — reporting only.
+  2FA: `SYNO.Core.OTP.EnforcePolicy` shows `otp_enforce_option: "none"`
+  (not enforced org-wide); per-user 2FA enrollment wasn't checked further
+  since that needs each user's own DSM session, not something to probe
+  via SSH. AutoBlock (DSM's brute-force lockout feature) also appears
+  unconfigured — its sqlite DB (`/etc/synoautoblock.db`) only has an empty
+  `AutoBlockIP` table with no rule/config tables, consistent with it
+  never having been enabled. Recommend Bill enable both AutoBlock and
+  2FA enforcement for admin-capable accounts when convenient; neither
+  touches Plex/file-share functionality so both are likely safe self-serve
+  changes, just left for Bill since they're account-security policy
+  decisions rather than "obviously broken" config.
+
+- **Patch level**: DSM 7.3.2-86009 (built 2026/06/18) — current, not EOL.
+  `SYNO.Core.Upgrade.Server` check reports no update available (already on
+  the latest). Auto-update config: `auto_download: true`, `upgrade_type:
+  "hotfix"` — DSM auto-downloads hotfix/security-level updates already, no
+  action needed.
+
+- **Other services observed listening**: SMB (445/139), NFS (2049), AFP
+  (548 v6 only), RPC (111), Plex (32400), and DSM's nginx (80/443/5000/
+  5001/5357) — no FTP or WebDAV packages installed (`/var/packages/` has no
+  FTP/WebDAV entries), no Telnet (confirmed disabled above). SMB config has
+  `enable_ntlmv1_auth: false` (legacy insecure NTLM already off, good).
+  Nothing here looks like an obviously-unused legacy service to prune —
+  all observed services correspond to features in active use (Plex, file
+  shares, `node_exporter`/SNMP monitoring already documented above).
 
 ## Rambles (10.0.2.0/24)
 
