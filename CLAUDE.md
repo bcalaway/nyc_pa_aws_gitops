@@ -122,8 +122,8 @@ The script replaces `PLACEHOLDER` in the .rsc file with the real password from S
 
 ## Network topology
 
-- NYC RB5009: LAN 10.0.1.1/24, WireGuard 10.0.3.2
-- Rambles RB5009: LAN 10.0.2.1/24, WireGuard 10.0.3.3
+- NYC RB5009 (`/system identity` = `rt-nyc`, renamed 2026-07-11): LAN 10.0.1.1/24, WireGuard 10.0.3.2
+- Rambles RB5009 (`/system identity` = `rt-rambles`, renamed 2026-07-11): LAN 10.0.2.1/24, WireGuard 10.0.3.3
 - EC2 WireGuard hub: 10.0.3.1 (interface ens5, not eth0)
 - Laptop: WireGuard 10.0.3.4 (re-provisioned 2026-07-07 — see "EC2 access" above)
 - Nighthawk RS700: AP mode at 10.0.1.2 (connect via LAN port, not WAN)

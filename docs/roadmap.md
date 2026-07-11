@@ -131,10 +131,10 @@ Tasks:
 - [x] 🤖 Rename routers to match switch naming convention: `rt-nyc` / `rt-rambles` (was `nyc-rb5009` / `rambles-rb5009`) — done 2026-07-11: RouterOS `/system identity` (live + `.rsc`), SNMP device labels in `prometheus.yml`/`promtail-config.yaml`, Grafana `router-traffic.json`, Uptime Kuma monitors (renamed live + `setup-uptime-kuma.py`), `docs/network-inventory.md`. Note: this changes the Prometheus `device=` label, so historical router metrics before this date live under the old label name — dashboards/queries only see continuous data going forward
 - [ ] 🤖 RouterOS export scripts for both sites committed to Git
 - [ ] 🤖 Ansible playbook for applying RouterOS config via SSH
-- [ ] 🤖 DHCP reservations defined in Git
+- [x] 🤖 DHCP reservations defined in Git *(`/ip dhcp-server lease add` entries in both `.rsc` files, kept in sync with `docs/network-inventory.md` as devices are found)*
 - [x] 🤖 Internal DNS records defined in Git *(RouterOS `/ip dns static` entries, see Milestone 4)*
-- [ ] 🤖 WireGuard config defined in Git
-- [ ] 🤖 Dual-WAN config defined in Git
+- [x] 🤖 WireGuard config defined in Git *(`/interface wireguard add` + peers in both `.rsc` files, see Milestone 2)*
+- [ ] 🤖 Dual-WAN config defined in Git *(blocked on Milestones 6/7 hardware)*
 - [ ] 🤖 GitHub Actions: RouterOS changes applied on merge (manual trigger)
 
 ### Milestone 10 — NAS Backup
