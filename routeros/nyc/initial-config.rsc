@@ -75,6 +75,7 @@
 /ip firewall filter add chain=input  action=accept protocol=icmp                        comment=icmp
 /ip firewall filter add chain=input  action=accept src-address=10.0.1.0/24             comment=lan
 /ip firewall filter add chain=input  action=accept src-address=10.0.3.0/24              comment=wireguard
+/ip firewall filter add chain=input  action=accept src-address=10.0.2.0/24              comment=cross-site-lan
 /ip firewall filter add chain=input  action=drop                                        comment=drop-input
 # forward chain trusts Rambles' LAN too (10.0.2.0/24) -- without it, only
 # router-to-router traffic (sourced from the WireGuard subnet) crosses sites;
