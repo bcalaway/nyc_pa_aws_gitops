@@ -97,27 +97,60 @@ scrape_configs:
         target_label: level
 
   # Every container's stdout/stderr in this compose stack (Grafana,
-  # Prometheus, Loki itself, etc.) -- discovered via the Docker socket for
-  # labels, but tailed as a plain file (__path__ set explicitly below) via
-  # Promtail's normal position-tracked file watcher, same mechanism as the
-  # network-devices job above. Without the __path__ relabel, Promtail falls
-  # back to streaming logs via the Docker API instead, which -- confirmed
-  # 2026-07-11 -- re-reads each container's *entire* log history from
-  # scratch on every restart (ignoring any prior position), immediately
-  # exceeding Loki's out-of-order/age window and erroring in a loop for any
-  # container with more than a few hours of history. File-based tailing
-  # doesn't have this problem.
+  # Prometheus, Loki itself, etc.), tailed as plain files via Promtail's
+  # normal position-tracked file watcher -- same mechanism as the
+  # network-devices job above.
+  #
+  # This was originally attempted via docker_sd_configs + a relabeled
+  # __path__ (the commonly-cited pattern for forcing file-based tailing
+  # instead of Docker-API log streaming). Confirmed 2026-07-11 that this
+  # does NOT work on Promtail 3.3.2: docker_sd_configs targets are always
+  # consumed by Promtail's Docker-API-streaming target type, which never
+  # reads __path__ at all -- that field is only honored by targets built
+  # from static_configs/file_sd_configs (a real FileTarget). Evidence: "add
+  # Docker target" / "finished transferring logs" log lines (the streaming
+  # code path, target.go) fired for every container, while "tail routine:
+  # started" (the file-based path, tailer.go) never once fired for a
+  # container path, even though /targets showed the SD targets as
+  # discovered and ready. This is a known limitation, not a config mistake
+  # -- see grafana/loki issues around docker_sd_configs + __path__.
+  #
+  # Fix: skip discovery-based labeling entirely and glob the log files
+  # directly, same as a plain file job. This IS safe to glob (unlike
+  # network-devices above): that job avoids globbing because it needs
+  # relabel_configs to turn each matched *filename* into a device label,
+  # and relabeling runs before a glob expands into individual files. Here
+  # we don't need anything from the filename except the container ID
+  # that's already embedded in the matched path, which the json pipeline
+  # stage below plus a regex on `filename` can both reach post-expansion.
+  #
+  # Docker's log file path only contains the opaque container ID, not its
+  # name (that mapping only exists in the Docker API/socket, which this
+  # approach deliberately avoids depending on). Labeling by ID alone and
+  # cross-referencing via `docker ps` when needed is an acceptable
+  # simplification -- avoids re-introducing the same discovery-based
+  # dependency that broke file tailing in the first place.
   - job_name: docker
-    docker_sd_configs:
-      - host: unix:///var/run/docker.sock
-        refresh_interval: 15s
-    relabel_configs:
-      - source_labels: ["__meta_docker_container_name"]
-        regex: "/(.*)"
-        target_label: container
-      - source_labels: ["__meta_docker_container_log_stream"]
-        target_label: stream
-      - source_labels: ["__meta_docker_container_id"]
-        regex: "(.*)"
-        target_label: __path__
-        replacement: "/var/lib/docker/containers/${1}/*-json.log"
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: docker
+          __path__: /var/lib/docker/containers/*/*-json.log
+    pipeline_stages:
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            time: time
+      - labels:
+          stream:
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+      - output:
+          source: output
+      - regex:
+          source: filename
+          expression: '/var/lib/docker/containers/(?P<container_id>[0-9a-f]+)/.*-json\.log'
+      - labels:
+          container_id:
