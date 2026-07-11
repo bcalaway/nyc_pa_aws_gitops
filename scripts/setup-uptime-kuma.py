@@ -29,8 +29,8 @@ MONITORS = [
     dict(type=MonitorType.HTTP, name="Portal (public)", url="https://billandjessie.com", interval=60),
 
     # Network devices, pinged from the hub over the WireGuard tunnel.
-    dict(type=MonitorType.PING, name="NYC RB5009", hostname="10.0.1.1", interval=60),
-    dict(type=MonitorType.PING, name="Rambles RB5009", hostname="10.0.2.1", interval=60),
+    dict(type=MonitorType.PING, name="rt-nyc", hostname="10.0.1.1", interval=60),
+    dict(type=MonitorType.PING, name="rt-rambles", hostname="10.0.2.1", interval=60),
     dict(type=MonitorType.PING, name="sw-main", hostname="10.0.1.10", interval=60),
     dict(type=MonitorType.PING, name="sw-desk", hostname="10.0.1.11", interval=60),
     dict(type=MonitorType.PING, name="sw-10g", hostname="10.0.1.12", interval=60),

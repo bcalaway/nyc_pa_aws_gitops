@@ -128,7 +128,7 @@ Tasks:
 
 Tasks:
 - [ ] 🧑 First-time RB5009 setup: set IP + enable SSH via Winbox web UI (Claude provides exact values)
-- [ ] 🤖 Rename routers to match switch naming convention: `rt-nyc` / `rt-rambles` (currently `nyc-rb5009` / `rambles-rb5009`) — RouterOS `/system identity`, SNMP device labels in `prometheus.yml`, Grafana dashboards, Uptime Kuma monitors, `docs/network-inventory.md`. Doesn't depend on the rest of this milestone, can be done anytime.
+- [x] 🤖 Rename routers to match switch naming convention: `rt-nyc` / `rt-rambles` (was `nyc-rb5009` / `rambles-rb5009`) — done 2026-07-11: RouterOS `/system identity` (live + `.rsc`), SNMP device labels in `prometheus.yml`/`promtail-config.yaml`, Grafana `router-traffic.json`, Uptime Kuma monitors (renamed live + `setup-uptime-kuma.py`), `docs/network-inventory.md`. Note: this changes the Prometheus `device=` label, so historical router metrics before this date live under the old label name — dashboards/queries only see continuous data going forward
 - [ ] 🤖 RouterOS export scripts for both sites committed to Git
 - [ ] 🤖 Ansible playbook for applying RouterOS config via SSH
 - [ ] 🤖 DHCP reservations defined in Git
@@ -136,7 +136,6 @@ Tasks:
 - [ ] 🤖 WireGuard config defined in Git
 - [ ] 🤖 Dual-WAN config defined in Git
 - [ ] 🤖 GitHub Actions: RouterOS changes applied on merge (manual trigger)
-- [ ] 🧑🤖 Rename NYC and Rambles RB5009s to something in line with the switch naming convention (sw-main, sw-desk, sw-10g) instead of the generic nyc-rb5009/rambles-rb5009 -- Bill and Claude to land on names together. Touches `/system identity` on both routers plus every reference in `docs/network-inventory.md`, `CLAUDE.md`, Prometheus/Promtail configs, and Grafana dashboards once decided
 
 ### Milestone 10 — NAS Backup
 **Goal:** NUC Docker volumes backed up to NAS on schedule.

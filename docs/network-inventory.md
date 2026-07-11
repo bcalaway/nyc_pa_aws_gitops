@@ -43,7 +43,7 @@ device actually attached to sw-10g right now.
 
 | Hostname | IP | MAC | Status |
 |----------|-----|-----|--------|
-| router (RB5009 itself) | 10.0.1.1 | — | n/a — not a DHCP client |
+| rt-nyc (RB5009 itself) | 10.0.1.1 | — | n/a — not a DHCP client. Renamed from `nyc-rb5009` 2026-07-11 to match the switch naming convention |
 | printer (HP-M455DN) | 10.0.1.5 | 2C:58:B9:AF:E5:8A | Reserved. Directly attached to sw-desk (gi5) |
 | nas1 | ? | ? | Unknown — need IP |
 | nas2 (Synology) | 10.0.1.7 | 00:11:32:EA:FE:7D | Static IP on the device itself, outside the DHCP pool (10.0.1.64-254) — no router-side reservation needed. Directly attached to sw-10g (sfp-sfpplus1). Credentials in SSM (`/home-platform/nas/nyc-nas2-*`). SNMP enabled (community "public", read-only, if_mib only — no CPU/disk) and scraped by Prometheus (job=snmp, device=nas2). Also runs `node_exporter` v1.8.2 directly (no Docker/Container Manager installed) at `/volume1/homes/bcalaway/node_exporter/node_exporter-1.8.2.linux-amd64/node_exporter`, scraped as job=node-exporter/instance=nas2 — real CPU/memory/disk/network data, feeds the "NAS2" Grafana dashboard. DSM Task Scheduler boot-up task "node exporter" configured (owner bcalaway, verified directly in `esynoscheduler.db`) so it survives a reboot |
@@ -68,7 +68,7 @@ should get a stable IP + hostname too.
 
 | Hostname | IP | MAC | Status |
 |----------|-----|-----|--------|
-| router (RB5009 itself) | 10.0.2.1 | — | n/a — not a DHCP client |
+| rt-rambles (RB5009 itself) | 10.0.2.1 | — | n/a — not a DHCP client. Renamed from `rambles-rb5009` 2026-07-11 to match the switch naming convention |
 | kvm-nuc5 | 10.0.2.226 | 30:52:53:07:DB:22 | Reserved. Remote KVM for nuc5 (the Rambles NUC, MINISFORUM MS-01) — this is the KVM device's own IP, **not** nuc5's own network interface. Connected directly to the router, not via the switch (per Bill 2026-07-11) |
 | switch (MikroTik CRS310-8G+2S+IN) | ? | CC:28:AA:3E:A7:20 (likely) | IP still unknown — no management IP found via DHCP leases, ARP, or MikroTik neighbor discovery from the router (2026-07-10). MAC is a guess: it's the one address on the router's ether3 (the trunk port carrying nearly every other Rambles device) that never took a DHCP lease and doesn't answer on any scanned IP — consistent with a switch sending STP/LLDP traffic without a working management IP, but unconfirmed. Not remotely manageable/SNMP-monitorable until its IP is set or discovered. Needs physical/console access, same as sw-desk/sw-main's initial setup at NYC — see Gotchas in CLAUDE.md. nuc5/kvm-nuc5/ZenWiFi AP are *not* behind this switch — see their own rows |
 | nuc5 | 10.0.2.10 | ? | Static IP set during install (outside the DHCP pool, not a router-side reservation). Connected directly to the router, believed 10GbE (per Bill 2026-07-11, not yet independently verified). Rocky Linux 10.2 installed 2026-07-10. SSH/sudo access via key (`/home-platform/ansible/nuc-private-key`, passwordless sudo) — password auth (`/home-platform/nuc/rambles-nuc5-*`) still valid too. Fully provisioned via Ansible (Milestone 8): Docker + Compose, `node_exporter`/`blackbox_exporter`/`speedtest_exporter` running (`compose/nuc/`), scraped by Prometheus on the AWS hub over WireGuard |

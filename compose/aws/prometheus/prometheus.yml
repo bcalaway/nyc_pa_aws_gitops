@@ -55,10 +55,10 @@ scrape_configs:
     static_configs:
       - targets: ["10.0.1.1"]
         labels:
-          device: nyc-rb5009
+          device: rt-nyc
       - targets: ["10.0.2.1"]
         labels:
-          device: rambles-rb5009
+          device: rt-rambles
       - targets: ["10.0.1.12"]
         labels:
           device: sw-10g

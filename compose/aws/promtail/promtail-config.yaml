@@ -27,12 +27,12 @@ scrape_configs:
       - targets: [localhost]
         labels:
           job: network-syslog
-          device: nyc-rb5009
+          device: rt-nyc
           __path__: /var/log/network-devices/10.0.1.1.log
       - targets: [localhost]
         labels:
           job: network-syslog
-          device: rambles-rb5009
+          device: rt-rambles
           __path__: /var/log/network-devices/10.0.2.1.log
       - targets: [localhost]
         labels:
