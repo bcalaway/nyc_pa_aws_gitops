@@ -83,6 +83,26 @@ scrape_configs:
   # were never shipped anywhere -- it only ever collected everyone else's.
   # Reads the host's persistent journal, mounted read-only into the
   # container (see docker-compose.yml).
+  #
+  # Also picks up every Docker container's stdout/stderr, as of 2026-07-11.
+  # A separate `docker` job (glob-tailing /var/lib/docker/containers/*/*-json.log
+  # directly, working around a docker_sd_configs + __path__ limitation --
+  # see git history) shipped container logs correctly but only labeled them
+  # by opaque container_id, since that's all the json-file log path exposes
+  # -- Docker's API/socket has the friendly name, and depending on it was
+  # deliberately avoided after it caused the original full-history-replay
+  # bug. Fix: switched Docker's default logging driver to `journald`
+  # (/etc/docker/daemon.json on the host, not tracked in git -- see
+  # CLAUDE.md) and recreated every container so it takes effect (log
+  # driver is fixed at container-create time, a daemon restart alone
+  # doesn't change it for already-running containers). journald tags every
+  # container log line with CONTAINER_NAME/CONTAINER_ID_FULL fields
+  # natively, no socket access needed by Promtail at all -- this job
+  # already reads the journal, so container logs now arrive for free
+  # through the exact same file-based, position-tracked mechanism as the
+  # host's own logs. The old `docker` job is retired: once containers
+  # moved to journald they stopped writing to their old *-json.log files
+  # entirely, so it would just tail dead files going forward.
   - job_name: journal
     journal:
       max_age: 24h
@@ -95,62 +115,7 @@ scrape_configs:
         target_label: unit
       - source_labels: ["__journal_priority_keyword"]
         target_label: level
-
-  # Every container's stdout/stderr in this compose stack (Grafana,
-  # Prometheus, Loki itself, etc.), tailed as plain files via Promtail's
-  # normal position-tracked file watcher -- same mechanism as the
-  # network-devices job above.
-  #
-  # This was originally attempted via docker_sd_configs + a relabeled
-  # __path__ (the commonly-cited pattern for forcing file-based tailing
-  # instead of Docker-API log streaming). Confirmed 2026-07-11 that this
-  # does NOT work on Promtail 3.3.2: docker_sd_configs targets are always
-  # consumed by Promtail's Docker-API-streaming target type, which never
-  # reads __path__ at all -- that field is only honored by targets built
-  # from static_configs/file_sd_configs (a real FileTarget). Evidence: "add
-  # Docker target" / "finished transferring logs" log lines (the streaming
-  # code path, target.go) fired for every container, while "tail routine:
-  # started" (the file-based path, tailer.go) never once fired for a
-  # container path, even though /targets showed the SD targets as
-  # discovered and ready. This is a known limitation, not a config mistake
-  # -- see grafana/loki issues around docker_sd_configs + __path__.
-  #
-  # Fix: skip discovery-based labeling entirely and glob the log files
-  # directly, same as a plain file job. This IS safe to glob (unlike
-  # network-devices above): that job avoids globbing because it needs
-  # relabel_configs to turn each matched *filename* into a device label,
-  # and relabeling runs before a glob expands into individual files. Here
-  # we don't need anything from the filename except the container ID
-  # that's already embedded in the matched path, which the json pipeline
-  # stage below plus a regex on `filename` can both reach post-expansion.
-  #
-  # Docker's log file path only contains the opaque container ID, not its
-  # name (that mapping only exists in the Docker API/socket, which this
-  # approach deliberately avoids depending on). Labeling by ID alone and
-  # cross-referencing via `docker ps` when needed is an acceptable
-  # simplification -- avoids re-introducing the same discovery-based
-  # dependency that broke file tailing in the first place.
-  - job_name: docker
-    static_configs:
-      - targets: [localhost]
-        labels:
-          job: docker
-          __path__: /var/lib/docker/containers/*/*-json.log
-    pipeline_stages:
-      - json:
-          expressions:
-            output: log
-            stream: stream
-            time: time
-      - labels:
-          stream:
-      - timestamp:
-          source: time
-          format: RFC3339Nano
-      - output:
-          source: output
-      - regex:
-          source: filename
-          expression: '/var/lib/docker/containers/(?P<container_id>[0-9a-f]+)/.*-json\.log'
-      - labels:
-          container_id:
+      - source_labels: ["__journal_container_name"]
+        target_label: container
+      - source_labels: ["__journal_container_id_full"]
+        target_label: container_id

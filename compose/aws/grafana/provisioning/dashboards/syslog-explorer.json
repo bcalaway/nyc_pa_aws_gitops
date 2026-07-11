@@ -27,10 +27,10 @@
         "current": { "text": "", "value": "" }
       },
       {
-        "name": "container_id",
+        "name": "container",
         "type": "query",
         "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-        "query": "label_values({job=\"docker\"}, container_id)",
+        "query": "label_values({job=\"systemd-journal\"}, container)",
         "refresh": 2,
         "multi": true,
         "includeAll": true,
@@ -83,12 +83,12 @@
     },
     {
       "id": 4,
-      "title": "Container Logs (Docker stdout/stderr, labeled by container_id -- no friendly name, see CLAUDE.md)",
+      "title": "Container Logs (Docker stdout/stderr, via journald)",
       "type": "logs",
       "gridPos": { "h": 16, "w": 24, "x": 0, "y": 24 },
       "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
       "targets": [
-        { "expr": "{job=\"docker\", container_id=~\"$container_id\"} |~ \"(?i)$search\"", "refId": "A" }
+        { "expr": "{job=\"systemd-journal\", container=~\"$container\"} |~ \"(?i)$search\"", "refId": "A" }
       ],
       "options": {
         "showTime": true,
