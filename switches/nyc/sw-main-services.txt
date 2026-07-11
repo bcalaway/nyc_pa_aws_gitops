@@ -1,0 +1,27 @@
+# sw-main (Cisco SG300-10, 10.0.1.10) — service hardening only.
+#
+# Not a full device config -- this switch's port/VLAN/channel-group setup
+# isn't tracked in Git yet, just this security-relevant slice. Commands
+# below are Cisco SG300 CLI (not RouterOS -- see routeros/ for the
+# MikroTik devices), typed individually via SSH after "configure".
+#
+# Auth note: SG300 SSH doesn't use standard SSH password auth -- the
+# device accepts the SSH connection with no credentials at the protocol
+# layer, then prompts for User Name:/Password: once a shell is opened,
+# like Telnet. See CLAUDE.md Gotchas.
+#
+# Context: security review found the SNMP "public" community readable
+# from any source IP ("IP address: All" in `show snmp`), unlike the
+# routers and sw-10g, which already restrict SNMP to the WireGuard
+# subnet. Applied 2026-07-11.
+#
+# IMPORTANT syntax gotcha: `ro <ip> view <name>` -- the IP comes BEFORE
+# "view", not after. `ro view Default <ip>` fails with "Wrong number of
+# parameters". Confirm with `snmp-server community public ro ?` if this
+# switch's firmware ever behaves differently.
+
+configure
+no snmp-server community public
+snmp-server community public ro 10.0.3.1 view Default
+exit
+copy running-config startup-config
