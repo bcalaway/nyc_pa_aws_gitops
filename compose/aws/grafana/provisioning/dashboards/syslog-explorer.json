@@ -25,6 +25,16 @@
         "label": "Search (regex, case-insensitive)",
         "query": "",
         "current": { "text": "", "value": "" }
+      },
+      {
+        "name": "container_id",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+        "query": "label_values({job=\"docker\"}, container_id)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "current": { "text": "All", "value": "$__all" }
       }
     ]
   },
@@ -59,6 +69,26 @@
       "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
       "targets": [
         { "expr": "{job=~\"network-syslog|systemd-journal\", device=~\"$device\"} |~ \"(?i)$search\"", "refId": "A" }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Container Logs (Docker stdout/stderr, labeled by container_id -- no friendly name, see CLAUDE.md)",
+      "type": "logs",
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 24 },
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        { "expr": "{job=\"docker\", container_id=~\"$container_id\"} |~ \"(?i)$search\"", "refId": "A" }
       ],
       "options": {
         "showTime": true,
