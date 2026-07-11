@@ -54,15 +54,15 @@ device actually attached to sw-10g right now.
 | furry | 10.0.1.41 | 7C:57:58:D0:17:5E | Reserved. 10G, attached to sw-10g (per Bill 2026-07-11 — not verifiable via MAC tables since it's normally powered off, hence the "status=waiting, last-seen=never" DHCP lease) |
 | nuc4 (future NYC NUC) | 10.0.1.34 | 38:FC:98:99:7E:5B | Reserved (placeholder — not deployed yet, Milestone 8) |
 | Nighthawk RS700 (AP) | 10.0.1.2 | 94:18:65:D5:57:44 (+ 2 more radio MACs, 96:18:65:D5:57:45/46) | Static. AP mode, connect via LAN port not WAN. Reachable via sw-main gi4 — see switch topology note above |
-| Philips Hue Bridge | 10.0.1.71 | 00:17:88:A9:E9:0A | Dynamic DHCP lease (hostname `001788a9e90a`), identified 2026-07-10. Reachable via sw-main gi4 |
+| hue-nyc (Philips Hue Bridge) | 10.0.1.71 | 00:17:88:A9:E9:0A | Reserved 2026-07-11, DNS `hue-nyc.nyc.billandjessie.com`. Reachable via sw-main gi4 |
 | Sonos "Main-Bedroom" | 10.0.1.68 | 48:E1:5C:5C:4F:76 | Dynamic DHCP lease, identified 2026-07-10. Reachable via sw-main gi4 |
 | Sonos "Main-Bedroom-2" | 10.0.1.69 | 48:E1:5C:65:2A:5C | Dynamic DHCP lease, identified 2026-07-10. Directly attached to sw-main (gi5) — the one Sonos NOT behind gi4 |
 | Sonos (unnamed x2) | 10.0.1.73, 10.0.1.74 | 5C:AA:FD:27:EB:50, 5C:AA:FD:27:EB:88 | Dynamic DHCP leases, hostname `SonosZP` (no room name set). Reachable via sw-main gi4 |
 | Camera NVR | 10.0.1.65 | 70:DF:F7:15:D2:CB | Dynamic DHCP lease, hostname `VMS4100ATV`, class-id `IP-STB`, identified 2026-07-10. Directly wired to router ether6 — the only device confirmed *not* behind the sw-main/sw-10g/sw-desk chain |
 
-None of the newly-identified IoT devices (Hue, Sonos, NVR) have DHCP
-reservations or DNS entries yet — added here for inventory/topology purposes
-only. Say the word if any of them should get a stable IP + hostname too.
+The Sonos speakers and NVR don't have DHCP reservations or DNS entries yet —
+added here for inventory/topology purposes only. Say the word if any of them
+should get a stable IP + hostname too.
 
 ## Rambles (10.0.2.0/24)
 
@@ -73,6 +73,7 @@ only. Say the word if any of them should get a stable IP + hostname too.
 | switch (MikroTik CRS310-8G+2S+IN) | ? | CC:28:AA:3E:A7:20 (likely) | IP still unknown — no management IP found via DHCP leases, ARP, or MikroTik neighbor discovery from the router (2026-07-10). MAC is a guess: it's the one address on the router's ether3 (the trunk port carrying nearly every other Rambles device) that never took a DHCP lease and doesn't answer on any scanned IP — consistent with a switch sending STP/LLDP traffic without a working management IP, but unconfirmed. Not remotely manageable/SNMP-monitorable until its IP is set or discovered. Needs physical/console access, same as sw-desk/sw-main's initial setup at NYC — see Gotchas in CLAUDE.md. nuc5/kvm-nuc5/ZenWiFi AP are *not* behind this switch — see their own rows |
 | nuc5 | 10.0.2.10 | ? | Static IP set during install (outside the DHCP pool, not a router-side reservation). Connected directly to the router, believed 10GbE (per Bill 2026-07-11, not yet independently verified). Rocky Linux 10.2 installed 2026-07-10. SSH/sudo access via key (`/home-platform/ansible/nuc-private-key`, passwordless sudo) — password auth (`/home-platform/nuc/rambles-nuc5-*`) still valid too. Fully provisioned via Ansible (Milestone 8): Docker + Compose, `node_exporter`/`blackbox_exporter`/`speedtest_exporter` running (`compose/nuc/`), scraped by Prometheus on the AWS hub over WireGuard |
 | ZenWiFi AP (ASUS, mesh) | 10.0.2.251 | — | Connected directly to the router, not via the switch (per Bill 2026-07-11) |
+| hue-rambles (Philips Hue Bridge) | 10.0.2.244 | EC:B5:FA:0F:85:97 | Reserved 2026-07-11, DNS `hue-rambles.rambles.billandjessie.com`. MAC vendor confirmed Philips Lighting BV |
 
 Everything else on Rambles' DHCP lease table (11 phones/tablets/laptops, a
 couple of AV/IoT devices, all named or unnamed personal devices) is ordinary
