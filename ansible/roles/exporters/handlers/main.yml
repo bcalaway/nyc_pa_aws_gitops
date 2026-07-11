@@ -8,3 +8,7 @@
     cmd: docker compose up -d --force-recreate
     chdir: /opt/compose/nuc
   changed_when: true
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true

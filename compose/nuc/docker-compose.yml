@@ -32,7 +32,15 @@ services:
     container_name: speedtest-exporter
     restart: unless-stopped
     environment:
-      SPEEDTEST_CACHE_FOR: "1800"
+      # Was 1800s (30min) -- a real bandwidth test saturates the link for its
+      # duration, and every cache expiry was firing at whatever time
+      # Prometheus's next 15s scrape happened to land, all day long. Set to
+      # exactly 24h and paired with a daily 5am systemd timer (see
+      # ansible/roles/exporters) that hits /metrics right as the cache
+      # expires each day -- Prometheus's own frequent scraping never gets a
+      # chance to trigger the real test itself, since by the time it polls
+      # again the 5am timer has already reset the cache for another 24h.
+      SPEEDTEST_CACHE_FOR: "86400"
     ports:
       - "9798:9798"
     # Image's built-in healthcheck wgets "localhost", which resolves to the

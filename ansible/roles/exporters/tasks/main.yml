@@ -52,3 +52,53 @@
     chdir: /opt/compose/nuc
   register: compose_up
   changed_when: "'Started' in compose_up.stdout or 'Created' in compose_up.stdout"
+
+# speedtest-exporter's cache (SPEEDTEST_CACHE_FOR in docker-compose.yml) is
+# purely time-based and shared across all clients -- whichever request
+# happens to land after the cache expires is the one that triggers a real
+# (link-saturating) test, with no way to force one on demand. Pairing a 24h
+# cache with a request that fires right at 5am daily means that request
+# almost always wins the race against Prometheus's own 15s scraping, so the
+# real test consistently lands in this off-peak window instead of drifting
+# to whatever time Prometheus's scrape happens to hit next.
+- name: Install speedtest off-peak trigger service unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/speedtest-trigger.service
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      [Unit]
+      Description=Trigger the daily off-peak speedtest-exporter run
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/curl -s -o /dev/null http://localhost:9798/metrics
+  notify: Reload systemd
+
+- name: Install speedtest off-peak trigger timer unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/speedtest-trigger.timer
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      [Unit]
+      Description=Run speedtest-trigger.service daily at 5am
+
+      [Timer]
+      OnCalendar=*-*-* 05:00:00
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  notify: Reload systemd
+
+- name: Flush handlers so systemd sees the new units before enabling the timer
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start the speedtest off-peak trigger timer
+  ansible.builtin.systemd:
+    name: speedtest-trigger.timer
+    state: started
+    enabled: true
