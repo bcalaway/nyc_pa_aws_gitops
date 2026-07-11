@@ -61,9 +61,26 @@ services:
     restart: unless-stopped
     depends_on:
       - loki
+    # Needs root to read the host journal (root:systemd-journal, 640) and
+    # the Docker socket (root:docker, 660) -- both mounts below are
+    # read-only regardless, so this doesn't grant write access to anything.
+    user: root
     volumes:
       - ./promtail/promtail-config.yaml:/etc/promtail/config.yml:ro
+      # positions.yaml (per promtail-config.yaml's `positions:` stanza)
+      # lives at /tmp/positions.yaml -- without a volume here it's on the
+      # container's writable layer and gets wiped on every recreation
+      # (any docker-compose.yml edit, host reboot, etc.), which makes
+      # Promtail re-read every tailed file/container log from the
+      # beginning each time. Confirmed 2026-07-11: this is exactly what
+      # caused repeated "entry too old" rejections from Loki after each
+      # of several unrelated compose changes recreated this container.
+      - promtail-positions:/tmp
       - /var/log/network-devices:/var/log/network-devices:ro
+      - /var/log/journal:/var/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
     command: -config.file=/etc/promtail/config.yml
 
   grafana:
@@ -102,3 +119,4 @@ volumes:
   loki-data:
   grafana-data:
   uptime-kuma-data:
+  promtail-positions:

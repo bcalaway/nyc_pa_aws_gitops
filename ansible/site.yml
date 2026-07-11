@@ -6,3 +6,4 @@
     - docker
     - exporters
     - security
+    - logging

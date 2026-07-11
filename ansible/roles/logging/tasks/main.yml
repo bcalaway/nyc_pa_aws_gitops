@@ -1,0 +1,31 @@
+---
+# Forward this NUC's system logs to the central rsyslog receiver on the AWS
+# hub (10.0.3.1:514 over WireGuard), matching the pattern already used by
+# both routers, all three NYC switches, and nas2 -- see CLAUDE.md's "Syslog
+# receiver on EC2 hub" section. Promtail on the hub tails the resulting
+# per-source-IP file, so once this is applied the NUC's logs show up in
+# Loki/Grafana the same way everything else already does.
+
+- name: Install rsyslog
+  ansible.builtin.dnf:
+    name: rsyslog
+    state: present
+
+- name: Configure remote forwarding to the AWS hub
+  ansible.builtin.copy:
+    dest: /etc/rsyslog.d/60-remote-forward.conf
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      # Managed by ansible/roles/logging -- forwards everything to the
+      # central rsyslog receiver on the AWS hub. UDP, matching what every
+      # other device on this network already uses (routers, switches, NAS).
+      *.* action(type="omfwd" target="10.0.3.1" port="514" protocol="udp")
+  notify: Restart rsyslog
+
+- name: Ensure rsyslog is running and enabled
+  ansible.builtin.systemd:
+    name: rsyslog
+    state: started
+    enabled: true

@@ -58,18 +58,14 @@
     state: present
 
 - name: Configure dnf-automatic for security updates only, download+apply
-  ansible.builtin.ini_file:
+  ansible.builtin.lineinfile:
     path: /etc/dnf/automatic.conf
-    section: "{{ item.section }}"
-    option: "{{ item.option }}"
-    value: "{{ item.value }}"
-    mode: "0644"
-    owner: root
-    group: root
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
   loop:
-    - { section: commands, option: upgrade_type, value: security }
-    - { section: commands, option: apply_updates, value: "yes" }
-    - { section: emitters, option: emit_via, value: stdio }
+    - { regexp: "^upgrade_type\\s*=", line: "upgrade_type = security" }
+    - { regexp: "^apply_updates\\s*=", line: "apply_updates = yes" }
+    - { regexp: "^emit_via\\s*=", line: "emit_via = stdio" }
   notify: Restart dnf-automatic timer
 
 - name: Enable dnf-automatic timer (daily, staggered by systemd's built-in RandomizedDelaySec)

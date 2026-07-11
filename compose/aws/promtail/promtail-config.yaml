@@ -24,6 +24,15 @@ clients:
 scrape_configs:
   - job_name: network-devices
     static_configs:
+      # Both routers' self-generated syslog was long documented as broken
+      # (RouterOS 7.19.6 bug, see CLAUDE.md Gotchas) based on packets never
+      # arriving from the LAN-address source. Discovered 2026-07-11: they
+      # DO arrive, just sourced from the router's WireGuard address
+      # (10.0.3.2/10.0.3.3) instead of its LAN address (10.0.1.1/10.0.2.1)
+      # -- makes sense in hindsight, since that's the interface the route
+      # to the hub actually goes out. Watching both possible source files
+      # per router in case this ever reverts; the LAN-address ones are
+      # harmless no-ops if nothing's ever written there.
       - targets: [localhost]
         labels:
           job: network-syslog
@@ -32,8 +41,18 @@ scrape_configs:
       - targets: [localhost]
         labels:
           job: network-syslog
+          device: rt-nyc
+          __path__: /var/log/network-devices/10.0.3.2.log
+      - targets: [localhost]
+        labels:
+          job: network-syslog
           device: rt-rambles
           __path__: /var/log/network-devices/10.0.2.1.log
+      - targets: [localhost]
+        labels:
+          job: network-syslog
+          device: rt-rambles
+          __path__: /var/log/network-devices/10.0.3.3.log
       - targets: [localhost]
         labels:
           job: network-syslog
@@ -54,3 +73,51 @@ scrape_configs:
           job: network-syslog
           device: nas2
           __path__: /var/log/network-devices/10.0.1.7.log
+      - targets: [localhost]
+        labels:
+          job: network-syslog
+          device: nuc5
+          __path__: /var/log/network-devices/10.0.2.10.log
+
+  # The hub's own system logs (auth, fail2ban, dnf-automatic, sshd, etc.)
+  # were never shipped anywhere -- it only ever collected everyone else's.
+  # Reads the host's persistent journal, mounted read-only into the
+  # container (see docker-compose.yml).
+  - job_name: journal
+    journal:
+      max_age: 24h
+      path: /var/log/journal
+      labels:
+        job: systemd-journal
+        device: aws-hub
+    relabel_configs:
+      - source_labels: ["__journal__systemd_unit"]
+        target_label: unit
+      - source_labels: ["__journal_priority_keyword"]
+        target_label: level
+
+  # Every container's stdout/stderr in this compose stack (Grafana,
+  # Prometheus, Loki itself, etc.) -- discovered via the Docker socket for
+  # labels, but tailed as a plain file (__path__ set explicitly below) via
+  # Promtail's normal position-tracked file watcher, same mechanism as the
+  # network-devices job above. Without the __path__ relabel, Promtail falls
+  # back to streaming logs via the Docker API instead, which -- confirmed
+  # 2026-07-11 -- re-reads each container's *entire* log history from
+  # scratch on every restart (ignoring any prior position), immediately
+  # exceeding Loki's out-of-order/age window and erroring in a loop for any
+  # container with more than a few hours of history. File-based tailing
+  # doesn't have this problem.
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 15s
+    relabel_configs:
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: container
+      - source_labels: ["__meta_docker_container_log_stream"]
+        target_label: stream
+      - source_labels: ["__meta_docker_container_id"]
+        regex: "(.*)"
+        target_label: __path__
+        replacement: "/var/lib/docker/containers/${1}/*-json.log"
