@@ -5,3 +5,4 @@
     - base
     - docker
     - exporters
+    - security

@@ -1,0 +1,19 @@
+---
+- name: Reload sshd
+  ansible.builtin.systemd:
+    name: sshd
+    state: reloaded
+
+- name: Restart fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: restarted
+
+- name: Restart dnf-automatic timer
+  ansible.builtin.systemd:
+    name: dnf-automatic.timer
+    state: restarted
+
+- name: Reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: true
