@@ -143,6 +143,7 @@ The script replaces `PLACEHOLDER` in the .rsc file with the real password from S
 - Nighthawk RS700: AP mode at 10.0.1.2 (connect via LAN port, not WAN)
 - ZenWiFi AX6600 (Rambles): converted to AP mode 2026-07-04, hangs off the RB5009 same as the RS700 pattern
 - Both routers' `forward` chains trust each other's LAN subnet (not just the WireGuard subnet) — real cross-site LAN traffic works, not just router-to-router. See "Gotchas" below for why this wasn't originally obvious.
+- Each router's own admin services (`www`/`www-ssl`/`winbox`) trust the *other* site's LAN too, as of 2026-07-11 — e.g. rt-nyc's web UI/Winbox is reachable from `10.0.1.0/24` (its own LAN), `10.0.2.0/24` (Rambles LAN), and `10.0.3.0/24` (WireGuard), and rt-rambles mirrors that. `ssh` was deliberately left scoped to own-LAN + WireGuard only (not widened) — this was specifically about the web/Winbox admin UI, per Bill's request.
 
 ## Gotchas (learned the hard way)
 

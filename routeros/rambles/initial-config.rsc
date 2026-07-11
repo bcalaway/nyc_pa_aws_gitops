@@ -56,9 +56,9 @@
 /ip service set ftp     disabled=yes
 /ip service set api     disabled=yes
 /ip service set api-ssl disabled=yes
-/ip service set winbox  address=10.0.2.0/24,10.0.3.0/24 disabled=no
-/ip service set www     address=10.0.2.0/24,10.0.3.0/24 disabled=no
-/ip service set www-ssl address=10.0.2.0/24,10.0.3.0/24 disabled=no
+/ip service set winbox  address=10.0.1.0/24,10.0.2.0/24,10.0.3.0/24 disabled=no
+/ip service set www     address=10.0.1.0/24,10.0.2.0/24,10.0.3.0/24 disabled=no
+/ip service set www-ssl address=10.0.1.0/24,10.0.2.0/24,10.0.3.0/24 disabled=no
 
 # ---------------------------------------------------------------------------
 # 5. Firewall — applied BEFORE the IP change so rules are in place when
