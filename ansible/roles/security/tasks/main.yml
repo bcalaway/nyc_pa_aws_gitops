@@ -1,0 +1,171 @@
+---
+# Post-provisioning OS hardening, added after a 2026-07-11 security review of
+# nuc5 (the base/exporters roles cover initial setup; this role covers
+# gaps found reviewing that fresh install). See docs/network-inventory.md.
+
+- name: SSH hardening drop-in (disable password auth, disable root login)
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/60-hardening.conf
+    mode: "0600"
+    owner: root
+    group: root
+    content: |
+      # Managed by ansible/roles/security -- key-based auth only.
+      # Loaded via the Include at the top of sshd_config, so this wins over
+      # the commented-out (inactive) defaults later in the main file.
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+  notify: Reload sshd
+
+- name: Flush handlers so sshd is reloaded before we rely on the new config
+  ansible.builtin.meta: flush_handlers
+
+- name: Install fail2ban (EPEL) with firewalld integration
+  ansible.builtin.dnf:
+    name:
+      - fail2ban
+      - fail2ban-server
+      - fail2ban-firewalld
+    state: present
+
+- name: Configure fail2ban sshd jail
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/sshd.local
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      # Managed by ansible/roles/security
+      [sshd]
+      enabled = true
+      backend = systemd
+      banaction = firewallcmd-rich-rules
+      maxretry = 5
+      findtime = 10m
+      bantime = 1h
+  notify: Restart fail2ban
+
+- name: Ensure fail2ban is running and enabled
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: started
+    enabled: true
+
+- name: Install dnf-automatic
+  ansible.builtin.dnf:
+    name: dnf-automatic
+    state: present
+
+- name: Configure dnf-automatic for security updates only, download+apply
+  ansible.builtin.ini_file:
+    path: /etc/dnf/automatic.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: root
+    group: root
+  loop:
+    - { section: commands, option: upgrade_type, value: security }
+    - { section: commands, option: apply_updates, value: "yes" }
+    - { section: emitters, option: emit_via, value: stdio }
+  notify: Restart dnf-automatic timer
+
+- name: Enable dnf-automatic timer (daily, staggered by systemd's built-in RandomizedDelaySec)
+  ansible.builtin.systemd:
+    name: dnf-automatic.timer
+    state: started
+    enabled: true
+
+- name: Restrict Docker-published exporter ports to the WireGuard subnet at the raw/PREROUTING level
+  vars:
+    exporter_ports:
+      - "9100"
+      - "9115"
+      - "9798"
+  block:
+    - name: Check whether the raw PREROUTING drop rule already exists for each exporter port
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - --direct
+          - --query-rule
+          - ipv4
+          - raw
+          - PREROUTING
+          - "0"
+          - -p
+          - tcp
+          - -m
+          - tcp
+          - --dport
+          - "{{ item }}"
+          - "!"
+          - -s
+          - 10.0.3.0/24
+          - -j
+          - DROP
+      loop: "{{ exporter_ports }}"
+      register: fw_direct_query
+      changed_when: false
+      failed_when: fw_direct_query.rc not in [0, 1]
+
+    - name: Add raw PREROUTING drop rule for each exporter port (non-WireGuard sources)
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - --direct
+          - --add-rule
+          - ipv4
+          - raw
+          - PREROUTING
+          - "0"
+          - -p
+          - tcp
+          - -m
+          - tcp
+          - --dport
+          - "{{ item.item }}"
+          - "!"
+          - -s
+          - 10.0.3.0/24
+          - -j
+          - DROP
+      loop: "{{ fw_direct_query.results }}"
+      when: item.rc != 0
+      changed_when: true
+      notify: Reload firewalld
+  # Why raw/PREROUTING and not the "docker" zone or a firewalld policy object:
+  # Docker publishes container ports via DNAT (nat table). firewalld's own
+  # base filter_FORWARD chain contains "ct status dnat accept" ahead of the
+  # jump to zone/policy chains (StrictForwardPorts=no is the firewalld
+  # default, and even with it enabled this specific gap is an open upstream
+  # bug for Docker-originated DNAT -- see firewalld/firewalld#1536). That
+  # means rich-rules in the "docker" zone or a "docker-forwarding" policy are
+  # silently never evaluated for traffic to a docker-published port -- this
+  # was confirmed empirically 2026-07-11: rich-rules in the docker zone had
+  # zero effect, curl from the Rambles LAN (non-WireGuard) reached
+  # node_exporter's /metrics on port 9100 despite the base/exporters roles'
+  # firewalld rich-rules in the *public* zone (which only govern the INPUT
+  # chain -- never reached, since this traffic is forwarded/DNAT'd, not
+  # host-destined). A raw-table PREROUTING DROP runs before nat PREROUTING
+  # (DNAT) and before Docker's own rules entirely, so it's the one place a
+  # source-IP restriction reliably applies regardless of how Docker wires
+  # up the rest of the chain. Confirmed after applying: port 9100 blocked
+  # from the Rambles LAN, ports not yet covered (9115/9798, before the loop
+  # covered them too) remained reachable, proving the rule is real and
+  # targeted rather than a false negative.
+
+- name: Confirm SELinux still enforcing after hardening changes
+  ansible.builtin.command: getenforce
+  register: se_status_post
+  changed_when: false
+
+- name: Fail if SELinux drifted from enforcing
+  ansible.builtin.assert:
+    that: "'Enforcing' in se_status_post.stdout"
+    fail_msg: "SELinux is not enforcing on {{ inventory_hostname }} after security role (found: {{ se_status_post.stdout }})"
+    success_msg: "SELinux still enforcing on {{ inventory_hostname }}"
