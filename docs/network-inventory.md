@@ -68,12 +68,13 @@ should get a stable IP + hostname too.
 
 Investigated via SSH through the EC2 hub (`direct-tcpip` channel to
 10.0.1.7:22, matching the jump pattern used elsewhere) using the `bcalaway`
-credentials from SSM. DSM 7.3.2-86009 (build date 2026/06/18). **No changes
-were made** — every finding below was either already fine or judged too
-ambiguous/risky to touch without Bill's go-ahead, per the conservative brief
-for this pass. Verified read-only throughout: SSH access and the existing
-SNMP/`node_exporter` monitoring were untouched and are still working (both
-were only ever read from, never reconfigured).
+credentials from SSM. DSM 7.3.2-86009 (build date 2026/06/18). Initial pass
+made **no changes** — every finding below was either already fine or judged
+too ambiguous/risky to touch without Bill's go-ahead, per the conservative
+brief for that first pass. SNMP/`node_exporter` monitoring were only ever
+read from, never reconfigured, and are still working. **2026-07-12: QuickConnect
+disabled** after confirming with Bill it wasn't in use — see that finding
+below for details.
 
 - **SSH exposure**: `sshd_config` has no `AllowUsers`/`ListenAddress`
   restriction and DSM's Terminal setting has `enable_ssh: true`,
@@ -108,18 +109,23 @@ were only ever read from, never reconfigured).
   exists on the NYC router for 10.0.1.7 or ports 5000/5001 (checked
   `routeros/nyc/initial-config.rsc` — the only NAT rule present is the
   standard `srcnat`/masquerade for outbound traffic), so the direct
-  IP:port path is not exposed. **However, QuickConnect is enabled**
-  (`SYNO.Core.QuickConnect` → `"enabled": true`, `server_alias:
-  "bcalaway-nas2"`, relay domain `quickconnect.to`), with the `dsm_portal`
-  permission explicitly turned on alongside `mobile_apps`, `cloudstation`,
-  and `file_sharing`. QuickConnect uses Synology's relay/NAT-traversal
-  service to make the DSM portal reachable from the internet without any
-  port-forward — functionally this **is** internet exposure of the admin
-  panel, just via a different mechanism than a forwarded port. **Not
-  changed** — QuickConnect may be in active use for legitimate remote
-  Plex/file access by the family, so disabling it (or just the
-  `dsm_portal` permission within it) needs Bill's confirmation it's safe
-  to turn off first. Flagging as the second-highest-priority finding.
+  IP:port path is not exposed. **QuickConnect disabled 2026-07-12**:
+  was enabled (`server_alias: "bcalaway-nas2"`, relay domain
+  `quickconnect.to`), with `dsm_portal` turned on alongside `mobile_apps`,
+  `cloudstation`, and `file_sharing` — functionally this was internet
+  exposure of the admin panel via Synology's relay/NAT-traversal service,
+  a different mechanism than a forwarded port but the same effective
+  result. Confirmed with Bill that nobody uses Synology's own apps (DS
+  Photo/File, Synology Drive, Cloud Station) remotely — Plex has its own
+  separate remote-access path via plex.tv, unrelated to QuickConnect, so
+  turning this off doesn't affect it. Disabled entirely via
+  `synowebapi --exec api=SYNO.Core.QuickConnect method=set version=1
+  enabled=false` (confirmed via a follow-up `get` showing `enabled: false`
+  and `server_id` cleared/unregistered from the relay); local DSM web UI
+  access reverified working immediately after (`curl http://10.0.1.7:5000/`
+  → 200). Trivially reversible — same command with `enabled=true`, or the
+  Control Panel → External Access → QuickConnect toggle in the UI — no
+  data or config loss either way.
 
 - **Account security**: the generic `admin` account still exists and is
   enabled — `/etc/shadow` shows a real password hash for `admin` (not
