@@ -15,12 +15,34 @@ $smtpPassword = (& $aws ssm get-parameter --name "/home-platform/grafana/smtp-pa
 "GRAFANA_SMTP_PASSWORD=$smtpPassword" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
 
 Write-Host "Copying compose stack to EC2..."
-# rm+recreate rather than scp -r over an existing tree: scp only adds/overwrites,
-# it never deletes files that were removed locally, so a stale dashboard/config
-# from a prior deploy would silently keep being provisioned forever. Safe to wipe
-# and recopy -- everything here is config/compose files; actual state (Prometheus
-# TSDB, Loki chunks, Grafana DB, etc.) lives in named Docker volumes, not this dir.
-ssh -i $sshKey $ec2Host "rm -rf $remoteDir && mkdir -p $remoteDir"
+ssh -i $sshKey $ec2Host "mkdir -p $remoteDir"
+
+# Delete remote files that no longer exist locally before copying. scp -r alone
+# only adds/overwrites, so a removed dashboard/config would silently keep being
+# provisioned forever -- confirmed 2026-07-12 when a couple of deleted dashboard
+# JSON files kept getting served after being removed from this repo.
+#
+# IMPORTANT: this must delete individual stale FILES, never directories. An
+# earlier version of this fix did `rm -rf $remoteDir && mkdir -p` before
+# copying, which recreates directories like grafana/provisioning with a new
+# inode -- for a container that's still running (not recreated, since no
+# service definition changed) with that path bind-mounted, Docker's bind mount
+# doesn't follow the path to the new inode, so the container sees "no such
+# file or directory" until it's restarted. Confirmed live: this broke Grafana's
+# dashboard provisioning the same day this fix was first added. Deleting only
+# the specific stale files (not their parent directories) avoids the problem
+# entirely, since existing directory inodes are never touched.
+$localDirResolved = (Resolve-Path $localDir).Path
+$localFiles = Get-ChildItem -Path $localDirResolved -Recurse -File | ForEach-Object {
+    ($_.FullName.Substring($localDirResolved.Length + 1)) -replace '\\', '/'
+}
+$remoteFiles = (ssh -i $sshKey $ec2Host "find $remoteDir -type f -printf '%P\n'") -split "`n" | Where-Object { $_ -and $_ -ne '.env' }
+$staleFiles = $remoteFiles | Where-Object { $_ -notin $localFiles }
+foreach ($f in $staleFiles) {
+    Write-Host "  Removing stale remote file: $f"
+    ssh -i $sshKey $ec2Host "rm -f '$remoteDir/$f'"
+}
+
 scp -i $sshKey -r "$localDir\*" "${ec2Host}:${remoteDir}/"
 scp -i $sshKey "$localDir\.env" "${ec2Host}:${remoteDir}/.env"
 

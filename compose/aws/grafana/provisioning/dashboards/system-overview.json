@@ -18,16 +18,6 @@
         "multi": false,
         "includeAll": false,
         "current": { "text": "nas2", "value": "nas2" }
-      },
-      {
-        "name": "mountpoint",
-        "type": "query",
-        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-        "query": "label_values(node_filesystem_size_bytes{instance=\"$instance\", fstype!~\"tmpfs|devtmpfs|overlay|squashfs\"}, mountpoint)",
-        "refresh": 2,
-        "multi": false,
-        "includeAll": false,
-        "current": { "text": "/", "value": "/" }
       }
     ]
   },
@@ -75,24 +65,23 @@
     },
     {
       "id": 4,
-      "title": "Disk Usage ($mountpoint)",
+      "title": "Disk Usage (all mountpoints)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "100 - ((node_filesystem_avail_bytes{instance=\"$instance\",mountpoint=\"$mountpoint\"} / node_filesystem_size_bytes{instance=\"$instance\",mountpoint=\"$mountpoint\"}) * 100)", "legendFormat": "Used %", "refId": "A" }
+        { "expr": "100 - ((node_filesystem_avail_bytes{instance=\"$instance\",fstype!~\"tmpfs|devtmpfs|overlay|squashfs\"} / node_filesystem_size_bytes{instance=\"$instance\",fstype!~\"tmpfs|devtmpfs|overlay|squashfs\"}) * 100)", "legendFormat": "{{mountpoint}}", "refId": "A" }
       ],
       "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] }
     },
     {
       "id": 5,
-      "title": "Disk Free Space ($mountpoint)",
-      "type": "stat",
+      "title": "Disk Free Space (all mountpoints)",
+      "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "node_filesystem_avail_bytes{instance=\"$instance\",mountpoint=\"$mountpoint\"}", "legendFormat": "Free", "refId": "A" },
-        { "expr": "node_filesystem_size_bytes{instance=\"$instance\",mountpoint=\"$mountpoint\"}", "legendFormat": "Total", "refId": "B" }
+        { "expr": "node_filesystem_avail_bytes{instance=\"$instance\",fstype!~\"tmpfs|devtmpfs|overlay|squashfs\"}", "legendFormat": "{{mountpoint}}", "refId": "A" }
       ],
       "fieldConfig": { "defaults": { "unit": "decbytes" }, "overrides": [] }
     },
