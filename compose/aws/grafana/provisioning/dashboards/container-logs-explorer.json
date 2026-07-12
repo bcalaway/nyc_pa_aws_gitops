@@ -1,6 +1,6 @@
 {
-  "title": "Syslog Explorer",
-  "uid": "syslog-explorer",
+  "title": "Container Logs Explorer",
+  "uid": "container-logs-explorer",
   "tags": ["home-platform"],
   "timezone": "browser",
   "schemaVersion": 39,
@@ -10,10 +10,10 @@
   "templating": {
     "list": [
       {
-        "name": "device",
+        "name": "container",
         "type": "query",
         "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-        "query": "label_values({job=~\"network-syslog|systemd-journal\"}, device)",
+        "query": "label_values({job=\"systemd-journal\"}, container)",
         "refresh": 2,
         "multi": true,
         "includeAll": true,
@@ -36,29 +36,29 @@
       "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
       "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
       "targets": [
-        { "expr": "sum(count_over_time({job=~\"network-syslog|systemd-journal\", device=~\"$device\", container=\"\"} |~ \"(?i)$search\" [$__range]))", "refId": "A" }
+        { "expr": "sum(count_over_time({job=\"systemd-journal\", container=~\"$container\"} |~ \"(?i)$search\" [$__range]))", "refId": "A" }
       ],
       "fieldConfig": { "defaults": {}, "overrides": [] }
     },
     {
       "id": 2,
-      "title": "Log Volume by Device",
+      "title": "Log Volume by Container",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 },
       "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
       "targets": [
-        { "expr": "sum by (device) (count_over_time({job=~\"network-syslog|systemd-journal\", device=~\"$device\", container=\"\"} |~ \"(?i)$search\" [$__interval]))", "legendFormat": "{{device}}", "refId": "A" }
+        { "expr": "sum by (container) (count_over_time({job=\"systemd-journal\", container=~\"$container\"} |~ \"(?i)$search\" [$__interval]))", "legendFormat": "{{container}}", "refId": "A" }
       ],
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
     },
     {
       "id": 3,
-      "title": "Logs",
+      "title": "Container Logs",
       "type": "logs",
       "gridPos": { "h": 16, "w": 24, "x": 0, "y": 8 },
       "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
       "targets": [
-        { "expr": "{job=~\"network-syslog|systemd-journal\", device=~\"$device\", container=\"\"} |~ \"(?i)$search\"", "refId": "A" }
+        { "expr": "{job=\"systemd-journal\", container=~\"$container\"} |~ \"(?i)$search\"", "refId": "A" }
       ],
       "options": {
         "showTime": true,
