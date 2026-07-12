@@ -62,7 +62,7 @@ Tasks:
 - [x] 🤖 Uptime Kuma monitors: all services *(15 monitors: internal + public service health, both WireGuard tunnels, all NYC/Rambles network devices — WAN connections still pending Milestones 6/7)*
 - [x] 🤖 Grafana anonymous access enabled
 - [x] 🤖 Alert: email via Gmail SMTP (credentials stored in SSM) *(wired up; needs a real Gmail App Password — SSM value is still a placeholder)*
-- [ ] 🧑 Enable Cost Explorer in the Billing console (one-time toggle; can take up to 24h to populate history) — required before `cost-exporter` below will return data
+- [x] 🧑 Enable Cost Explorer in the Billing console *(confirmed working 2026-07-12 — cost-exporter has been polling successfully every 6h since 2026-07-11 17:29 UTC, real per-service breakdown across 11 services, month-to-date/yesterday populated. Forecast metric still unavailable — DataUnavailableException, "insufficient historical data" — expected for a freshly-enabled account, should resolve on its own as more days accumulate, not a config issue)*
 - [x] 🤖 `cost-exporter`: polls Cost Explorer daily, feeds Prometheus/Grafana for AWS cost tracking (running + historical)
 
 ### Milestone 4 — DNS and TLS
