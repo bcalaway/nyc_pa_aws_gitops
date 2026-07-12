@@ -15,7 +15,12 @@ $smtpPassword = (& $aws ssm get-parameter --name "/home-platform/grafana/smtp-pa
 "GRAFANA_SMTP_PASSWORD=$smtpPassword" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
 
 Write-Host "Copying compose stack to EC2..."
-ssh -i $sshKey $ec2Host "mkdir -p $remoteDir"
+# rm+recreate rather than scp -r over an existing tree: scp only adds/overwrites,
+# it never deletes files that were removed locally, so a stale dashboard/config
+# from a prior deploy would silently keep being provisioned forever. Safe to wipe
+# and recopy -- everything here is config/compose files; actual state (Prometheus
+# TSDB, Loki chunks, Grafana DB, etc.) lives in named Docker volumes, not this dir.
+ssh -i $sshKey $ec2Host "rm -rf $remoteDir && mkdir -p $remoteDir"
 scp -i $sshKey -r "$localDir\*" "${ec2Host}:${remoteDir}/"
 scp -i $sshKey "$localDir\.env" "${ec2Host}:${remoteDir}/.env"
 
