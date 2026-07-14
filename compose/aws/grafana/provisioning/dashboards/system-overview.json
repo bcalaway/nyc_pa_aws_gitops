@@ -13,7 +13,7 @@
         "name": "instance",
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-        "query": "label_values(up{instance=~\"nas2|nuc5\"}, instance)",
+        "query": "label_values(up{job=\"node-exporter\"}, instance)",
         "refresh": 2,
         "multi": false,
         "includeAll": false,
