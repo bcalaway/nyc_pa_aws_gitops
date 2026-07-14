@@ -125,6 +125,7 @@
 /ip dhcp-server lease add mac-address=38:FC:98:99:7E:5B address=10.0.1.34 comment=nuc4
 /ip dhcp-server lease add mac-address=2C:58:B9:AF:E5:8A address=10.0.1.5  comment=HP-M455DN
 /ip dhcp-server lease add mac-address=00:17:88:A9:E9:0A address=10.0.1.71 comment=hue-nyc
+/ip dhcp-server lease add mac-address=30:52:53:05:F2:AA address=10.0.1.66 comment=kvm-nyc
 
 # ---------------------------------------------------------------------------
 # 11. DNS — static entries for known hosts at both sites (ADR-0009: router
@@ -150,6 +151,7 @@
 /ip dns static add name=nuc5.rambles.billandjessie.com address=10.0.2.10
 /ip dns static add name=hue-nyc.nyc.billandjessie.com address=10.0.1.71
 /ip dns static add name=hue-rambles.rambles.billandjessie.com address=10.0.2.244
+/ip dns static add name=kvm-nyc.nyc.billandjessie.com address=10.0.1.66
 
 # ---------------------------------------------------------------------------
 # 12. WireGuard — tunnel to AWS hub (10.0.3.1)

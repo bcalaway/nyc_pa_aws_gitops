@@ -148,6 +148,7 @@
 /ip dns static add name=nuc5.rambles.billandjessie.com address=10.0.2.10
 /ip dns static add name=hue-nyc.nyc.billandjessie.com address=10.0.1.71
 /ip dns static add name=hue-rambles.rambles.billandjessie.com address=10.0.2.244
+/ip dns static add name=kvm-nyc.nyc.billandjessie.com address=10.0.1.66
 
 # ---------------------------------------------------------------------------
 # 12. WireGuard — spoke to AWS hub (10.0.3.1); this site = 10.0.3.3
