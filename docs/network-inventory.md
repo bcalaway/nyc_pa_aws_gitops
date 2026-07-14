@@ -189,6 +189,7 @@ tracked individually here.
 | sw-10g | Working |
 | nas2 | Working (DSM Log Center, BSD/RFC3164, UDP) |
 | nuc5 | Working (rsyslog forwarding via `ansible/roles/logging`, applied 2026-07-11) |
+| nuc4 | Working (rsyslog forwarding via `ansible/roles/logging`, applied 2026-07-13) |
 | rt-nyc | Working — see note below |
 | rt-rambles | Working — see note below |
 | aws-hub (host journal) | Working — Promtail's `journal` scrape job reads `/var/log/journal` directly, no rsyslog hop needed |

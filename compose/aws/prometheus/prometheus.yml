@@ -22,6 +22,9 @@ scrape_configs:
       - targets: ["10.0.2.10:9100"]
         labels:
           instance: nuc5
+      - targets: ["10.0.1.34:9100"]
+        labels:
+          instance: nuc4
 
   # blackbox-exporter runs on each NUC itself (not centralized like snmp
   # below), since it needs to probe out from that site's own network.
@@ -35,19 +38,31 @@ scrape_configs:
       - targets: ["1.1.1.1", "8.8.8.8"]
         labels:
           site: rambles
+      - targets: ["1.1.1.1", "8.8.8.8"]
+        labels:
+          site: nyc
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
       - source_labels: [__param_target]
         target_label: instance
-      - target_label: __address__
+      - source_labels: [site]
+        regex: rambles
+        target_label: __address__
         replacement: 10.0.2.10:9115
+      - source_labels: [site]
+        regex: nyc
+        target_label: __address__
+        replacement: 10.0.1.34:9115
 
   - job_name: speedtest
     static_configs:
       - targets: ["10.0.2.10:9798"]
         labels:
           instance: nuc5
+      - targets: ["10.0.1.34:9798"]
+        labels:
+          instance: nuc4
 
   # MikroTik RB5009s via snmp_exporter, over the WireGuard tunnel.
   # Reaches routers through the hub, so no exporter needs to run at the sites.
@@ -82,6 +97,5 @@ scrape_configs:
       - target_label: __address__
         replacement: snmp-exporter:9116
 
-# Future scrape jobs, added as exporters come online (Milestone 8 stands up the NUCs):
-#   - node_exporter/blackbox/speedtest for nuc4 (NYC) once that NUC is installed
+# Future scrape jobs:
 #   - blackbox split per-WAN-interface once Milestones 6/7 land dual-WAN policy routing
