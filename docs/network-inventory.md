@@ -189,7 +189,7 @@ tracked individually here.
 | sw-10g | Working |
 | nas2 | Working (DSM Log Center, BSD/RFC3164, UDP) |
 | nuc5 | Working (rsyslog forwarding via `ansible/roles/logging`, applied 2026-07-11) |
-| nuc4 | Working (rsyslog forwarding via `ansible/roles/logging`, applied 2026-07-13) |
+| nuc4 | Working (rsyslog forwarding via `ansible/roles/logging`, applied 2026-07-13; **fixed 2026-07-14** — rsyslog on the hub was receiving and writing `/var/log/network-devices/10.0.1.34.log` correctly the whole time, but `promtail-config.yaml`'s `network-devices` job only ever got a static_configs entry for nuc5, never nuc4, so Promtail wasn't tailing the file. Same root cause as any future NUC/device added to logging without a matching Promtail entry — the ansible role and the Promtail config are two separate manual steps, nothing wires them together automatically) |
 | rt-nyc | Working — see note below |
 | rt-rambles | Working — see note below |
 | aws-hub (host journal) | Working — Promtail's `journal` scrape job reads `/var/log/journal` directly, no rsyslog hop needed |

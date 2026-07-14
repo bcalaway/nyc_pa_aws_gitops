@@ -78,6 +78,11 @@ scrape_configs:
           job: network-syslog
           device: nuc5
           __path__: /var/log/network-devices/10.0.2.10.log
+      - targets: [localhost]
+        labels:
+          job: network-syslog
+          device: nuc4
+          __path__: /var/log/network-devices/10.0.1.34.log
 
   # The hub's own system logs (auth, fail2ban, dnf-automatic, sshd, etc.)
   # were never shipped anywhere -- it only ever collected everyone else's.
