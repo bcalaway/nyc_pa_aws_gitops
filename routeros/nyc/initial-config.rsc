@@ -122,7 +122,7 @@
 /ip dhcp-server lease remove [find]
 /ip dhcp-server lease add mac-address=7C:57:58:D0:17:5E address=10.0.1.41 comment=FURRY
 /ip dhcp-server lease add mac-address=98:59:7A:F2:10:B6 address=10.0.1.40 comment=p7670-laptop
-/ip dhcp-server lease add mac-address=38:FC:98:99:7E:5B address=10.0.1.34 comment=nuc4
+/ip dhcp-server lease add mac-address=54:B2:03:F1:0A:67 address=10.0.1.34 comment=nuc4
 /ip dhcp-server lease add mac-address=2C:58:B9:AF:E5:8A address=10.0.1.5  comment=HP-M455DN
 /ip dhcp-server lease add mac-address=00:17:88:A9:E9:0A address=10.0.1.71 comment=hue-nyc
 /ip dhcp-server lease add mac-address=30:52:53:05:F2:AA address=10.0.1.66 comment=kvm-nyc
