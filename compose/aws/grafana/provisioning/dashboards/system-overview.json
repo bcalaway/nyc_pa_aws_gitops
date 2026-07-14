@@ -121,6 +121,32 @@
         { "expr": "rate(node_disk_written_bytes_total{instance=\"$instance\"}[5m])", "legendFormat": "write {{device}}", "refId": "B" }
       ],
       "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] }
+    },
+    {
+      "id": 9,
+      "title": "Temperature",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        {
+          "expr": "node_hwmon_temp_celsius{instance=\"$instance\"} * on(chip, sensor, instance) group_left(label) node_hwmon_sensor_label{instance=\"$instance\"}",
+          "legendFormat": "{{label}}",
+          "refId": "A"
+        },
+        {
+          "expr": "node_hwmon_temp_celsius{instance=\"$instance\"} unless on(chip, sensor, instance) node_hwmon_sensor_label{instance=\"$instance\"}",
+          "legendFormat": "{{chip}} {{sensor}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 }] }
+        },
+        "overrides": []
+      }
     }
   ]
 }
