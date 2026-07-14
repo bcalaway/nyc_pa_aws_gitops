@@ -128,6 +128,60 @@
         { "expr": "speedtest_jitter_latency_milliseconds{instance=\"nuc5\"}", "legendFormat": "Jitter", "refId": "B" }
       ],
       "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] }
+    },
+    {
+      "id": 10,
+      "title": "WAN Reachability (NYC)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 38 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "probe_success{job=\"blackbox-icmp\",site=\"nyc\"}", "legendFormat": "{{instance}}", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "title": "WAN Latency (ICMP, NYC)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 38 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "probe_duration_seconds{job=\"blackbox-icmp\",site=\"nyc\"}", "legendFormat": "{{instance}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 12,
+      "title": "Speedtest Throughput (NYC)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "speedtest_download_bits_per_second{instance=\"nuc4\"}", "legendFormat": "Download", "refId": "A" },
+        { "expr": "speedtest_upload_bits_per_second{instance=\"nuc4\"}", "legendFormat": "Upload", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bps" }, "overrides": [] }
+    },
+    {
+      "id": 13,
+      "title": "Speedtest Ping / Jitter (NYC)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "speedtest_ping_latency_milliseconds{instance=\"nuc4\"}", "legendFormat": "Ping", "refId": "A" },
+        { "expr": "speedtest_jitter_latency_milliseconds{instance=\"nuc4\"}", "legendFormat": "Jitter", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] }
     }
   ]
 }
