@@ -2,8 +2,9 @@
 
 ## gh CLI setup (new machine)
 
-The GitHub API token is stored in SSM at `/home-platform/github/api-token`.
+The GitHub API token is stored in SSM at `/home-platform/github/api-token`. Full step-by-step for both Windows and Linux (Rocky NUCs) machines is in `docs/new-machine-setup.md` — this is just the quick version.
 
+**Windows:**
 ```powershell
 # Install gh CLI
 winget install --id GitHub.cli --accept-package-agreements --accept-source-agreements
@@ -11,6 +12,18 @@ winget install --id GitHub.cli --accept-package-agreements --accept-source-agree
 # Auth from SSM (open a new terminal after install so PATH is updated)
 $token = (aws ssm get-parameter --name "/home-platform/github/api-token" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 $token | & "C:\Program Files\GitHub CLI\gh.exe" auth login --with-token
+```
+
+**Linux (Rocky/RHEL, dnf-based — the NUC pattern):**
+```bash
+# Install gh CLI
+sudo dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+sudo dnf install -y gh
+
+# Auth from SSM
+token=$(aws ssm get-parameter --name "/home-platform/github/api-token" --with-decryption --region us-east-1 --output json | jq -r '.Parameter.Value')
+echo "$token" | gh auth login --with-token
+gh auth setup-git   # required if the repo was cloned over HTTPS (the norm on Linux) so `git push` has credentials
 ```
 
 After setup, use `gh run list --repo bcalaway/nyc_pa_aws_gitops` to check Actions runs.
@@ -66,9 +79,9 @@ To add a new NUC to Ansible management: install the public key from SSM (`/home-
 
 ## New machine checklist
 
-On a fresh machine, read `docs/new-machine-setup.md` first — it has the full step-by-step. Key things to verify before starting work:
+On a fresh machine (Windows or Linux — `docs/new-machine-setup.md` covers both), read that doc first for the full step-by-step. Key things to verify before starting work (same commands on both platforms):
 
-```powershell
+```
 aws sts get-caller-identity                          # creds valid?
 gh run list --repo bcalaway/nyc_pa_aws_gitops        # gh authed?
 ```
