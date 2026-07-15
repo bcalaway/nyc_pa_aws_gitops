@@ -165,6 +165,37 @@ State is in S3 (`home-platform-terraform-state-147856894209`) — no local state
 
 ---
 
+## 8. Set up PuTTY for SSH to Linux boxes (NUCs, EC2 hub)
+
+PuTTY renders using a font installed on *this* Windows machine, not anything on the remote Linux box — without a proper font, Claude Code's box-drawing/status symbols and Neovim's devicons/statusline glyphs show up as boxes or garbage.
+
+```powershell
+winget install --id PuTTY.PuTTY --silent --accept-package-agreements --accept-source-agreements
+winget install --id DEVCOM.JetBrainsMonoNerdFont --accept-package-agreements --accept-source-agreements
+```
+
+For each PuTTY session you create (nuc4, nuc5, the EC2 hub, etc.):
+1. **Session** — enter host name, save the session name
+2. **Window → Appearance → Font** — click "Change...", select **JetBrainsMono NF**, size 11, and set Font Quality to **ClearType**
+3. **Window → Translation → Remote character set** — set to **UTF-8**
+4. Go back to **Session**, click **Save**
+
+If you already have saved PuTTY sessions and want to apply this to all of them at once instead of clicking through each one:
+```powershell
+Get-ChildItem "HKCU:\Software\SimonTatham\PuTTY\Sessions" | ForEach-Object {
+  $p = $_.PSPath
+  Set-ItemProperty -Path $p -Name "Font" -Value "JetBrainsMono NF"
+  Set-ItemProperty -Path $p -Name "FontHeight" -Value 11
+  Set-ItemProperty -Path $p -Name "FontQuality" -Value 3
+  Set-ItemProperty -Path $p -Name "LineCodePage" -Value "UTF-8"
+}
+```
+Close and reopen any already-open PuTTY windows for the change to take effect.
+
+> The remote side also needs a UTF-8 locale (`locale` should show `en_US.UTF-8`) — this is already the default on the NUCs and EC2 hub, so it's normally a non-issue.
+
+---
+
 ## Key inventory (all in SSM)
 
 | SSM Path | Type | Contents |
