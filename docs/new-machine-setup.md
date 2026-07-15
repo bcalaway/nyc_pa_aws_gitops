@@ -358,6 +358,12 @@ ls ~/.local/share/nvim/lazy/ | wc -l   # ~27 plugins expected
 nvim --headless -c 'lua print(#vim.tbl_keys(require("lazy").plugins()))' -c 'qa'
 ```
 
+Alias `vi` to `nvim` (there's an existing "User specific aliases and functions" comment line in `~/.bashrc` on the Rocky NUC image — add it there):
+```bash
+sed -i "/# User specific aliases and functions/a alias vi='nvim'" ~/.bashrc
+```
+Reconnect (or `source ~/.bashrc`) for it to take effect.
+
 ---
 
 ## Key inventory (all in SSM)
