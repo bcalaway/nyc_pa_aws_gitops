@@ -312,6 +312,54 @@ Close and reopen any already-open PuTTY windows for the change to take effect.
 
 ---
 
+## 9. Set up NvChad on a NUC
+
+This is Bill's personal editor config for `bcalaway` on the NUCs (nuc4, nuc5) — not Ansible-managed, since it's a dotfiles preference rather than infrastructure state. Redo manually on any new/reimaged NUC. Requires the PuTTY font setup from step 8 to actually see the icons.
+
+Rocky Linux's EPEL-packaged Neovim (0.10.1 as of Rocky 10.2) is too old for current NvChad/plugin configs, which expect ≥0.11 — install a current upstream release instead of the distro package:
+
+```bash
+# fd/fzf are in EPEL (already enabled on the NUC image); lazygit isn't packaged, grab it from GitHub
+sudo dnf install -y fd-find fzf
+
+# Neovim: check https://github.com/neovim/neovim/releases/latest for the current version
+cd /tmp
+curl -fsSL -o nvim-linux-x86_64.tar.gz https://github.com/neovim/neovim/releases/download/v0.12.4/nvim-linux-x86_64.tar.gz
+tar tzf nvim-linux-x86_64.tar.gz > /dev/null && echo 'archive OK'   # sanity check before extracting
+mkdir -p ~/.local
+rm -rf ~/.local/nvim-0.12.4
+tar xzf nvim-linux-x86_64.tar.gz -C ~/.local/
+mv ~/.local/nvim-linux-x86_64 ~/.local/nvim-0.12.4
+ln -sf ~/.local/nvim-0.12.4/bin/nvim ~/.local/bin/nvim   # ~/.local/bin is already first on PATH (bcalaway's .bashrc)
+rm nvim-linux-x86_64.tar.gz
+nvim --version | head -1
+
+# lazygit: check https://github.com/jesseduffield/lazygit/releases/latest for the current version
+curl -fsSL -o lazygit.tar.gz https://github.com/jesseduffield/lazygit/releases/download/v0.63.1/lazygit_0.63.1_linux_x86_64.tar.gz
+tar tzf lazygit.tar.gz > /dev/null && echo 'archive OK'
+tar xzf lazygit.tar.gz -C /tmp lazygit
+mv /tmp/lazygit ~/.local/bin/lazygit
+chmod +x ~/.local/bin/lazygit
+rm lazygit.tar.gz
+
+# NvChad itself
+git clone https://github.com/NvChad/starter ~/.config/nvim
+rm -rf ~/.config/nvim/.git   # detach from the starter repo, it's your own config now
+
+# Sync plugins headlessly so the first interactive launch isn't slow
+timeout 180 nvim --headless '+Lazy! sync' +qa
+```
+
+> **Gotcha:** `nvim --headless '+Lazy! sync' +qa` hangs silently (0% CPU, no output, no error) if the installed Neovim is older than what the config requires — it's stuck on an interactive "Press any key to exit" version-check prompt with no TTY to receive the keypress. Always wrap the sync in `timeout` and check `ps`/CPU usage if it's not progressing after a minute or two; don't assume it's just slow.
+
+Verify it worked:
+```bash
+ls ~/.local/share/nvim/lazy/ | wc -l   # ~27 plugins expected
+nvim --headless -c 'lua print(#vim.tbl_keys(require("lazy").plugins()))' -c 'qa'
+```
+
+---
+
 ## Key inventory (all in SSM)
 
 | SSM Path | Type | Contents |
