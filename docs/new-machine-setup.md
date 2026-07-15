@@ -364,6 +364,21 @@ sed -i "/# User specific aliases and functions/a alias vi='nvim'" ~/.bashrc
 ```
 Reconnect (or `source ~/.bashrc`) for it to take effect.
 
+### Optional: custom prompt (user@host + cwd + [git branch] + `>`)
+
+Bill's preferred prompt format (matches a style he uses elsewhere), added to `~/.bashrc`:
+```bash
+cat >> ~/.bashrc <<'EOF'
+
+# Custom prompt: user@host + cwd + [git branch] + >
+parse_git_branch() {
+  git branch --show-current 2>/dev/null
+}
+PS1='\[\e[1;31m\]\u@\h\[\e[1;36m\]\w\[\e[0m\] \[\e[1;33m\][$(parse_git_branch)]\[\e[1;32m\]>\[\e[0m\]'
+EOF
+```
+Renders as `bcalaway@nuc4~/workspace/foo [branch-name]>` inside a git repo, or `bcalaway@nuc4~ []>` outside one — no separator between hostname and path, no trailing space after `>`.
+
 ---
 
 ## Key inventory (all in SSM)
