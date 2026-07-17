@@ -36,3 +36,7 @@ The goal is that standing up a NUC from scratch requires only a Rocky Linux inst
 - Compose files live in Git under `compose/aws/`, `compose/nyc/`, `compose/rambles/`
 - Ansible manages deployment, updates, and restarts
 - Recovery procedure is: install OS → run playbook → done
+
+## Revisited 2026-07-17
+
+Reconsidered as part of planning the app platform (ADR-0014 through ADR-0019) — same conclusion, reaffirmed rather than reversed. A single hub node doesn't need a scheduler; k8s's actual value (multi-node scheduling) doesn't apply until there's more than one node running app workloads. Revisit again specifically if the NUCs ever join as app compute nodes alongside the hub (see ADR-0015) — a k3s cluster spanning hub + NUCs is where this decision would actually flip, not before. Traefik (ADR-0018) was chosen partly because it ships built into k3s by default, so that choice pays forward into this future migration rather than being thrown away if it happens.

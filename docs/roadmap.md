@@ -148,6 +148,28 @@ Tasks:
 - [ ] 🤖 Backup metrics exposed to Prometheus
 - [ ] 🤖 Grafana alert on backup failure
 
+### Milestone 11 — App Platform Foundation
+**Goal:** Shared services (database, auth, ingress) running on the hub and a proven CI/CD framework, ready for the first application. See `docs/adr/0014` through `docs/adr/0019` for the architecture decisions behind this milestone.
+
+Tasks:
+- [ ] 🧑 Approve EC2 hub resize to `t3.medium` (small ongoing cost increase — needed for Postgres + Redis + Traefik + Authentik + app containers on top of the existing observability stack)
+- [ ] 🤖 Terraform: resize hub EC2 instance to `t3.medium`
+- [ ] 🤖 Docker Compose: shared Postgres service on the hub *(ADR-0016 — one instance, per-app logical databases + least-privilege credentials)*
+- [ ] 🤖 Postgres backups: EBS snapshot schedule + `pg_dump`-to-S3 job — needed before any app holds non-reproducible data
+- [ ] 🤖 `postgres_exporter` wired into the existing Prometheus/Grafana stack
+- [ ] 🤖 Docker Compose: Redis service *(Authentik's dependency)*
+- [ ] 🤖 Docker Compose: Authentik service, own Postgres DB + Redis *(ADR-0017)*
+- [ ] 🤖 Migrate Grafana from anonymous access (Milestone 3) to Authentik OIDC login
+- [ ] 🤖 Docker Compose: Traefik service; migrate Grafana + status page routes off hand-edited nginx *(ADR-0018)*
+- [ ] 🤖 Retire nginx once Traefik is confirmed handling both existing routes
+- [ ] 🤖 `docs/app-platform.md`: the platform contract doc — DB provisioning, auth integration, ingress/DNS wiring, secrets convention, deploy mechanism *(ADR-0014)*
+- [ ] 🤖 Terraform: per-app IAM role + OIDC trust + ECR repository, starting with the TODO app *(ADR-0019 — scoped narrowly per app, not a widened platform role)*
+- [ ] 🤖 Reusable CI/CD GitHub Actions workflow(s): required checks (build/test/lint) + CD (ECR push, auto-deploy or manual-promote modes)
+- [ ] 🤖 Starter app template: Python
+- [ ] 🤖 Starter app template: C++
+- [ ] 🤖 Starter app template: React
+- [ ] 🤖 TODO app repo: scaffolded from the Python template, deployed end-to-end through the full platform (DB, auth, ingress, CI/CD) — validates the framework itself, not just the app
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup
