@@ -1,0 +1,16 @@
+---
+# Applies each router's managed-config.rsc (see routeros/NOTES.md).
+# Deliberately NOT part of site.yml's NUC provisioning run -- this is
+# manually/CI triggered on its own (Milestone 9), never bundled with an
+# unrelated NUC playbook run.
+#
+# Usage:
+#   ansible-playbook routeros.yml                  # both routers
+#   ansible-playbook routeros.yml --limit rt-nyc    # one site only
+- name: Apply RouterOS config
+  hosts: routers
+  gather_facts: false  # no Python/facts subsystem on RouterOS, and the
+                        # connection is local anyway (see inventory) -- facts
+                        # gathering would just describe the control node.
+  roles:
+    - routeros

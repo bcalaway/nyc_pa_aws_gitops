@@ -61,15 +61,43 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     resources = ["*"]
   }
 
-  # This project's two managed buckets (logs, portal) -- was s3:* on every
-  # bucket in the account, now scoped to just these two plus their objects.
+  # This project's three managed buckets (logs, portal, ansible-deploy) --
+  # was s3:* on every bucket in the account, now scoped to just these plus
+  # their objects.
   statement {
     effect  = "Allow"
     actions = ["s3:*"]
     resources = [
       aws_s3_bucket.logs.arn, "${aws_s3_bucket.logs.arn}/*",
       aws_s3_bucket.portal.arn, "${aws_s3_bucket.portal.arn}/*",
+      aws_s3_bucket.ansible_deploy.arn, "${aws_s3_bucket.ansible_deploy.arn}/*",
     ]
+  }
+
+  # SSM Run Command -- lets the RouterOS workflow (Milestone 9) tell the EC2
+  # hub to run ansible-playbook locally. Hosted GitHub runners can't reach
+  # the hub directly (its security group only allows SSH from the WireGuard
+  # subnets), but the hub already has WireGuard reach to both routers, so
+  # this is how a workflow_dispatch-triggered apply actually happens.
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:SendCommand"]
+    resources = ["arn:aws:ssm:us-east-1::document/AWS-RunShellScript"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:SendCommand"]
+    resources = [aws_instance.hub.arn]
+  }
+
+  # GetCommandInvocation/ListCommandInvocations are identified by
+  # command-id, not a taggable/ARN-able resource -- same scoping limitation
+  # as the ssm:DescribeParameters statement below.
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:GetCommandInvocation", "ssm:ListCommandInvocations", "ssm:ListCommands"]
+    resources = ["*"]
   }
 
   # Route53 — same scoping pattern as the hub role's policy in tls.tf.
@@ -126,8 +154,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
   # parameter in the account. DescribeParameters is inherently a
   # search/list action (like s3:ListAllMyBuckets) and can't be path-scoped.
   statement {
-    effect  = "Allow"
-    actions = ["ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter", "ssm:DeleteParameter", "ssm:AddTagsToResource", "ssm:ListTagsForResource", "ssm:RemoveTagsFromResource"]
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter", "ssm:DeleteParameter", "ssm:AddTagsToResource", "ssm:ListTagsForResource", "ssm:RemoveTagsFromResource"]
     resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/*"]
   }
 
