@@ -64,6 +64,8 @@ Always `git push` immediately after every `git commit` without asking.
 | `/home-platform/nuc/rambles-nuc5-password` | nuc5 SSH/sudo password |
 | `/home-platform/ansible/nuc-private-key` | SSH private key Ansible uses to manage NUCs (key-based, passwordless sudo configured for `bcalaway`) |
 | `/home-platform/ansible/nuc-public-key` | Matching public key — already installed in nuc5's `authorized_keys`; add to any new NUC the same way |
+| `/home-platform/github/nuc-ssh-private-key` | Shared ed25519 key for `bcalaway`'s own `git@github.com:` SSH access from the NUCs (as `~/.ssh/id_ed25519`) — registered on GitHub as "nuc key". One keypair shared across nuc4/nuc5, same pattern as the Ansible key above. Not needed on nuc4 unless its clone is switched from HTTPS to SSH — see the "New machine checklist" note |
+| `/home-platform/github/nuc-ssh-public-key` | Matching public key |
 
 ## Ansible NUC provisioning
 

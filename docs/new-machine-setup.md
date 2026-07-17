@@ -164,6 +164,19 @@ git config --global user.name "Bill Calaway"
 
 (`--global` here since NUCs are single-user machines — matches the pattern already on nuc4/nuc5.)
 
+**Alternative: SSH instead of HTTPS.** If you'd rather use `git clone git@github.com:...` directly (e.g. muscle memory, or `gh` isn't set up on this box), pull the shared NUC keypair from SSM instead of generating a new one:
+```bash
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+aws ssm get-parameter --name "/home-platform/github/nuc-ssh-private-key" --with-decryption --region us-east-1 \
+  --query "Parameter.Value" --output text > ~/.ssh/id_ed25519
+aws ssm get-parameter --name "/home-platform/github/nuc-ssh-public-key" --region us-east-1 \
+  --query "Parameter.Value" --output text > ~/.ssh/id_ed25519.pub
+chmod 600 ~/.ssh/id_ed25519
+ssh -o StrictHostKeyChecking=accept-new -T git@github.com   # should greet you as bcalaway
+git clone git@github.com:bcalaway/nyc_pa_aws_gitops.git
+```
+This key is already registered on GitHub (titled "nuc key") and already deployed on nuc4/nuc5 — reuse it rather than generating a new one per machine, same as the Ansible key.
+
 ---
 
 ## 4. Restore the EC2 SSH key
