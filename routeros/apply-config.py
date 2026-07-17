@@ -21,32 +21,45 @@ Options:
 If neither --ssm nor a positional password is given, you are prompted.
 The prompted/positional value is used for both SSH auth and substitution.
 
+Two files per site as of 2026-07-17 (see routeros/NOTES.md "initial-config.rsc
+vs. managed-config.rsc" for the full incident writeup):
+    initial-config.rsc   One-time factory bring-up ONLY. Never reapply this
+                          to an already-live router — it removes the router's
+                          real LAN IP the same way it removes the factory one.
+    managed-config.rsc   The ongoing-managed subset (firewall, DHCP, DNS,
+                          WireGuard, NTP, SNMP, syslog). Safe to reapply to a
+                          live router. This is the file the new Ansible
+                          role/CI pipeline applies (see ansible/routeros.yml).
+
 Safety check:
-    The NYC/Rambles WireGuard section unconditionally removes the live
-    wg-aws interface/peer/address before recreating it — safe on a factory
-    router with no tunnel yet, but it WILL DROP A LIVE TUNNEL if reapplied
-    without a real key. So if WG_PRIVATE_KEY_PLACEHOLDER is still in the
-    file after substitution, this script exits before ever connecting,
-    unless --wg-key-ssm was given. Don't work around this by hand-editing
-    the placeholder into the .rsc file — that would commit a live private
-    key to Git.
+    managed-config.rsc's WireGuard section is idempotent (skips entirely if
+    wg-aws already exists) as of 2026-07-17, but this script's placeholder
+    guard stays as defense in depth: if WG_PRIVATE_KEY_PLACEHOLDER is still
+    in the file after substitution, this script exits before ever
+    connecting, unless --wg-key-ssm was given. Don't work around this by
+    hand-editing the placeholder into the .rsc file — that would commit a
+    live private key to Git.
 
 Examples:
-    # Re-apply to already-configured router, e.g. for a DNS-only change
-    # (also substitutes the real WireGuard key so the reapply is safe):
-    python apply-config.py 10.0.1.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password --wg-key-ssm /home-platform/wireguard/nyc-private-key
+    # First-time bring-up from factory reset — two calls, in order:
+    python apply-config.py 192.168.88.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password --ssh-password <factory-password>
+    python apply-config.py 10.0.1.1 routeros/nyc/managed-config.rsc --ssm /home-platform/router/nyc-admin-password --wg-key-ssm /home-platform/wireguard/nyc-private-key
 
-    # Initial setup from factory reset (SSH with factory password, set new from SSM):
-    python apply-config.py 192.168.88.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password --ssh-password <factory-password> --wg-key-ssm /home-platform/wireguard/nyc-private-key
+    # Re-apply managed-config.rsc to an already-live router (safe — the
+    # WireGuard section is idempotent, everything else is a brief blip
+    # at worst, see routeros/NOTES.md for exactly what's still not
+    # fully idempotent):
+    python apply-config.py 10.0.1.1 routeros/nyc/managed-config.rsc --ssm /home-platform/router/nyc-admin-password --wg-key-ssm /home-platform/wireguard/nyc-private-key
 
-    # Rambles:
-    python apply-config.py 192.168.88.1 routeros/rambles/initial-config.rsc --ssm /home-platform/router/rambles-admin-password --wg-key-ssm /home-platform/wireguard/rambles-private-key
+    # Rambles, same pattern:
+    python apply-config.py 10.0.2.1 routeros/rambles/managed-config.rsc --ssm /home-platform/router/rambles-admin-password --wg-key-ssm /home-platform/wireguard/rambles-private-key
 
     # Targeted one-line change (e.g. a single DNS record) instead of a full
-    # reapply — safer, and doesn't need --wg-key-ssm at all. Write a small
-    # script that opens an SSH session and runs just that one RouterOS
-    # command via exec_command(), the way the recovery from the 2026-07-17
-    # incident (see git log) did it.
+    # reapply — still the preferred approach for a one-off change even
+    # though managed-config.rsc is now much safer to reapply than the old
+    # unified file was. Write a small script that opens an SSH session and
+    # runs just that one RouterOS command via exec_command(), the way the
+    # recovery from the 2026-07-17 incident (see git log) did it.
 
 Requirements:
     pip install paramiko
@@ -54,6 +67,7 @@ Requirements:
 """
 
 import sys
+import os
 import argparse
 import getpass
 import json
@@ -139,24 +153,39 @@ def main():
         print(f"SSH failed: {e}")
         sys.exit(1)
 
-    print(f"Uploading {args.config} via SFTP...")
+    remote_name = os.path.basename(args.config)
+    print(f"Uploading {args.config} via SFTP as {remote_name}...")
     sftp = client.open_sftp()
-    with sftp.open("initial-config.rsc", "w") as f:
+    with sftp.open(remote_name, "w") as f:
         f.write(content)
     sftp.close()
     print("Upload complete.")
 
-    print("Running /import initial-config.rsc ...")
-    print("(SSH will drop when the LAN IP changes — that is expected)")
+    print(f"Running /import {remote_name} ...")
+    print("(SSH will drop here if this file changes the LAN IP — expected for initial-config.rsc, not for managed-config.rsc)")
+    import_failed = False
     try:
-        _, stdout, stderr = client.exec_command("/import initial-config.rsc", timeout=60)
+        _, stdout, stderr = client.exec_command(f"/import {remote_name}", timeout=60)
         out = stdout.read(8192).decode(errors="replace")
         err = stderr.read(8192).decode(errors="replace")
         if out:
             print("Output:", out[:2000])
         if err:
             print("Stderr:", err[:500])
-        print("Import completed without connection drop.")
+        # RouterOS reports per-line script errors in stdout (exit status from
+        # exec_command is unreliable for this -- /import itself "succeeds" as
+        # a session even when individual lines inside it fail), so this has
+        # to be a text scan. Found 2026-07-17: a non-idempotent NTP line
+        # failed with "Script Error: failure: duplicate address" and this
+        # script printed it but still exited 0 -- meaning the Ansible role's
+        # failed_when: rc != 0 (see ansible/roles/routeros) would have
+        # silently treated a real failure as success. Fixed alongside making
+        # managed-config.rsc's own sections properly idempotent.
+        if "Script Error" in out or "failure:" in out:
+            print("\nRouterOS reported a script error above -- treating this as a failed apply.")
+            import_failed = True
+        else:
+            print("Import completed without connection drop.")
     except Exception as e:
         print(f"Connection dropped during import (expected if LAN IP changed): {e}")
 
@@ -164,6 +193,10 @@ def main():
         client.close()
     except Exception:
         pass
+
+    if import_failed:
+        print("\nFailed.")
+        sys.exit(1)
 
     print("\nDone.")
 

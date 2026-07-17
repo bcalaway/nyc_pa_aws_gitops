@@ -141,13 +141,22 @@ Always use the full path on every line:
 
 ## Script ordering summary
 
+As of 2026-07-17, each site's config is split into two files — see
+"initial-config.rsc vs. managed-config.rsc" below for why. `initial-config.rsc`
+is the bring-up-only file this ordering summary describes:
+
 ```
-Section 1-5   Run while SSH is alive (factory IP 192.168.88.1 intact)
-              Password, bridge ports, SSH service, firewall
-Section 6     /ip address remove then add — SSH drops here
-Sections 7+   Run server-side (DHCP client, NAT, DHCP server, DNS, WireGuard, NTP)
-Last line     /ip firewall connection remove [find]
+Section 1-4   Run while SSH is alive (factory IP 192.168.88.1 intact)
+              Identity, password, bridge ports, SSH service
+Section 5     /ip address remove then add — SSH drops here
+Sections 6-7  Run server-side (WAN DHCP client, NAT)
 ```
+
+`managed-config.rsc` (firewall, DHCP server/leases, DNS, WireGuard, NTP,
+SNMP, syslog, connection-tracking flush) is applied as a second, separate
+step — see below. Its own last line is still `/ip firewall connection
+remove [find]`, for the same reason as before (don't kill the session
+running the import until every rule is in place).
 
 ---
 
@@ -250,3 +259,45 @@ If your own access path to a site is *itself* blocked by a restriction you're
 trying to fix (e.g. its SSH service doesn't trust your current source
 subnet), route through the EC2 hub as a jump host instead — its WireGuard
 source IP (10.0.3.1) is already trusted by every site's SSH allow-list.
+
+---
+
+## `initial-config.rsc` vs. `managed-config.rsc` (split 2026-07-17)
+
+Each site now has two files, not one. **This split exists because of a real
+incident**: `initial-config.rsc` used to be the whole config, applied via
+`apply-config.py` for both first-time bring-up *and* later one-off changes
+(e.g. adding a DNS record). Its WireGuard section unconditionally did
+`remove` then `add` on `wg-aws` — reapplying the file for an unrelated
+one-line DNS change tore down a live tunnel and failed to bring it back
+(the placeholder private key isn't real). Several other sections have the
+same shape (LAN IP, DHCP server, DHCP leases, DNS statics all
+remove-then-re-add), just with less dramatic consequences than deleting
+the tunnel you're SSHed in over.
+
+- **`initial-config.rsc`** — one-time factory bring-up only (identity,
+  password, bridge ports, SSH service, LAN IP, WAN client, NAT). Never
+  reapply this to an already-live router — it removes the router's real
+  LAN IP the same way it removes the factory one.
+- **`managed-config.rsc`** — the ongoing-managed subset (firewall, DHCP
+  server + leases, DNS statics, WireGuard, NTP, SNMP, syslog). Safe to
+  reapply to a live router. Its WireGuard section is now genuinely
+  idempotent — wrapped in `:if ([:len [/interface wireguard find
+  name=wg-aws]] = 0) do={...}`, so it's a no-op if `wg-aws` already
+  exists. The DHCP-lease/DNS-static/firewall sections are **not** fully
+  idempotent (still remove-all-then-re-add-all) — reapplying still causes
+  a brief window with no rules/leases/static DNS, same as always. Only
+  WireGuard specifically got the incident-driven fix, since that's what
+  actually broke.
+
+**First-time bring-up is now two calls, not one**: apply
+`initial-config.rsc`, then immediately apply `managed-config.rsc` (same
+`apply-config.py` tool). There's a brief window between the two where the
+router has its real LAN IP/NAT/WAN but no firewall, DHCP, DNS, or
+WireGuard yet — accepted as fine for a supervised, one-time bring-up with
+physical access to the hardware.
+
+**For a single small change** (e.g. one DNS record — this is how
+`hub.billandjessie.com` got added), still don't reapply either whole file
+against a live router. SSH in (through the EC2 hub as a jump host if
+needed — see above) and run just that one command.
