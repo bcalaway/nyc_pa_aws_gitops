@@ -64,13 +64,25 @@ data "aws_iam_policy_document" "github_actions_permissions" {
   # This project's three managed buckets (logs, portal, ansible-deploy) --
   # was s3:* on every bucket in the account, now scoped to just these plus
   # their objects.
+  #
+  # ansible-deploy uses a literal ARN string, not aws_s3_bucket.ansible_deploy.arn
+  # -- referencing the resource attribute here creates a real circular
+  # dependency (this policy statement would need the bucket to exist to
+  # compute its ARN, but creating the bucket needs this policy to already
+  # grant s3:CreateBucket first), which failed twice in CI with "not
+  # authorized to perform: s3:CreateBucket" before this fix. S3 ARNs are
+  # fully deterministic from the bucket name, which is already a literal
+  # here, so there's no need to reference the resource at all. logs/portal
+  # don't hit this because they were created before their policy was
+  # narrowed to reference them, so the ordering problem never arose for them.
   statement {
     effect  = "Allow"
     actions = ["s3:*"]
     resources = [
       aws_s3_bucket.logs.arn, "${aws_s3_bucket.logs.arn}/*",
       aws_s3_bucket.portal.arn, "${aws_s3_bucket.portal.arn}/*",
-      aws_s3_bucket.ansible_deploy.arn, "${aws_s3_bucket.ansible_deploy.arn}/*",
+      "arn:aws:s3:::home-platform-ansible-deploy-${var.aws_account_id}",
+      "arn:aws:s3:::home-platform-ansible-deploy-${var.aws_account_id}/*",
     ]
   }
 
