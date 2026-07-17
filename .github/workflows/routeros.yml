@@ -1,0 +1,135 @@
+name: RouterOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: "Which router(s) to apply managed-config.rsc to"
+        required: true
+        type: choice
+        options:
+          - nyc
+          - rambles
+          - both
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  DEPLOY_BUCKET: home-platform-ansible-deploy-147856894209
+
+jobs:
+  plan:
+    name: Show config diff
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Diff managed-config.rsc against the previous commit
+        run: |
+          # This is a file diff, NOT a true RouterOS-side dry run -- that
+          # would need the API (disabled fleet-wide, deliberate hardening)
+          # or a real --dry-run mode in apply-config.py (doesn't exist
+          # today). It's a real, cheap safety check -- a human reviews
+          # exactly what changed before approving the apply job below --
+          # just not equivalent to a Terraform plan.
+          {
+            echo '## RouterOS managed-config.rsc diff'
+            echo '```diff'
+            git diff HEAD~1 -- routeros/nyc/managed-config.rsc routeros/rambles/managed-config.rsc || true
+            echo '```'
+          } | tee "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    name: Apply via SSM
+    runs-on: ubuntu-latest
+    needs: plan
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync ansible/ and routeros/ to S3
+        run: |
+          aws s3 sync ansible/ "s3://${DEPLOY_BUCKET}/ansible/" --delete
+          aws s3 sync routeros/ "s3://${DEPLOY_BUCKET}/routeros/" --delete
+
+      - name: Look up hub instance ID
+        id: hub
+        run: |
+          ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=home-platform-hub" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" --output text)
+          if [ -z "$ID" ] || [ "$ID" = "None" ]; then
+            echo "::error::Could not find a running home-platform-hub instance"
+            exit 1
+          fi
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+
+      - name: Send apply command via SSM
+        id: send
+        run: |
+          LIMIT_ARGS=()
+          if [ "${{ inputs.site }}" != "both" ]; then
+            LIMIT_ARGS=(--limit "rt-${{ inputs.site }}")
+          fi
+          REMOTE_DIR="/home/ec2-user/home-platform"
+          CMD=$(jq -n \
+            --arg bucket "$DEPLOY_BUCKET" \
+            --arg dir "$REMOTE_DIR" \
+            --arg limit "${LIMIT_ARGS[*]:-}" \
+            '{commands: [
+              "set -e",
+              ("mkdir -p " + $dir + "/ansible " + $dir + "/routeros"),
+              ("command -v ansible-playbook >/dev/null 2>&1 || sudo dnf install -y ansible-core"),
+              ("aws s3 sync s3://" + $bucket + "/ansible/ " + $dir + "/ansible/ --delete"),
+              ("aws s3 sync s3://" + $bucket + "/routeros/ " + $dir + "/routeros/ --delete"),
+              ("cd " + $dir + "/ansible && ansible-playbook routeros.yml " + $limit)
+            ]}')
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "${{ steps.hub.outputs.id }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "RouterOS apply, GitHub run ${{ github.run_id }}, site=${{ inputs.site }}" \
+            --parameters "$CMD" \
+            --query "Command.CommandId" --output text)
+          echo "id=$CMD_ID" >> "$GITHUB_OUTPUT"
+          echo "Sent command $CMD_ID"
+
+      - name: Poll for completion
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(aws ssm list-command-invocations \
+              --command-id "${{ steps.send.outputs.id }}" --details \
+              --query "CommandInvocations[0].Status" --output text 2>/dev/null || echo "Pending")
+            echo "status: $STATUS"
+            if [[ "$STATUS" != "InProgress" && "$STATUS" != "Pending" && "$STATUS" != "" && "$STATUS" != "None" ]]; then
+              break
+            fi
+            sleep 10
+          done
+
+      - name: Fetch output and fail on error
+        run: |
+          aws ssm get-command-invocation \
+            --command-id "${{ steps.send.outputs.id }}" \
+            --instance-id "${{ steps.hub.outputs.id }}" > result.json
+          echo "--- stdout ---"
+          jq -r '.StandardOutputContent' result.json
+          echo "--- stderr ---"
+          jq -r '.StandardErrorContent' result.json >&2
+          STATUS=$(jq -r '.Status' result.json)
+          if [ "$STATUS" != "Success" ]; then
+            echo "::error::RouterOS apply failed: $STATUS"
+            exit 1
+          fi

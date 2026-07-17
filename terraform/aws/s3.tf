@@ -55,3 +55,29 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "portal" {
     apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
   }
 }
+
+# Staging area for the RouterOS/NUC CI pipelines (Milestone 9): GitHub
+# Actions syncs ansible/ and routeros/ here, then the SSM-triggered command
+# on the hub syncs back down from it -- avoids needing git or a deploy
+# credential on the hub at all. Private, no public access, no website
+# hosting (unlike portal) since nothing here is ever served.
+resource "aws_s3_bucket" "ansible_deploy" {
+  bucket = "home-platform-ansible-deploy-${var.aws_account_id}"
+
+  tags = { Name = "home-platform-ansible-deploy" }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "ansible_deploy" {
+  bucket = aws_s3_bucket.ansible_deploy.id
+  rule {
+    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "ansible_deploy" {
+  bucket                  = aws_s3_bucket.ansible_deploy.id
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = true
+  restrict_public_buckets = true
+}

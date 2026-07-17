@@ -1,0 +1,44 @@
+---
+# Applies routeros/{{ site }}/managed-config.rsc (the idempotent, ongoing-
+# managed subset -- NOT initial-config.rsc's one-time bring-up section) to
+# an already-provisioned, live router. See routeros/NOTES.md and the
+# 2026-07-17 incident (CLAUDE.md Gotchas) for why the split exists.
+#
+# RouterOS's HTTP API is disabled fleet-wide (/ip service set api
+# disabled=yes, deliberate hardening -- see routeros/*/managed-config.rsc),
+# so community.routeros's idempotent api_modify/api_facts modules aren't
+# usable without reversing that. This wraps routeros/apply-config.py
+# (paramiko SSH+SFTP) instead of adopting a new SSH automation path --
+# it's the one piece of RouterOS-SSH tooling that's actually been proven
+# against this hardware, including the placeholder guard and error
+# detection added alongside this role.
+#
+# Secrets: this task only ever passes SSM *parameter names*, never values.
+# apply-config.py resolves them itself via `aws ssm get-parameter`, run as
+# ec2-user using the hub's own IAM instance role (see terraform/aws/tls.tf)
+# -- no amazon.aws collection needed on the control node, and no secret
+# value ever appears in Ansible's process list or verbose (-vvv) logs.
+
+- name: Apply RouterOS managed config to {{ site }}
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ playbook_dir }}/../routeros/apply-config.py"
+      - "{{ ansible_host }}"
+      - "{{ playbook_dir }}/../routeros/{{ site }}/managed-config.rsc"
+      - --ssm
+      - "/home-platform/router/{{ site }}-admin-password"
+      - --wg-key-ssm
+      - "/home-platform/wireguard/{{ site }}-private-key"
+  register: apply_result
+  # apply-config.py doesn't expose a machine-readable idempotency signal
+  # (it always re-runs /import against the router), so this is an explicit
+  # always-true rather than a guessed default -- matches this repo's
+  # existing convention (see ansible/roles/exporters) of never leaving
+  # changed_when unset on a command task.
+  changed_when: true
+  failed_when: apply_result.rc != 0
+
+- name: Show apply-config.py output
+  ansible.builtin.debug:
+    var: apply_result.stdout_lines
