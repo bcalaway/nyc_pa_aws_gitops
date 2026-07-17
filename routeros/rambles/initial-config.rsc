@@ -154,8 +154,13 @@
 # ---------------------------------------------------------------------------
 # 12. WireGuard — spoke to AWS hub (10.0.3.1); this site = 10.0.3.3
 #     Private key stored in SSM: /home-platform/wireguard/rambles-private-key
-#     Substitute WG_PRIVATE_KEY_PLACEHOLDER manually before applying -- this
-#     is separate from apply-config.py's PLACEHOLDER (admin password) sub.
+#     Pass --wg-key-ssm /home-platform/wireguard/rambles-private-key to
+#     apply-config.py to substitute WG_PRIVATE_KEY_PLACEHOLDER -- this is
+#     separate from --ssm (admin password). apply-config.py REFUSES to run
+#     if this placeholder is still present, since this section unconditionally
+#     removes the live wg-aws interface first (see 2026-07-17 incident).
+#     For a small change (e.g. one DNS record), don't reapply this whole
+#     file against a live router — SSH in and run just that one command.
 # ---------------------------------------------------------------------------
 /interface wireguard peers remove [find interface=wg-aws]
 /ip address remove [find interface=wg-aws]

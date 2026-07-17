@@ -12,23 +12,45 @@ Options:
                            password (factory reset scenario: SSH with the
                            factory password while SSM holds the desired new
                            password). Requires --ssm.
+    --wg-key-ssm <param>   Fetch the WireGuard private key from AWS SSM and
+                           substitute it for WG_PRIVATE_KEY_PLACEHOLDER.
+                           REQUIRED if the .rsc still contains that token —
+                           the script refuses to run otherwise (see Safety
+                           check below).
 
 If neither --ssm nor a positional password is given, you are prompted.
 The prompted/positional value is used for both SSH auth and substitution.
 
+Safety check:
+    The NYC/Rambles WireGuard section unconditionally removes the live
+    wg-aws interface/peer/address before recreating it — safe on a factory
+    router with no tunnel yet, but it WILL DROP A LIVE TUNNEL if reapplied
+    without a real key. So if WG_PRIVATE_KEY_PLACEHOLDER is still in the
+    file after substitution, this script exits before ever connecting,
+    unless --wg-key-ssm was given. Don't work around this by hand-editing
+    the placeholder into the .rsc file — that would commit a live private
+    key to Git.
+
 Examples:
-    # Re-apply to already-configured router (password already matches SSM):
-    python apply-config.py 10.0.1.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password
+    # Re-apply to already-configured router, e.g. for a DNS-only change
+    # (also substitutes the real WireGuard key so the reapply is safe):
+    python apply-config.py 10.0.1.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password --wg-key-ssm /home-platform/wireguard/nyc-private-key
 
     # Initial setup from factory reset (SSH with factory password, set new from SSM):
-    python apply-config.py 192.168.88.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password --ssh-password <factory-password>
+    python apply-config.py 192.168.88.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password --ssh-password <factory-password> --wg-key-ssm /home-platform/wireguard/nyc-private-key
 
     # Rambles:
-    python apply-config.py 192.168.88.1 routeros/rambles/initial-config.rsc --ssm /home-platform/router/rambles-admin-password
+    python apply-config.py 192.168.88.1 routeros/rambles/initial-config.rsc --ssm /home-platform/router/rambles-admin-password --wg-key-ssm /home-platform/wireguard/rambles-private-key
+
+    # Targeted one-line change (e.g. a single DNS record) instead of a full
+    # reapply — safer, and doesn't need --wg-key-ssm at all. Write a small
+    # script that opens an SSH session and runs just that one RouterOS
+    # command via exec_command(), the way the recovery from the 2026-07-17
+    # incident (see git log) did it.
 
 Requirements:
     pip install paramiko
-    AWS CLI configured with access to SSM (only needed for --ssm)
+    AWS CLI configured with access to SSM (only needed for --ssm/--wg-key-ssm)
 """
 
 import sys
@@ -57,6 +79,7 @@ def main():
     parser.add_argument("config", help="Path to .rsc file")
     parser.add_argument("--ssm", metavar="PARAM", help="SSM parameter name for the admin password")
     parser.add_argument("--ssh-password", metavar="PASS", help="SSH auth password (factory reset only; requires --ssm)")
+    parser.add_argument("--wg-key-ssm", metavar="PARAM", help="SSM parameter name for the WireGuard private key (substituted for WG_PRIVATE_KEY_PLACEHOLDER)")
     args = parser.parse_args()
 
     if args.ssh_password and not args.ssm:
@@ -72,6 +95,34 @@ def main():
 
     with open(args.config, "r") as f:
         content = f.read()
+
+    # WG_PRIVATE_KEY_PLACEHOLDER must be substituted (or checked for) BEFORE
+    # the generic PLACEHOLDER substitution below — "PLACEHOLDER" is a
+    # substring of "WG_PRIVATE_KEY_PLACEHOLDER", so doing it in the other
+    # order corrupts the token into "WG_PRIVATE_KEY_<admin password>"
+    # instead of leaving it recognizable. That exact substring collision is
+    # what caused the 2026-07-17 incident (see Gotchas in CLAUDE.md).
+    had_wg_placeholder = "WG_PRIVATE_KEY_PLACEHOLDER" in content
+
+    if args.wg_key_ssm:
+        print(f"Fetching WireGuard private key from SSM: {args.wg_key_ssm}")
+        wg_key = get_ssm_password(args.wg_key_ssm)
+        content = content.replace("WG_PRIVATE_KEY_PLACEHOLDER", wg_key)
+        print("Substituted WG_PRIVATE_KEY_PLACEHOLDER with key from SSM.")
+    elif had_wg_placeholder:
+        print(
+            "\nRefusing to apply: this config contains WG_PRIVATE_KEY_PLACEHOLDER.\n"
+            "The WireGuard section unconditionally removes the live wg-aws interface\n"
+            "before recreating it — uploading this as-is would DELETE THE LIVE TUNNEL\n"
+            "and fail to bring it back up (invalid key), causing an outage.\n\n"
+            "Re-run with --wg-key-ssm <param> to substitute the real key, e.g.:\n"
+            "  --wg-key-ssm /home-platform/wireguard/nyc-private-key\n"
+            "  --wg-key-ssm /home-platform/wireguard/rambles-private-key\n\n"
+            "For a small targeted change (e.g. one DNS record) on an already-live\n"
+            "router, don't reapply the whole file at all — SSH in and run just that\n"
+            "one command instead."
+        )
+        sys.exit(1)
 
     if "PLACEHOLDER" in content:
         content = content.replace("PLACEHOLDER", new_password)
