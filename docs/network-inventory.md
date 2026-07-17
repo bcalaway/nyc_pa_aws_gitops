@@ -20,24 +20,33 @@ their own router port:
 
 ```
 router ether4 -- sw-main gi4 -- (Po2/LAG) -- sw-10g -- sfp-sfpplus1 -- nas2
-                     |                          |
-                  gi5: Sonos                 sfp-sfpplus4
-                  "Main-Bedroom-2"               |
-                                              sw-desk (Po1) -- gi5 -- printer
+                                                |
+                                             sfp-sfpplus4
+                                                |
+                                            sw-desk (Po1) -- gi5 -- printer
+
+router ether1 -- Nighthawk RS700 (AP) -- 1GbE -- hue-nyc
+                        |
+                     WiFi -- Sonos x3
 ```
 
-The Hue bridge, most Sonos speakers, and the Nighthawk AP are all reachable
-via sw-main's gi4 (the same port the router is on) — meaning they're either
-on other router ports directly, or behind an unmanaged switch/hub between the
-router and sw-main. Not resolved as of 2026-07-10 (Bill: not sure / doesn't
-matter for now). The camera NVR is the one exception confirmed on a
-*different* router port (ether6) entirely, bypassing the switch chain.
+**Resolved 2026-07-17 (per Bill)** — the Hue bridge and Sonos speakers were
+previously thought to be reachable via sw-main's gi4 based on an ambiguous
+bridge-table read (2026-07-10); that was wrong. None of them are on the
+switch chain at all. The real topology: Nighthawk RS700 is wired directly to
+the router (ether1, 1GbE) — bypassing the switch chain entirely, same
+pattern as Camera NVR/nuc4/kvm-nyc below. hue-nyc is wired to the Nighthawk
+itself (1GbE), not the router or switch — the AP doubles as a small wired
+hub for it. The Sonos speakers are wireless clients of the Nighthawk, not
+wired anywhere. The camera NVR remains its own separate exception, on a
+different router port (ether6) entirely.
 
 **Link speeds** (verified live 2026-07-11 via `/interface ethernet monitor`
 on the router/sw-10g and `show interfaces status` on the SG300s — not
 assumed from the "sw-10g" name): every link in the chain is 1Gbps —
 router↔sw-main, sw-main↔sw-10g (Po2 LAG), sw-10g↔sw-desk (Po1 LAG),
-sw-desk↔printer, router↔NVR — **except sw-10g↔nas2**, which negotiates a
+sw-desk↔printer, router↔NVR, router↔Nighthawk, Nighthawk↔hue-nyc (the
+latter two per Bill 2026-07-17) — **except sw-10g↔nas2**, which negotiates a
 real 10Gbps over an installed SFP-10G-SR module. That's the only 10G
 device actually attached to sw-10g right now.
 
@@ -54,11 +63,11 @@ device actually attached to sw-10g right now.
 | furry | 10.0.1.41 | 7C:57:58:D0:17:5E | Reserved. 10G, attached to sw-10g (per Bill 2026-07-11 — not verifiable via MAC tables since it's normally powered off, hence the "status=waiting, last-seen=never" DHCP lease) |
 | nuc4 (NYC NUC) | 10.0.1.34 | 54:B2:03:F1:0A:67 | Reserved. Directly attached to the router's ether7 (confirmed via `/interface bridge host print`, 2026-07-15) — not behind the sw-main/sw-10g/sw-desk chain. Rocky Linux 10 installed 2026-07-13 (Milestone 8). MAC corrected 2026-07-13 — the originally recorded MAC (`38:FC:98:99:7E:5B`, presumably transcribed off the box label pre-install) didn't match what the router actually saw once the built-in NIC came up (`54:B2:03:F1:0A:67`, completely different OUI); the machine initially landed on `10.0.1.67` via the dynamic pool until the reservation was corrected to the real MAC. Claude Code CLI installed 2026-07-14 (`curl -fsSL https://claude.ai/install.sh | bash` as `bcalaway`, native binary at `~/.local/bin/claude`, no Node dependency at runtime) — not Ansible-managed, a one-off manual install; still needs interactive `claude` login (browser OAuth) to link to Bill's account, not something Claude can complete on his behalf |
 | kvm-nyc | 10.0.1.66 | 30:52:53:05:F2:AA | Reserved 2026-07-13, DNS `kvm-nyc.nyc.billandjessie.com`. JetKVM — remote KVM used to install Rocky Linux 10 on nuc4; this is the KVM device's own IP, **not** nuc4's own network interface. Directly on the router's ether8, same pattern as kvm-nuc5/ether7 at Rambles. Named `kvm-nyc` (site-based) rather than `kvm-nuc4` (device-based, the Rambles convention) per Bill's request 2026-07-13 — device isn't necessarily tied to nuc4 specifically going forward. Lease shows `status=waiting, last-seen=never` right after being added — same as the furry/hue-nyc pattern, expected until the device's next DHCP renewal picks up the static reservation |
-| Nighthawk RS700 (AP) | 10.0.1.2 | 94:18:65:D5:57:44 (+ 2 more radio MACs, 96:18:65:D5:57:45/46) | Static. AP mode, connect via LAN port not WAN. Reachable via sw-main gi4 — see switch topology note above |
-| hue-nyc (Philips Hue Bridge) | 10.0.1.71 | 00:17:88:A9:E9:0A | Reserved 2026-07-11, DNS `hue-nyc.nyc.billandjessie.com`. Not directly on the router — arrives via ether4, same as sw-main and the Sonos/AP cluster. Final hop still unresolved (see switch topology note above) |
-| Sonos "Main-Bedroom" | 10.0.1.68 | 48:E1:5C:5C:4F:76 | Dynamic DHCP lease, identified 2026-07-10. Reachable via sw-main gi4 |
-| Sonos "Main-Bedroom-2" | 10.0.1.69 | 48:E1:5C:65:2A:5C | Dynamic DHCP lease, identified 2026-07-10. Directly attached to sw-main (gi5) — the one Sonos NOT behind gi4 |
-| Sonos (unnamed x2) | 10.0.1.73, 10.0.1.74 | 5C:AA:FD:27:EB:50, 5C:AA:FD:27:EB:88 | Dynamic DHCP leases, hostname `SonosZP` (no room name set). Reachable via sw-main gi4 |
+| Nighthawk RS700 (AP) | 10.0.1.2 | 94:18:65:D5:57:44 (+ 2 more radio MACs, 96:18:65:D5:57:45/46) | Static. AP mode, connect via LAN port not WAN. Directly wired to the router's ether1 via 1GbE (per Bill 2026-07-17) — bypasses the switch chain entirely, same pattern as Camera NVR/nuc4/kvm-nyc. Also acts as a small wired hub of its own: hue-nyc and the Sonos speakers hang off it, not the router or switch — see switch topology note above |
+| hue-nyc (Philips Hue Bridge) | 10.0.1.71 | 00:17:88:A9:E9:0A | Reserved 2026-07-11, DNS `hue-nyc.nyc.billandjessie.com`. Wired to the Nighthawk RS700 via 1GbE (per Bill 2026-07-17), not the router or switch — see switch topology note above |
+| Sonos "Main-Bedroom" | 10.0.1.68 | 48:E1:5C:5C:4F:76 | Dynamic DHCP lease, identified 2026-07-10. Wireless client of the Nighthawk RS700 (per Bill 2026-07-17) |
+| Sonos "Main-Bedroom-2" | 10.0.1.69 | 48:E1:5C:65:2A:5C | Dynamic DHCP lease, identified 2026-07-10. Wireless client of the Nighthawk RS700 (per Bill 2026-07-17) |
+| Sonos (unnamed x2) | 10.0.1.73, 10.0.1.74 | 5C:AA:FD:27:EB:50, 5C:AA:FD:27:EB:88 | Dynamic DHCP leases, hostname `SonosZP` (no room name set). Wireless clients of the Nighthawk RS700 (per Bill 2026-07-17) |
 | Camera NVR | 10.0.1.65 | 70:DF:F7:15:D2:CB | Dynamic DHCP lease, hostname `VMS4100ATV`, class-id `IP-STB`, identified 2026-07-10. Directly wired to router ether6 — the only device confirmed *not* behind the sw-main/sw-10g/sw-desk chain |
 
 The Sonos speakers and NVR don't have DHCP reservations or DNS entries yet —

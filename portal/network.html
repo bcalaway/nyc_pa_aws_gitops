@@ -64,7 +64,7 @@
   <h1>Network Diagram</h1>
   <p class="sub">NYC + Rambles + AWS hub — updated 2026-07-17</p>
   <div class="diagram">
-    <svg viewBox="0 0 1000 860" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, Roboto, sans-serif">
+    <svg viewBox="0 0 1000 872" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, Roboto, sans-serif">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="#5b6068"/>
@@ -192,18 +192,19 @@
       <text x="500" y="412" text-anchor="middle" fill="#1fae1f" font-size="11.5">site-to-site LAN trust (via hub)</text>
 
       <!-- NYC site (aqua zone) -->
-      <rect x="30" y="330" width="330" height="442" rx="12" fill="#171a21" stroke="#199e70" stroke-width="1.5"/>
+      <rect x="30" y="330" width="330" height="454" rx="12" fill="#171a21" stroke="#199e70" stroke-width="1.5"/>
       <text x="195" y="356" text-anchor="middle" fill="#e6e6e6" font-size="16" font-weight="600">NYC</text>
       <text x="195" y="374" text-anchor="middle" fill="#9aa0a6" font-size="11">LAN 10.0.1.0/24</text>
 
       <!-- Link speeds verified live 2026-07-11: all 1Gbps except sw-10g<->nas2 (real 10G SFP+ module) -->
       <line x1="195" y1="422" x2="195" y2="436" stroke="#5b6068" stroke-width="2"/>
 
-      <!-- Direct-to-router devices (ether6/7/8) — confirmed NOT behind the switch chain,
+      <!-- Direct-to-router devices (ether1/6/7/8) — confirmed NOT behind the switch chain,
            routed via the side margins so they don't cross the switch-chain boxes below -->
-      <path d="M 50,404 L 40,404 L 40,678 L 94,678 L 94,690" fill="none" stroke="#5b6068" stroke-width="1.5"/>
-      <path d="M 340,398 L 348,398 L 348,682 L 195,682 L 195,690" fill="none" stroke="#5b6068" stroke-width="1.5"/>
-      <path d="M 340,412 L 356,412 L 356,686 L 296,686 L 296,690" fill="none" stroke="#5b6068" stroke-width="1.5"/>
+      <path d="M 50,414 L 44,414 L 44,606 L 195,606 L 195,612" fill="none" stroke="#5b6068" stroke-width="1.5"/>
+      <path d="M 50,404 L 40,404 L 40,690 L 94,690 L 94,702" fill="none" stroke="#5b6068" stroke-width="1.5"/>
+      <path d="M 340,398 L 348,398 L 348,694 L 195,694 L 195,702" fill="none" stroke="#5b6068" stroke-width="1.5"/>
+      <path d="M 340,412 L 356,412 L 356,698 L 296,698 L 296,702" fill="none" stroke="#5b6068" stroke-width="1.5"/>
 
       <!-- Router -->
       <rect x="50" y="388" width="290" height="34" rx="8" fill="#1a1d24" stroke="#197e5d"/>
@@ -246,36 +247,45 @@
       <text x="274" y="583" fill="#e6e6e6" font-size="10">printer</text>
       <text x="274" y="595" fill="#9aa0a6" font-size="8.5">.5</text>
 
-      <!-- IoT cluster: reachable via sw-main's router-facing port, exact final-hop wiring
-           unresolved — box stays neutral/dashed for that reason, but the devices
-           themselves are known NYC devices, so their icons keep the zone color -->
-      <rect x="50" y="618" width="290" height="54" rx="8" fill="#101319" stroke="#565c6b" stroke-dasharray="3,3"/>
-      <use href="#i-bulb" x="60" y="633" width="14" height="14" stroke="#199e70"/>
-      <text x="80" y="644" fill="#e6e6e6" font-size="11">hue-nyc</text>
-      <use href="#i-speaker" x="156" y="633" width="14" height="14" stroke="#199e70"/>
-      <text x="176" y="644" fill="#e6e6e6" font-size="11">Sonos ×3</text>
-      <use href="#i-wifi" x="252" y="633" width="14" height="14" stroke="#199e70"/>
-      <text x="272" y="644" fill="#e6e6e6" font-size="11">Nighthawk</text>
-      <text x="195" y="662" text-anchor="middle" fill="#7d838c" font-size="9">via sw-main gi4 — exact wiring TBD</text>
+      <!-- Nighthawk: confirmed direct to router (ether1, 1GbE) — resolved 2026-07-17,
+           previously thought to be behind sw-main. Also a small hub of its own:
+           hue-nyc wired to it, Sonos wireless off it. -->
+      <rect x="145" y="612" width="100" height="34" rx="8" fill="#1a1d24" stroke="#197e5d"/>
+      <use href="#i-wifi" x="153" y="622" width="14" height="14" stroke="#199e70"/>
+      <text x="171" y="633" fill="#e6e6e6" font-size="10">Nighthawk</text>
+
+      <line x1="195" y1="646" x2="195" y2="650" stroke="#5b6068" stroke-width="2"/>
+      <path d="M 195,650 L 125,650 L 125,654" fill="none" stroke="#5b6068" stroke-width="1.5"/>
+      <path d="M 195,650 L 265,650 L 265,654" fill="none" stroke="#5b6068" stroke-width="1.5" stroke-dasharray="3,3"/>
+
+      <rect x="70" y="654" width="110" height="36" rx="8" fill="#1a1d24" stroke="#197e5d"/>
+      <use href="#i-bulb" x="76" y="670" width="14" height="14" stroke="#199e70"/>
+      <text x="94" y="670" fill="#e6e6e6" font-size="10">hue-nyc</text>
+      <text x="94" y="683" fill="#9aa0a6" font-size="8.5">.71 · wired</text>
+
+      <rect x="210" y="654" width="110" height="36" rx="8" fill="#1a1d24" stroke="#197e5d"/>
+      <use href="#i-speaker" x="216" y="670" width="14" height="14" stroke="#199e70"/>
+      <text x="234" y="670" fill="#e6e6e6" font-size="10">Sonos ×3</text>
+      <text x="234" y="683" fill="#9aa0a6" font-size="8">WiFi client</text>
 
       <!-- Camera NVR / nuc4 / kvm-nyc: each its own dedicated router port, confirmed via
-           bridge-table lookup — NOT part of the IoT cluster above despite sitting below it -->
-      <rect x="50" y="690" width="88" height="40" rx="8" fill="#1a1d24" stroke="#197e5d"/>
-      <use href="#i-camera" x="56" y="706" width="14" height="14" stroke="#199e70"/>
-      <text x="74" y="706" fill="#e6e6e6" font-size="10">Camera NVR</text>
-      <text x="74" y="719" fill="#9aa0a6" font-size="8.5">.65 · ether6</text>
+           bridge-table lookup -->
+      <rect x="50" y="702" width="88" height="40" rx="8" fill="#1a1d24" stroke="#197e5d"/>
+      <use href="#i-camera" x="56" y="718" width="14" height="14" stroke="#199e70"/>
+      <text x="74" y="718" fill="#e6e6e6" font-size="10">Camera NVR</text>
+      <text x="74" y="731" fill="#9aa0a6" font-size="8.5">.65 · ether6</text>
 
-      <rect x="151" y="690" width="88" height="40" rx="8" fill="#1a1d24" stroke="#197e5d"/>
-      <use href="#i-server" x="157" y="706" width="14" height="14" stroke="#199e70"/>
-      <text x="175" y="706" fill="#e6e6e6" font-size="10">nuc4</text>
-      <text x="175" y="719" fill="#9aa0a6" font-size="8.5">.34 · ether7</text>
+      <rect x="151" y="702" width="88" height="40" rx="8" fill="#1a1d24" stroke="#197e5d"/>
+      <use href="#i-server" x="157" y="718" width="14" height="14" stroke="#199e70"/>
+      <text x="175" y="718" fill="#e6e6e6" font-size="10">nuc4</text>
+      <text x="175" y="731" fill="#9aa0a6" font-size="8.5">.34 · ether7</text>
 
-      <rect x="252" y="690" width="88" height="40" rx="8" fill="#1a1d24" stroke="#197e5d"/>
-      <use href="#i-monitor" x="258" y="706" width="14" height="14" stroke="#199e70"/>
-      <text x="276" y="706" fill="#e6e6e6" font-size="10">kvm-nyc</text>
-      <text x="276" y="719" fill="#9aa0a6" font-size="8.5">.66 · ether8</text>
+      <rect x="252" y="702" width="88" height="40" rx="8" fill="#1a1d24" stroke="#197e5d"/>
+      <use href="#i-monitor" x="258" y="718" width="14" height="14" stroke="#199e70"/>
+      <text x="276" y="718" fill="#e6e6e6" font-size="10">kvm-nyc</text>
+      <text x="276" y="731" fill="#9aa0a6" font-size="8.5">.66 · ether8</text>
 
-      <text x="195" y="754" text-anchor="middle" fill="#7d838c" font-size="10">Building WiFi (WAN2 backup) — planned, Milestone 7</text>
+      <text x="195" y="766" text-anchor="middle" fill="#7d838c" font-size="10">Building WiFi (WAN2 backup) — planned, Milestone 7</text>
 
       <!-- Rambles site (violet zone) -->
       <rect x="640" y="330" width="330" height="260" rx="12" fill="#171a21" stroke="#9085e9" stroke-width="1.5"/>
@@ -321,20 +331,23 @@
       <text x="805" y="540" text-anchor="middle" fill="#7d838c" font-size="10">Starlink (WAN2 backup) — planned, Milestone 6</text>
 
       <!-- Legend -->
-      <line x1="30" y1="807" x2="55" y2="807" stroke="#5b6068" stroke-width="2"/>
-      <text x="62" y="811" fill="#9aa0a6" font-size="11">1 Gbps link</text>
+      <line x1="30" y1="819" x2="55" y2="819" stroke="#5b6068" stroke-width="2"/>
+      <text x="62" y="823" fill="#9aa0a6" font-size="11">1 Gbps link</text>
 
-      <line x1="170" y1="807" x2="195" y2="807" stroke="#d95926" stroke-width="2.5"/>
-      <text x="202" y="811" fill="#9aa0a6" font-size="11">10 Gbps link</text>
+      <line x1="170" y1="819" x2="195" y2="819" stroke="#d95926" stroke-width="2.5"/>
+      <text x="202" y="823" fill="#9aa0a6" font-size="11">10 Gbps link</text>
 
-      <line x1="330" y1="807" x2="355" y2="807" stroke="#3987e5" stroke-width="1.5" stroke-dasharray="5,4"/>
-      <text x="362" y="811" fill="#9aa0a6" font-size="11">WireGuard tunnel</text>
+      <line x1="330" y1="819" x2="355" y2="819" stroke="#3987e5" stroke-width="1.5" stroke-dasharray="5,4"/>
+      <text x="362" y="823" fill="#9aa0a6" font-size="11">WireGuard tunnel</text>
 
-      <line x1="30" y1="831" x2="55" y2="831" stroke="#008300" stroke-width="1.5" stroke-dasharray="2,4"/>
-      <text x="62" y="835" fill="#9aa0a6" font-size="11">Site-to-site LAN route</text>
+      <path d="M 30,843 L 40,843 L 47,843" fill="none" stroke="#5b6068" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <text x="55" y="847" fill="#9aa0a6" font-size="11">Wireless link</text>
 
-      <rect x="230" y="824" width="16" height="14" rx="3" fill="#101319" stroke="#565c6b" stroke-dasharray="3,3"/>
-      <text x="252" y="835" fill="#9aa0a6" font-size="11">Planned / unresolved wiring</text>
+      <line x1="170" y1="843" x2="195" y2="843" stroke="#008300" stroke-width="1.5" stroke-dasharray="2,4"/>
+      <text x="202" y="847" fill="#9aa0a6" font-size="11">Site-to-site LAN route</text>
+
+      <rect x="330" y="836" width="16" height="14" rx="3" fill="#101319" stroke="#565c6b" stroke-dasharray="3,3"/>
+      <text x="352" y="847" fill="#9aa0a6" font-size="11">Unresolved wiring</text>
     </svg>
   </div>
   <a class="back" href="/">← Back to billandjessie.com</a>
