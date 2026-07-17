@@ -152,6 +152,7 @@
 /ip dns static add name=hue-nyc.nyc.billandjessie.com address=10.0.1.71
 /ip dns static add name=hue-rambles.rambles.billandjessie.com address=10.0.2.244
 /ip dns static add name=kvm-nyc.nyc.billandjessie.com address=10.0.1.66
+/ip dns static add name=hub.billandjessie.com address=10.0.3.1
 
 # ---------------------------------------------------------------------------
 # 12. WireGuard — tunnel to AWS hub (10.0.3.1)
