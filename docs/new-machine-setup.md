@@ -323,6 +323,12 @@ Close and reopen any already-open PuTTY windows for the change to take effect.
 
 > The remote side also needs a UTF-8 locale (`locale` should show `en_US.UTF-8`) — this is already the default on the NUCs and EC2 hub, so it's normally a non-issue.
 
+**Also set `COLORTERM=truecolor` on the remote side**, or Claude Code's TUI renders noticeably worse (chunky/low-fidelity mascot art, coarser box-drawing) — confirmed 2026-07-17 by comparing a NUC's PuTTY session against a truecolor-enabled one side by side. PuTTY itself has supported 24-bit color since v0.71 and needs no special local setting for it; the gap is that PuTTY doesn't set `COLORTERM` on the remote shell, and Claude Code's terminal-capability detection falls back to a reduced palette without it. Add to `~/.bashrc` (already done on nuc4/nuc5):
+```bash
+export COLORTERM=truecolor
+```
+Close and reopen the PuTTY session (or `source ~/.bashrc`) for it to take effect.
+
 ---
 
 ## 9. Set up NvChad on a NUC
