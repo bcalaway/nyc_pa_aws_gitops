@@ -62,13 +62,81 @@
 <body>
 <main>
   <h1>Network Diagram</h1>
-  <p class="sub">NYC + Rambles + AWS hub — updated 2026-07-15</p>
+  <p class="sub">NYC + Rambles + AWS hub — updated 2026-07-17</p>
   <div class="diagram">
-    <svg viewBox="0 0 1000 840" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, Roboto, sans-serif">
+    <svg viewBox="0 0 1000 860" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, Roboto, sans-serif">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="#5b6068"/>
         </marker>
+
+        <!-- Device-type icons, 20x20, single muted color, stroke-only line art -->
+        <symbol id="i-router" viewBox="0 0 20 20">
+          <g fill="none" stroke="#9aa0a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="12" width="14" height="6" rx="1.5"/>
+            <path d="M7 12V8m6 4V8"/>
+            <circle cx="7" cy="6" r="1.2"/>
+            <circle cx="13" cy="6" r="1.2"/>
+          </g>
+        </symbol>
+        <symbol id="i-switch" viewBox="0 0 20 20">
+          <g fill="none" stroke="#9aa0a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="16" height="8" rx="1.5"/>
+            <path d="M6 15v2M10 15v2M14 15v2"/>
+          </g>
+        </symbol>
+        <symbol id="i-server" viewBox="0 0 20 20">
+          <g fill="none" stroke="#9aa0a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="12" height="16" rx="1.5"/>
+            <path d="M4 8h12M4 13h12"/>
+          </g>
+        </symbol>
+        <symbol id="i-nas" viewBox="0 0 20 20">
+          <g fill="none" stroke="#9aa0a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="14" height="6" rx="1.3"/>
+            <rect x="3" y="11" width="14" height="6" rx="1.3"/>
+            <path d="M13 6h2M13 14h2"/>
+          </g>
+        </symbol>
+        <symbol id="i-camera" viewBox="0 0 20 20">
+          <g fill="none" stroke="#9aa0a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="6" width="12" height="9" rx="1.8"/>
+            <circle cx="8" cy="10.5" r="2.5"/>
+            <path d="M14 8.5l4-2v8l-4-2z"/>
+          </g>
+        </symbol>
+        <symbol id="i-printer" viewBox="0 0 20 20">
+          <g fill="none" stroke="#9aa0a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="7" width="14" height="7" rx="1.3"/>
+            <path d="M6 7V4h8v3"/>
+            <path d="M6 14v3h8v-3"/>
+          </g>
+        </symbol>
+        <symbol id="i-monitor" viewBox="0 0 20 20">
+          <g fill="none" stroke="#9aa0a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="14" height="10" rx="1.3"/>
+            <path d="M7 17h6M10 13v4"/>
+          </g>
+        </symbol>
+        <symbol id="i-wifi" viewBox="0 0 20 20">
+          <g fill="none" stroke="#9aa0a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 8a9 9 0 0 1 12 0"/>
+            <path d="M6.5 11a5.5 5.5 0 0 1 7 0"/>
+            <circle cx="10" cy="14.5" r="1.1"/>
+          </g>
+        </symbol>
+        <symbol id="i-bulb" viewBox="0 0 20 20">
+          <g fill="none" stroke="#9aa0a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 2.5a5.5 5.5 0 0 0-3.2 10c.55.42.9 1.05.9 1.9h4.6c0-.85.35-1.48.9-1.9A5.5 5.5 0 0 0 10 2.5z"/>
+            <path d="M8.2 17h3.6M8.8 19h2.4"/>
+          </g>
+        </symbol>
+        <symbol id="i-speaker" viewBox="0 0 20 20">
+          <g fill="none" stroke="#9aa0a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 8v4h3l4.5 3.5v-10.5L6 8z"/>
+            <path d="M14 7.5a4.2 4.2 0 0 1 0 5M16.2 5.8a7 7 0 0 1 0 8.4"/>
+          </g>
+        </symbol>
       </defs>
 
       <!-- Internet -->
@@ -122,64 +190,88 @@
       <text x="500" y="412" text-anchor="middle" fill="#6fcf97" font-size="11.5">site-to-site LAN trust (via hub)</text>
 
       <!-- NYC site -->
-      <rect x="30" y="330" width="330" height="430" rx="12" fill="#171a21" stroke="#2a2e37" stroke-width="1.5"/>
+      <rect x="30" y="330" width="330" height="442" rx="12" fill="#171a21" stroke="#2a2e37" stroke-width="1.5"/>
       <text x="195" y="356" text-anchor="middle" fill="#e6e6e6" font-size="16" font-weight="600">NYC</text>
       <text x="195" y="374" text-anchor="middle" fill="#9aa0a6" font-size="11">LAN 10.0.1.0/24</text>
-
-      <rect x="50" y="388" width="290" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="195" y="409" text-anchor="middle" fill="#e6e6e6" font-size="12.5" font-weight="600">rt-nyc — MikroTik RB5009 · .1</text>
 
       <!-- Link speeds verified live 2026-07-11: all 1Gbps except sw-10g<->nas2 (real 10G SFP+ module) -->
       <line x1="195" y1="422" x2="195" y2="436" stroke="#5b6068" stroke-width="2"/>
 
+      <!-- Direct-to-router devices (ether6/7/8) — confirmed NOT behind the switch chain,
+           routed via the side margins so they don't cross the switch-chain boxes below -->
+      <path d="M 50,404 L 40,404 L 40,678 L 94,678 L 94,690" fill="none" stroke="#5b6068" stroke-width="1.5"/>
+      <path d="M 340,398 L 348,398 L 348,682 L 195,682 L 195,690" fill="none" stroke="#5b6068" stroke-width="1.5"/>
+      <path d="M 340,412 L 356,412 L 356,686 L 296,686 L 296,690" fill="none" stroke="#5b6068" stroke-width="1.5"/>
+
+      <!-- Router -->
+      <rect x="50" y="388" width="290" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
+      <use href="#i-router" x="58" y="398" width="14" height="14"/>
+      <text x="80" y="409" fill="#e6e6e6" font-size="12.5" font-weight="600">rt-nyc · .1</text>
+
       <!-- Switch chain: router -> sw-main -> sw-10g -> sw-desk -->
       <rect x="50" y="436" width="290" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="195" y="457" text-anchor="middle" fill="#e6e6e6" font-size="12" font-weight="600">sw-main · .10</text>
+      <use href="#i-switch" x="58" y="446" width="14" height="14"/>
+      <text x="80" y="457" fill="#e6e6e6" font-size="12.5" font-weight="600">sw-main · .10</text>
 
       <line x1="195" y1="470" x2="195" y2="484" stroke="#5b6068" stroke-width="2"/>
 
       <rect x="50" y="484" width="190" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="145" y="505" text-anchor="middle" fill="#e6e6e6" font-size="12" font-weight="600">sw-10g · .12</text>
+      <use href="#i-switch" x="58" y="494" width="14" height="14"/>
+      <text x="80" y="505" fill="#e6e6e6" font-size="12" font-weight="600">sw-10g · .12</text>
 
       <line x1="240" y1="501" x2="250" y2="501" stroke="#f2994a" stroke-width="2.5"/>
       <rect x="250" y="484" width="90" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="295" y="501" text-anchor="middle" fill="#e6e6e6" font-size="11">nas2</text>
-      <text x="295" y="513" text-anchor="middle" fill="#9aa0a6" font-size="9">.7</text>
+      <use href="#i-nas" x="256" y="500" width="14" height="14"/>
+      <text x="274" y="501" fill="#e6e6e6" font-size="10">nas2</text>
+      <text x="274" y="513" fill="#9aa0a6" font-size="8.5">.7</text>
 
       <!-- furry: 10G to sw-10g, currently powered off -->
       <path d="M 240,518 L 240,539 L 250,539" fill="none" stroke="#f2994a" stroke-width="2.5"/>
       <rect x="250" y="522" width="90" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="295" y="539" text-anchor="middle" fill="#e6e6e6" font-size="11">furry</text>
-      <text x="295" y="551" text-anchor="middle" fill="#9aa0a6" font-size="9">.41 (off)</text>
+      <use href="#i-server" x="256" y="538" width="14" height="14"/>
+      <text x="274" y="539" fill="#e6e6e6" font-size="10">furry</text>
+      <text x="274" y="551" fill="#9aa0a6" font-size="8.5">.41 (off)</text>
 
       <line x1="195" y1="518" x2="195" y2="566" stroke="#5b6068" stroke-width="2"/>
 
       <rect x="50" y="566" width="190" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="145" y="587" text-anchor="middle" fill="#e6e6e6" font-size="12" font-weight="600">sw-desk · .11</text>
+      <use href="#i-switch" x="58" y="576" width="14" height="14"/>
+      <text x="80" y="587" fill="#e6e6e6" font-size="12" font-weight="600">sw-desk · .11</text>
 
       <line x1="240" y1="583" x2="250" y2="583" stroke="#5b6068" stroke-width="2"/>
       <rect x="250" y="566" width="90" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="295" y="583" text-anchor="middle" fill="#e6e6e6" font-size="11">printer</text>
-      <text x="295" y="595" text-anchor="middle" fill="#9aa0a6" font-size="9">.5</text>
+      <use href="#i-printer" x="256" y="582" width="14" height="14"/>
+      <text x="274" y="583" fill="#e6e6e6" font-size="10">printer</text>
+      <text x="274" y="595" fill="#9aa0a6" font-size="8.5">.5</text>
 
-      <!-- IoT cluster, wiring not fully resolved -->
-      <rect x="50" y="618" width="290" height="42" rx="8" fill="#101319" stroke="#2a2e37" stroke-dasharray="3,3"/>
-      <text x="195" y="634" text-anchor="middle" fill="#9aa0a6" font-size="11">hue-nyc · Sonos ×3 · Nighthawk AP</text>
-      <text x="195" y="648" text-anchor="middle" fill="#5b6068" font-size="9">via sw-main's router-facing port — exact wiring TBD</text>
+      <!-- IoT cluster: reachable via sw-main's router-facing port, exact final-hop wiring unresolved -->
+      <rect x="50" y="618" width="290" height="54" rx="8" fill="#101319" stroke="#2a2e37" stroke-dasharray="3,3"/>
+      <use href="#i-bulb" x="60" y="633" width="14" height="14"/>
+      <text x="80" y="644" fill="#e6e6e6" font-size="11">hue-nyc</text>
+      <use href="#i-speaker" x="156" y="633" width="14" height="14"/>
+      <text x="176" y="644" fill="#e6e6e6" font-size="11">Sonos ×3</text>
+      <use href="#i-wifi" x="252" y="633" width="14" height="14"/>
+      <text x="272" y="644" fill="#e6e6e6" font-size="11">Nighthawk</text>
+      <text x="195" y="662" text-anchor="middle" fill="#5b6068" font-size="9">via sw-main gi4 — exact wiring TBD</text>
 
-      <rect x="50" y="672" width="88" height="40" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="94" y="688" text-anchor="middle" fill="#e6e6e6" font-size="10.5">Camera NVR</text>
-      <text x="94" y="701" text-anchor="middle" fill="#9aa0a6" font-size="9">.65 · ether6</text>
+      <!-- Camera NVR / nuc4 / kvm-nyc: each its own dedicated router port, confirmed via
+           bridge-table lookup — NOT part of the IoT cluster above despite sitting below it -->
+      <rect x="50" y="690" width="88" height="40" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
+      <use href="#i-camera" x="56" y="706" width="14" height="14"/>
+      <text x="74" y="706" fill="#e6e6e6" font-size="10">Camera NVR</text>
+      <text x="74" y="719" fill="#9aa0a6" font-size="8.5">.65 · ether6</text>
 
-      <rect x="151" y="672" width="88" height="40" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="195" y="688" text-anchor="middle" fill="#e6e6e6" font-size="10.5">nuc4</text>
-      <text x="195" y="701" text-anchor="middle" fill="#9aa0a6" font-size="9">.34 · ether7</text>
+      <rect x="151" y="690" width="88" height="40" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
+      <use href="#i-server" x="157" y="706" width="14" height="14"/>
+      <text x="175" y="706" fill="#e6e6e6" font-size="10">nuc4</text>
+      <text x="175" y="719" fill="#9aa0a6" font-size="8.5">.34 · ether7</text>
 
-      <rect x="252" y="672" width="88" height="40" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="296" y="688" text-anchor="middle" fill="#e6e6e6" font-size="10.5">kvm-nyc</text>
-      <text x="296" y="701" text-anchor="middle" fill="#9aa0a6" font-size="9">.66 · ether8</text>
+      <rect x="252" y="690" width="88" height="40" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
+      <use href="#i-monitor" x="258" y="706" width="14" height="14"/>
+      <text x="276" y="706" fill="#e6e6e6" font-size="10">kvm-nyc</text>
+      <text x="276" y="719" fill="#9aa0a6" font-size="8.5">.66 · ether8</text>
 
-      <text x="195" y="736" text-anchor="middle" fill="#5b6068" font-size="10">Building WiFi (WAN2 backup) — planned, Milestone 7</text>
+      <text x="195" y="754" text-anchor="middle" fill="#5b6068" font-size="10">Building WiFi (WAN2 backup) — planned, Milestone 7</text>
 
       <!-- Rambles site -->
       <rect x="640" y="330" width="330" height="260" rx="12" fill="#171a21" stroke="#2a2e37" stroke-width="1.5"/>
@@ -187,52 +279,58 @@
       <text x="805" y="374" text-anchor="middle" fill="#9aa0a6" font-size="11">LAN 10.0.2.0/24</text>
 
       <rect x="660" y="388" width="290" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="805" y="409" text-anchor="middle" fill="#e6e6e6" font-size="12.5" font-weight="600">rt-rambles — MikroTik RB5009 · .1</text>
+      <use href="#i-router" x="668" y="398" width="14" height="14"/>
+      <text x="690" y="409" fill="#e6e6e6" font-size="12.5" font-weight="600">rt-rambles · .1</text>
 
       <!-- All four below connect directly to the router, not to each other -->
       <line x1="725" y1="422" x2="725" y2="436" stroke="#5b6068" stroke-width="2"/>
       <rect x="660" y="436" width="130" height="34" rx="8" fill="#101319" stroke="#2a2e37" stroke-dasharray="3,3"/>
-      <text x="725" y="450" text-anchor="middle" fill="#9aa0a6" font-size="11">switch (CRS310)</text>
-      <text x="725" y="462" text-anchor="middle" fill="#5b6068" font-size="8.5">mgmt IP unknown</text>
+      <use href="#i-switch" x="666" y="449" width="14" height="14"/>
+      <text x="684" y="450" fill="#e6e6e6" font-size="10">switch</text>
+      <text x="684" y="462" fill="#5b6068" font-size="8.5">mgmt IP unknown</text>
 
       <line x1="875" y1="422" x2="875" y2="436" stroke="#f2994a" stroke-width="2.5"/>
       <rect x="800" y="436" width="150" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="875" y="450" text-anchor="middle" fill="#e6e6e6" font-size="11">nuc5 (MS-01)</text>
-      <text x="875" y="462" text-anchor="middle" fill="#9aa0a6" font-size="9">.10</text>
+      <use href="#i-server" x="808" y="449" width="14" height="14"/>
+      <text x="830" y="450" fill="#e6e6e6" font-size="11">nuc5</text>
+      <text x="830" y="462" fill="#9aa0a6" font-size="9">.10</text>
 
       <path d="M 700,422 L 645,422 L 645,501 L 660,501" fill="none" stroke="#5b6068" stroke-width="2"/>
       <rect x="660" y="484" width="90" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="705" y="498" text-anchor="middle" fill="#e6e6e6" font-size="10.5">kvm-nuc5</text>
-      <text x="705" y="510" text-anchor="middle" fill="#9aa0a6" font-size="9">.226</text>
+      <use href="#i-monitor" x="666" y="497" width="14" height="14"/>
+      <text x="684" y="498" fill="#e6e6e6" font-size="10">kvm-nuc5</text>
+      <text x="684" y="510" fill="#9aa0a6" font-size="8.5">.226</text>
 
       <!-- ZenWiFi: main mesh node wired to router (per Bill); other 2 nodes backhaul wirelessly -->
       <path d="M 795,422 L 795,478 L 805,478 L 805,484" fill="none" stroke="#5b6068" stroke-width="2"/>
       <rect x="760" y="484" width="90" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="805" y="498" text-anchor="middle" fill="#e6e6e6" font-size="10.5">ZenWiFi AP</text>
-      <text x="805" y="510" text-anchor="middle" fill="#9aa0a6" font-size="8">.251 (mesh×3)</text>
+      <use href="#i-wifi" x="766" y="497" width="14" height="14"/>
+      <text x="784" y="498" fill="#e6e6e6" font-size="10">ZenWiFi AP</text>
+      <text x="784" y="510" fill="#9aa0a6" font-size="8">.251 (×3)</text>
 
       <path d="M 910,422 L 965,422 L 965,501 L 950,501" fill="none" stroke="#5b6068" stroke-width="2"/>
       <rect x="860" y="484" width="90" height="34" rx="8" fill="#1a1d24" stroke="#2a2e37"/>
-      <text x="905" y="498" text-anchor="middle" fill="#e6e6e6" font-size="10.5">hue-rambles</text>
-      <text x="905" y="510" text-anchor="middle" fill="#9aa0a6" font-size="9">.244</text>
+      <use href="#i-bulb" x="866" y="497" width="14" height="14"/>
+      <text x="884" y="498" fill="#e6e6e6" font-size="9">hue-rambles</text>
+      <text x="884" y="510" fill="#9aa0a6" font-size="8.5">.244</text>
 
       <text x="805" y="540" text-anchor="middle" fill="#5b6068" font-size="10">Starlink (WAN2 backup) — planned, Milestone 6</text>
 
       <!-- Legend -->
-      <line x1="30" y1="795" x2="55" y2="795" stroke="#5b6068" stroke-width="2"/>
-      <text x="62" y="799" fill="#9aa0a6" font-size="11">1 Gbps link</text>
+      <line x1="30" y1="807" x2="55" y2="807" stroke="#5b6068" stroke-width="2"/>
+      <text x="62" y="811" fill="#9aa0a6" font-size="11">1 Gbps link</text>
 
-      <line x1="170" y1="795" x2="195" y2="795" stroke="#f2994a" stroke-width="2.5"/>
-      <text x="202" y="799" fill="#9aa0a6" font-size="11">10 Gbps link</text>
+      <line x1="170" y1="807" x2="195" y2="807" stroke="#f2994a" stroke-width="2.5"/>
+      <text x="202" y="811" fill="#9aa0a6" font-size="11">10 Gbps link</text>
 
-      <line x1="330" y1="795" x2="355" y2="795" stroke="#4a90e2" stroke-width="1.5" stroke-dasharray="5,4"/>
-      <text x="362" y="799" fill="#9aa0a6" font-size="11">WireGuard tunnel</text>
+      <line x1="330" y1="807" x2="355" y2="807" stroke="#4a90e2" stroke-width="1.5" stroke-dasharray="5,4"/>
+      <text x="362" y="811" fill="#9aa0a6" font-size="11">WireGuard tunnel</text>
 
-      <line x1="30" y1="819" x2="55" y2="819" stroke="#6fcf97" stroke-width="1.5" stroke-dasharray="2,4"/>
-      <text x="62" y="823" fill="#9aa0a6" font-size="11">Site-to-site LAN route</text>
+      <line x1="30" y1="831" x2="55" y2="831" stroke="#6fcf97" stroke-width="1.5" stroke-dasharray="2,4"/>
+      <text x="62" y="835" fill="#9aa0a6" font-size="11">Site-to-site LAN route</text>
 
-      <rect x="230" y="812" width="16" height="14" rx="3" fill="#101319" stroke="#2a2e37" stroke-dasharray="3,3"/>
-      <text x="252" y="823" fill="#9aa0a6" font-size="11">Planned / unresolved wiring</text>
+      <rect x="230" y="824" width="16" height="14" rx="3" fill="#101319" stroke="#2a2e37" stroke-dasharray="3,3"/>
+      <text x="252" y="835" fill="#9aa0a6" font-size="11">Planned / unresolved wiring</text>
     </svg>
   </div>
   <a class="back" href="/">← Back to billandjessie.com</a>
