@@ -140,11 +140,14 @@ Tasks:
 ### Milestone 10 — NAS Backup
 **Goal:** NUC Docker volumes backed up to NAS on schedule.
 
+**Blocked on hardware** (2026-07-19): Bill is bringing a second NAS to Rambles specifically to serve as the backup target — backing up to a NAS at the *other* site, not just a share on nas2 itself, so a site-level incident at NYC (power, fire, theft) doesn't take out both the primary data and its backup together. This also activates the "Second Synology NAS at Rambles" item from Future/Deferred below — that's now this milestone's hardware dependency, not a separate someday item. Revisit once it's physically in place and reachable on Rambles' LAN.
+
 Tasks:
-- [ ] 🧑 Create NFS share on Synology NAS for backups
+- [ ] 🧑 Bring second NAS to Rambles, get it on the LAN with a reserved IP (`docs/network-inventory.md`)
+- [ ] 🧑 Create NFS share on the Rambles NAS for backups
 - [ ] 🤖 restic installed on NUCs via Ansible
-- [ ] 🤖 NAS NFS share mounted on both NUCs (WireGuard tunnel for Rambles)
-- [ ] 🤖 restic backup job: Docker volumes → NAS on cron
+- [ ] 🤖 Rambles NAS NFS share mounted on both NUCs (WireGuard tunnel for the NYC NUC, reaching cross-site)
+- [ ] 🤖 restic backup job: Docker volumes → Rambles NAS on cron
 - [ ] 🤖 Backup metrics exposed to Prometheus
 - [ ] 🤖 Grafana alert on backup failure
 
@@ -172,8 +175,7 @@ Tasks:
 
 ## Future / Deferred
 
-- NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup
-- Second Synology NAS at Rambles
+- NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*
 - UPS at both sites
 - Environmental / temperature sensors
 - Weather and external data feeds in Grafana
