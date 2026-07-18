@@ -165,11 +165,15 @@ services:
     container_name: redis
     restart: unless-stopped
     # Authentik's dependency (ADR-0017) -- cache/task-queue/websocket
-    # broker, not a primary datastore. No published port: only other
-    # containers on the compose network (Authentik) need to reach it.
+    # broker, not a primary datastore.
     command: --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
+    # Published for client access (RedisInsight, etc.) -- gated by the
+    # security group to WireGuard peers only (10.0.3.0/24), same pattern
+    # as Postgres above.
+    ports:
+      - "6379:6379"
 
 volumes:
   prometheus-data:
