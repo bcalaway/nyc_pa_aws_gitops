@@ -139,6 +139,16 @@ services:
       # name, doesn't need to live on the container it's applied to.
       - "traefik.http.middlewares.hsts.headers.stsSeconds=31536000"
       - "traefik.http.middlewares.hsts.headers.stsIncludeSubdomains=true"
+      # Authentik forward-auth gate for Uptime Kuma (Milestone 11 --
+      # kuma-proxy.yaml blueprint). trustForwardHeader lets Authentik see
+      # the real client IP/host via X-Forwarded-* rather than Traefik's
+      # own. authResponseHeaders passes the authenticated user's identity
+      # through to the protected app (Kuma doesn't currently read these,
+      # but they're harmless to forward and match Authentik's documented
+      # Traefik integration exactly).
+      - "traefik.http.middlewares.authentik-forward-auth.forwardauth.address=http://authentik-server:9000/outpost.goauthentik.io/auth/traefik"
+      - "traefik.http.middlewares.authentik-forward-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authentik-forward-auth.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-entitlements,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version"
 
   grafana:
     image: grafana/grafana-oss:11.4.0
@@ -199,7 +209,9 @@ services:
       - "traefik.http.routers.status.rule=Host(`status.billandjessie.com`)"
       - "traefik.http.routers.status.entrypoints=websecure"
       - "traefik.http.routers.status.tls.certresolver=route53"
-      - "traefik.http.routers.status.middlewares=hsts@docker"
+      # hsts first, then the Authentik gate -- order matters for a
+      # middleware chain, though HSTS/forward-auth don't actually interact.
+      - "traefik.http.routers.status.middlewares=hsts@docker,authentik-forward-auth@docker"
       - "traefik.http.services.status.loadbalancer.server.port=3001"
 
   postgres:
@@ -304,6 +316,16 @@ services:
       - "traefik.http.routers.auth.tls.certresolver=route53"
       - "traefik.http.routers.auth.middlewares=hsts@docker"
       - "traefik.http.services.auth.loadbalancer.server.port=9000"
+      # Authentik's own outpost callback/logout endpoints on the *protected*
+      # domain (status.billandjessie.com) must reach authentik-server
+      # directly, not go through the authentik-forward-auth middleware
+      # itself -- this router's PathPrefix makes it more specific than the
+      # status router's bare Host rule, so Traefik prefers it automatically
+      # for these paths without needing an explicit priority override.
+      - "traefik.http.routers.kuma-outpost.rule=Host(`status.billandjessie.com`) && PathPrefix(`/outpost.goauthentik.io/`)"
+      - "traefik.http.routers.kuma-outpost.entrypoints=websecure"
+      - "traefik.http.routers.kuma-outpost.tls.certresolver=route53"
+      - "traefik.http.routers.kuma-outpost.service=auth"
 
   authentik-worker:
     image: ghcr.io/goauthentik/server:2026.2.6
