@@ -111,6 +111,35 @@ resource "aws_iam_role_policy" "hub_ansible_deploy_read" {
   policy = data.aws_iam_policy_document.hub_ansible_deploy_read.json
 }
 
+# Lets postgres-backup (compose/aws/postgres-backup) upload pg_dumpall
+# backups via the hub's own instance credentials (IMDS) -- same pattern as
+# hub_ansible_deploy_read above, no static AWS keys in the container.
+# Scoped to the postgres-backups/ prefix, not the whole logs bucket.
+data "aws_iam_policy_document" "hub_postgres_backup_write" {
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.logs.arn}/postgres-backups/*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.logs.arn]
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["postgres-backups/*"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "hub_postgres_backup_write" {
+  name   = "home-platform-hub-postgres-backup-write"
+  role   = aws_iam_role.hub.id
+  policy = data.aws_iam_policy_document.hub_postgres_backup_write.json
+}
+
 resource "aws_iam_instance_profile" "hub" {
   name = "home-platform-hub"
   role = aws_iam_role.hub.name

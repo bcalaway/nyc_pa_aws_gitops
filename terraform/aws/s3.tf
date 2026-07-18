@@ -41,6 +41,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
       days = 365
     }
   }
+
+  # pg_dumpall backups (compose/aws/postgres-backup) run daily -- a 14-day
+  # window gives two weeks of restore points without the general 365-day
+  # rule above ballooning storage for a family of files superseded daily.
+  rule {
+    id     = "expire-old-postgres-backups"
+    status = "Enabled"
+    filter { prefix = "postgres-backups/" }
+
+    expiration {
+      days = 14
+    }
+  }
 }
 
 resource "aws_s3_bucket" "portal" {

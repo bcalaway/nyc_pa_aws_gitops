@@ -26,6 +26,8 @@ resource "aws_instance" "hub" {
     volume_type           = "gp3"
     delete_on_termination = true
     encrypted             = true
+    # Matched by the DLM lifecycle policy in backup.tf for daily snapshots.
+    tags = { Name = "home-platform-hub-root", Backup = "daily" }
   }
 
   # Default hop limit of 1 blocks containers (one extra network hop via the

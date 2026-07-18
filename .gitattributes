@@ -1,0 +1,5 @@
+# Shell scripts run inside Linux containers -- CRLF line endings (which
+# core.autocrlf=true would introduce on a Windows checkout/clone) break
+# their #!/bin/bash shebang and execution entirely. Force LF regardless of
+# platform.
+*.sh text eol=lf

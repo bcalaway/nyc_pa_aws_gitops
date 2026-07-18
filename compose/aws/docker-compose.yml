@@ -140,6 +140,19 @@ services:
     ports:
       - "9187:9187"
 
+  postgres-backup:
+    build: ./postgres-backup
+    container_name: postgres-backup
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      # Uses the hub's own IMDS instance-role credentials for the S3
+      # upload (terraform/aws/tls.tf's hub_postgres_backup_write policy) --
+      # no AWS keys in the container.
+      BACKUP_BUCKET: "home-platform-logs-147856894209"
+
 volumes:
   prometheus-data:
   loki-data:
