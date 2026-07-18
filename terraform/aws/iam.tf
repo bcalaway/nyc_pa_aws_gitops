@@ -191,7 +191,17 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:GetRolePolicy", "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies", "iam:AttachRolePolicy", "iam:DetachRolePolicy",
     ]
-    resources = [aws_iam_role.github_actions.arn, aws_iam_role.hub.arn, aws_iam_role.dlm.arn]
+    # dlm uses a literal ARN string, not aws_iam_role.dlm.arn -- same circular
+    # dependency as the ansible-deploy bucket above: this statement would
+    # need the role to exist to compute its ARN, but creating the role needs
+    # this statement to already grant iam:CreateRole first. IAM role ARNs
+    # are fully deterministic from the role name, so no need to reference
+    # the resource. github_actions/hub don't hit this because they predate
+    # this statement being scoped down to reference them.
+    resources = [
+      aws_iam_role.github_actions.arn, aws_iam_role.hub.arn,
+      "arn:aws:iam::${var.aws_account_id}:role/home-platform-dlm",
+    ]
   }
 
   statement {
