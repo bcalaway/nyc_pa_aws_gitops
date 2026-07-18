@@ -91,6 +91,25 @@ resource "aws_security_group" "ec2" {
     cidr_blocks = ["10.0.3.0/24"]
   }
 
+  # Authentik — WireGuard-only for initial setup/testing (Milestone 11,
+  # ADR-0017). Public access via auth.billandjessie.com (nginx, like
+  # grafana./status.) comes once the service is confirmed healthy.
+  ingress {
+    description = "Authentik (internal testing, see auth.billandjessie.com for public access)"
+    from_port   = 9000
+    to_port     = 9000
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.3.0/24"]
+  }
+
+  ingress {
+    description = "Authentik HTTPS (internal testing, see auth.billandjessie.com for public access)"
+    from_port   = 9443
+    to_port     = 9443
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.3.0/24"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
