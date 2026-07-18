@@ -155,8 +155,8 @@ Tasks:
 **Goal:** Shared services (database, auth, ingress) running on the hub and a proven CI/CD framework, ready for the first application. See `docs/adr/0014` through `docs/adr/0019` for the architecture decisions behind this milestone.
 
 Tasks:
-- [ ] 🧑 Approve EC2 hub resize to `t3.medium` (small ongoing cost increase — needed for Postgres + Redis + Traefik + Authentik + app containers on top of the existing observability stack)
-- [ ] 🤖 Terraform: resize hub EC2 instance to `t3.medium`
+- [x] 🧑 Approve EC2 hub resize to `t3.medium` (small ongoing cost increase — needed for Postgres + Redis + Traefik + Authentik + app containers on top of the existing observability stack)
+- [x] 🤖 Terraform: resize hub EC2 instance to `t3.medium` — done 2026-07-18 via [PR #4](https://github.com/bcalaway/nyc_pa_aws_gitops/pull/4), verified in-place update (`0 to destroy`), WireGuard tunnels and Docker stack self-recovered on boot
 - [ ] 🤖 Docker Compose: shared Postgres service on the hub *(ADR-0016 — one instance, per-app logical databases + least-privilege credentials)*
 - [ ] 🤖 Postgres backups: EBS snapshot schedule + `pg_dump`-to-S3 job — needed before any app holds non-reproducible data
 - [ ] 🤖 `postgres_exporter` wired into the existing Prometheus/Grafana stack
