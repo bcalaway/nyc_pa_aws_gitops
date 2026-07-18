@@ -376,7 +376,29 @@ Check "Save Password" in the prompt if you want pgAdmin to remember it (encrypte
 
 ---
 
-## 10. Set up NvChad on a NUC
+## 10. Install RedisInsight (Windows workstation)
+
+RedisInsight is the GUI client for the shared Redis instance running on the AWS hub (`compose/aws/docker-compose.yml`, Milestone 11 — ADR-0017, Authentik's dependency). Same reachability rules as pgAdmin above — security group only allows port 6379 from WireGuard peers (`10.0.3.0/24`).
+
+```powershell
+winget install --id RedisInsight.RedisInsight --silent --accept-package-agreements --accept-source-agreements
+```
+
+Unlike pgAdmin, RedisInsight's desktop app has no documented CLI for bulk-importing connections, so register it once through the GUI:
+
+1. Launch RedisInsight, click **Add Redis database**
+2. **Host**: `10.0.3.1`, **Port**: `6379`, **Database Alias**: `Home Platform Redis (Hub)`
+3. **Password**: fetch it from SSM rather than storing it anywhere else —
+   ```powershell
+   (aws ssm get-parameter --name "/home-platform/authentik/redis-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+   ```
+4. Click **Add Redis database** to save
+
+RedisInsight stores the password in its own local config, gated by your Windows login, same trust model as pgAdmin's "Save Password" option.
+
+---
+
+## 11. Set up NvChad on a NUC
 
 This is Bill's personal editor config for `bcalaway` on the NUCs (nuc4, nuc5) — not Ansible-managed, since it's a dotfiles preference rather than infrastructure state. Redo manually on any new/reimaged NUC. Requires the PuTTY font setup from step 8 to actually see the icons.
 
@@ -460,6 +482,7 @@ Renders as `bcalaway@nuc4~/workspace/foo [branch-name]>` inside a git repo, or `
 | `/home-platform/wireguard/laptop-public-key` | String | Laptop WireGuard public key |
 | `/home-platform/grafana/smtp-password` | SecureString | Grafana Gmail SMTP password (set when configuring Milestone 3) |
 | `/home-platform/postgres/admin-password` | SecureString | Shared Postgres (hub) superuser password — used by pgAdmin, see step 9 |
+| `/home-platform/authentik/redis-password` | SecureString | Shared Redis (hub) password, Authentik's dependency — used by RedisInsight, see step 10 |
 
 Retrieve any secret (identical on both platforms):
 ```
