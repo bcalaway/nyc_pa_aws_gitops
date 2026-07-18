@@ -114,9 +114,22 @@ services:
     ports:
       - "3001:3001"
 
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # No published port -- only other containers on the compose network
+    # (Authentik, app services) need to reach it; nothing external does.
+
 volumes:
   prometheus-data:
   loki-data:
   grafana-data:
   uptime-kuma-data:
   promtail-positions:
+  postgres-data:

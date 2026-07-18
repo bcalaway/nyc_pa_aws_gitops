@@ -50,8 +50,9 @@ Always `git push` immediately after every `git commit` without asking.
 | `/home-platform/wireguard/laptop-private-key` | Laptop WireGuard client private key |
 | `/home-platform/wireguard/laptop-public-key` | Laptop WireGuard client public key |
 | `/home-platform/grafana/admin-password` | Grafana admin login |
-| `/home-platform/grafana/smtp-password` | Grafana Gmail SMTP password (placeholder until real App Password set) |
+| `/home-platform/grafana/smtp-password` | Grafana Gmail SMTP App Password (real value set, verified working 2026-07-18) |
 | `/home-platform/uptime-kuma/admin-password` | Uptime Kuma admin login |
+| `/home-platform/postgres/admin-password` | Shared Postgres instance (hub) superuser password — apps get their own per-database least-privilege credentials under this same `/home-platform/postgres/*` namespace as they're onboarded |
 | `/home-platform/switch/nyc-sw-desk-username` | sw-desk (Cisco SG300-10, 10.0.1.11) admin username — not "admin", a personal account |
 | `/home-platform/switch/nyc-sw-desk-password` | sw-desk admin password |
 | `/home-platform/switch/nyc-sw-main-username` | sw-main (Cisco SG300-10, 10.0.1.10) admin username |
