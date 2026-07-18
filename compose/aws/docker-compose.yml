@@ -118,13 +118,13 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik-letsencrypt:/letsencrypt
-    # Alternate ports for initial testing (Milestone 11, ADR-0018) --
-    # nginx still owns 80/443 until Traefik is confirmed issuing valid
-    # certs and routing correctly. Switched to 80:80/443:443 as the actual
-    # cutover once verified.
+    # Cutover to 80/443 confirmed 2026-07-18 (Milestone 11, ADR-0018) --
+    # verified on alternate ports 8080/8443 first (real Let's Encrypt certs
+    # issued and routing to all three domains confirmed via curl --resolve)
+    # before nginx was stopped and this took over the real ports.
     ports:
-      - "8080:80"
-      - "8443:443"
+      - "80:80"
+      - "443:443"
     labels:
       # traefik.enable=true is required here even though this container has
       # no router of its own -- with providers.docker.exposedByDefault=false,
