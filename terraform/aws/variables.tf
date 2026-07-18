@@ -19,7 +19,7 @@ variable "github_repo" {
 variable "ec2_instance_type" {
   description = "EC2 instance type for the hub"
   type        = string
-  default     = "t3.small"
+  default     = "t3.medium"
 }
 
 variable "ec2_key_name" {
