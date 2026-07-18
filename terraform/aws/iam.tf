@@ -191,7 +191,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:GetRolePolicy", "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies", "iam:AttachRolePolicy", "iam:DetachRolePolicy",
     ]
-    resources = [aws_iam_role.github_actions.arn, aws_iam_role.hub.arn]
+    resources = [aws_iam_role.github_actions.arn, aws_iam_role.hub.arn, aws_iam_role.dlm.arn]
   }
 
   statement {
