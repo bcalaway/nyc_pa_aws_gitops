@@ -107,12 +107,12 @@ ssh -i "$HOME\.ssh\home-platform.pem" ec2-user@10.0.3.1
 
 Unlike the Docker Compose stack, this is host-level config on EC2 and **not tracked in Git** — if the instance is ever rebuilt, redo this manually (or write an Ansible role for it under Milestone 8/9).
 
-- nginx installed via `dnf`, reverse-proxies `grafana.billandjessie.com` → `127.0.0.1:3000` and `status.billandjessie.com` → `127.0.0.1:3001`, config at `/etc/nginx/conf.d/home-platform.conf`
+- nginx installed via `dnf`, reverse-proxies `grafana.billandjessie.com` → `127.0.0.1:3000`, `status.billandjessie.com` → `127.0.0.1:3001`, and `auth.billandjessie.com` → `127.0.0.1:9000` (Authentik, Milestone 11), config at `/etc/nginx/conf.d/home-platform.conf`
 - Certbot installed via pip into a venv at `/opt/certbot-venv`, symlinked to `/usr/bin/certbot` (AL2023 has no native certbot package)
-- Cert obtained via `certbot-dns-route53` plugin (DNS-01, no inbound ports needed) — covers both `grafana.` and `status.` subdomains in one cert, stored at `/etc/letsencrypt/live/grafana.billandjessie.com/`
+- Cert obtained via `certbot-dns-route53` plugin (DNS-01, no inbound ports needed) — covers `grafana.`/`status.`/`auth.` subdomains in one cert (expanded 2026-07-18 via `certbot certonly --cert-name grafana.billandjessie.com -d ... --expand` to add `auth.`), stored at `/etc/letsencrypt/live/grafana.billandjessie.com/`
 - EC2 has an IAM instance role (`home-platform-hub`, in `terraform/aws/tls.tf`) scoped to Route53 record writes on our zone only — that's what lets certbot-dns-route53 work without embedding credentials
 - Renewal: `certbot-renew.timer` (systemd, runs twice daily, reloads nginx via deploy-hook) — not an OS package unit, created manually since pip-installed certbot doesn't ship one
-- Port 80 redirects to HTTPS for both subdomains; both HTTPS server blocks send HSTS (`max-age=31536000; includeSubDomains`)
+- Port 80 redirects to HTTPS for all three subdomains; all three HTTPS server blocks send HSTS (`max-age=31536000; includeSubDomains`)
 
 ## Syslog receiver on EC2 hub
 
