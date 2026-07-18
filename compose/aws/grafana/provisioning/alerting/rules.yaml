@@ -1,0 +1,52 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: disk-space
+    folder: Alerts
+    interval: 5m
+    rules:
+      - uid: disk-space-low
+        title: Disk space low
+        # Same query shape as the System Overview dashboard's "Disk Usage %"
+        # panel (compose/aws/grafana/provisioning/dashboards/system-overview.json)
+        # -- reuses its proven fstype exclusion filter and datasource UID
+        # rather than inventing a new query pattern.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: 100 - ((node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|squashfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|squashfs"}) * 100)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [85]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: NoData
+        execErrState: Error
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} is {{ $values.A }}% full on {{ $labels.mountpoint }}"
+          description: "Disk usage on {{ $labels.instance }} ({{ $labels.mountpoint }}) has been above 85% for 15 minutes. Hosts monitored: aws-hub, nas2, nuc4, nuc5 (see compose/aws/prometheus/prometheus.yml's node-exporter job)."

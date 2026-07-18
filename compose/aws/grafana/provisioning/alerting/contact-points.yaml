@@ -1,0 +1,14 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: email-bill
+    receivers:
+      - uid: email-bill-default
+        type: email
+        settings:
+          # Same account already wired up as GF_SMTP_USER/GF_SMTP_FROM_ADDRESS
+          # in docker-compose.yml -- see CLAUDE.md's SSM table
+          # (/home-platform/grafana/smtp-password) for the credential.
+          addresses: bcalaway@gmail.com
+          singleEmail: true
