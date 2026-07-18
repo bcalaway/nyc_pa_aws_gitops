@@ -123,8 +123,11 @@ services:
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    # No published port -- only other containers on the compose network
-    # (Authentik, app services) need to reach it; nothing external does.
+    # Published for client access (pgAdmin, etc.) -- gated by the security
+    # group to WireGuard peers only (10.0.3.0/24), same pattern as
+    # Prometheus/Loki/Uptime Kuma above.
+    ports:
+      - "5432:5432"
 
 volumes:
   prometheus-data:

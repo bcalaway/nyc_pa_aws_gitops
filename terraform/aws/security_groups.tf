@@ -71,6 +71,16 @@ resource "aws_security_group" "ec2" {
     cidr_blocks = ["10.0.3.0/24"]
   }
 
+  # Postgres — client access (e.g. pgAdmin) from WireGuard peers only,
+  # same scoping as Prometheus/Loki above
+  ingress {
+    description = "Postgres"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.3.0/24"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
