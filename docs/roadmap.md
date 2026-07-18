@@ -129,13 +129,13 @@ Tasks:
 Tasks:
 - [ ] 🧑 First-time RB5009 setup: set IP + enable SSH via Winbox web UI (Claude provides exact values)
 - [x] 🤖 Rename routers to match switch naming convention: `rt-nyc` / `rt-rambles` (was `nyc-rb5009` / `rambles-rb5009`) — done 2026-07-11: RouterOS `/system identity` (live + `.rsc`), SNMP device labels in `prometheus.yml`/`promtail-config.yaml`, Grafana `router-traffic.json`, Uptime Kuma monitors (renamed live + `setup-uptime-kuma.py`), `docs/network-inventory.md`. Note: this changes the Prometheus `device=` label, so historical router metrics before this date live under the old label name — dashboards/queries only see continuous data going forward
-- [ ] 🤖 RouterOS export scripts for both sites committed to Git
-- [ ] 🤖 Ansible playbook for applying RouterOS config via SSH
+- [ ] 🤖 RouterOS export scripts for both sites committed to Git *(scope unclear — may already be superseded by `managed-config.rsc` being the desired-state source of truth; revisit if this means something distinct like periodic live-config drift detection)*
+- [x] 🤖 Ansible playbook for applying RouterOS config via SSH *(done 2026-07-17 — `ansible/roles/routeros` + `ansible/routeros.yml`, wraps `routeros/apply-config.py` rather than adopting a new SSH automation path, since RouterOS's API is disabled fleet-wide. Prerequisite fix same day: the WireGuard section was non-idempotent — a full-file reapply for an unrelated one-line DNS change tore down Rambles' live tunnel. Fixed via a RouterOS `:if` guard, and split each site's config into `initial-config.rsc` (one-time bring-up only) + `managed-config.rsc` (the safely-reappliable ongoing subset). Verified via repeated live reapplies against both routers with zero tunnel drops)*
 - [x] 🤖 DHCP reservations defined in Git *(`/ip dhcp-server lease add` entries in both `.rsc` files, kept in sync with `docs/network-inventory.md` as devices are found)*
 - [x] 🤖 Internal DNS records defined in Git *(RouterOS `/ip dns static` entries, see Milestone 4)*
 - [x] 🤖 WireGuard config defined in Git *(`/interface wireguard add` + peers in both `.rsc` files, see Milestone 2)*
 - [ ] 🤖 Dual-WAN config defined in Git *(blocked on Milestones 6/7 hardware)*
-- [ ] 🤖 GitHub Actions: RouterOS changes applied on merge (manual trigger)
+- [x] 🤖 GitHub Actions: RouterOS changes applied on merge (manual trigger) *(done 2026-07-17 — `.github/workflows/routeros.yml`, `workflow_dispatch` only. Hosted runners can't reach the hub directly (security group restricted to WireGuard subnets), so it uses AWS SSM `send-command` to tell the hub to run the playbook locally, not a self-hosted runner or a widened security group. New `ansible-deploy` S3 bucket stages `ansible/`+`routeros/` for the hub to sync down. Hit and fixed two real Terraform bugs getting this applied: a circular IAM/S3 dependency (the `github_actions` role's own bucket permissions referenced the bucket's `.arn`, so Terraform needed the bucket to exist to compute the policy that would let it be created), then an IAM-propagation race once the cycle was broken (fixed with an explicit `time_sleep`). Verified end-to-end against both sites via real `workflow_dispatch` runs, tunnels never dropped)*
 
 ### Milestone 10 — NAS Backup
 **Goal:** NUC Docker volumes backed up to NAS on schedule.
