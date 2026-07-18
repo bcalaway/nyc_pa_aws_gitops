@@ -88,6 +88,51 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
     command: -config.file=/etc/promtail/config.yml
 
+  traefik:
+    image: traefik:v3.3
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      # Only containers with an explicit traefik.enable=true label get
+      # routed -- avoids accidentally exposing an internal-only service
+      # (Postgres, Redis, Prometheus, etc.) just because it's on the same
+      # compose network.
+      - --providers.docker.exposedByDefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --certificatesresolvers.route53.acme.dnschallenge=true
+      - --certificatesresolvers.route53.acme.dnschallenge.provider=route53
+      - --certificatesresolvers.route53.acme.email=bcalaway@gmail.com
+      - --certificatesresolvers.route53.acme.storage=/letsencrypt/acme.json
+    environment:
+      # No AWS_ACCESS_KEY_ID/SECRET -- lego's route53 provider falls back
+      # to the hub's own IMDS instance-role credentials (same pattern as
+      # certbot-dns-route53 and postgres-backup's S3 upload), no static
+      # keys anywhere. AWS_HOSTED_ZONE_ID pins the zone explicitly instead
+      # of relying on auto-detection.
+      AWS_REGION: us-east-1
+      AWS_HOSTED_ZONE_ID: Z0138104TDGCUTG6KYQI
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-letsencrypt:/letsencrypt
+    # Alternate ports for initial testing (Milestone 11, ADR-0018) --
+    # nginx still owns 80/443 until Traefik is confirmed issuing valid
+    # certs and routing correctly. Switched to 80:80/443:443 as the actual
+    # cutover once verified.
+    ports:
+      - "8080:80"
+      - "8443:443"
+    labels:
+      # Shared HSTS middleware, referenced by each routed service's own
+      # labels below as hsts@docker -- Traefik's Docker provider makes any
+      # middleware defined on any container globally referenceable by
+      # name, doesn't need to live on the container it's applied to.
+      - "traefik.http.middlewares.hsts.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.hsts.headers.stsIncludeSubdomains=true"
+
   grafana:
     image: grafana/grafana-oss:11.4.0
     container_name: grafana
@@ -126,6 +171,13 @@ services:
       GF_SMTP_FROM_NAME: "Home Platform Grafana"
     ports:
       - "3000:3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.billandjessie.com`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=route53"
+      - "traefik.http.routers.grafana.middlewares=hsts@docker"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
   uptime-kuma:
     image: louislam/uptime-kuma:1
@@ -135,6 +187,13 @@ services:
       - uptime-kuma-data:/app/data
     ports:
       - "3001:3001"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.status.rule=Host(`status.billandjessie.com`)"
+      - "traefik.http.routers.status.entrypoints=websecure"
+      - "traefik.http.routers.status.tls.certresolver=route53"
+      - "traefik.http.routers.status.middlewares=hsts@docker"
+      - "traefik.http.services.status.loadbalancer.server.port=3001"
 
   postgres:
     image: postgres:16
@@ -225,13 +284,19 @@ services:
       - authentik-media:/media
       - authentik-templates:/templates
       - ./authentik/blueprints:/blueprints/local:ro
-    # Published for initial setup/testing over WireGuard only, gated by the
-    # security group (10.0.3.0/24) -- same pattern as Postgres/Redis. Public
-    # access via auth.billandjessie.com (nginx) comes once this is confirmed
-    # healthy.
+    # Also published directly over WireGuard (10.0.3.0/24, security-group
+    # scoped) for debugging -- same pattern as Postgres/Redis. Public access
+    # is via Traefik (labels below), not this port directly.
     ports:
       - "9000:9000"
       - "9443:9443"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=Host(`auth.billandjessie.com`)"
+      - "traefik.http.routers.auth.entrypoints=websecure"
+      - "traefik.http.routers.auth.tls.certresolver=route53"
+      - "traefik.http.routers.auth.middlewares=hsts@docker"
+      - "traefik.http.services.auth.loadbalancer.server.port=9000"
 
   authentik-worker:
     image: ghcr.io/goauthentik/server:2026.2.6
@@ -275,3 +340,4 @@ volumes:
   authentik-media:
   authentik-templates:
   authentik-certs:
+  traefik-letsencrypt:
