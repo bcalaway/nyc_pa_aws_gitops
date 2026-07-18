@@ -126,6 +126,13 @@ services:
       - "8080:80"
       - "8443:443"
     labels:
+      # traefik.enable=true is required here even though this container has
+      # no router of its own -- with providers.docker.exposedByDefault=false,
+      # the Docker provider ignores ALL labels on a non-enabled container,
+      # not just router creation. Confirmed live: the hsts middleware
+      # defined below silently failed to register ("middleware
+      # \"hsts@docker\" does not exist") until this was added.
+      - "traefik.enable=true"
       # Shared HSTS middleware, referenced by each routed service's own
       # labels below as hsts@docker -- Traefik's Docker provider makes any
       # middleware defined on any container globally referenceable by
