@@ -232,6 +232,19 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     resources = [aws_iam_role.hub.arn]
   }
 
+  # DLM's CreateLifecyclePolicy needs the caller to be able to pass the
+  # execution role (backup.tf's aws_iam_role.dlm) to the DLM service --
+  # confirmed via the live error (AccessDenied on iam:PassRole for
+  # role/home-platform-dlm), hit right after the dlm:TagResource fix above
+  # actually took effect. Literal ARN string, not aws_iam_role.dlm.arn, for
+  # the same reason as the CreateRole statement above -- avoids ever
+  # recreating that cycle if this role/state is ever rebuilt from scratch.
+  statement {
+    effect    = "Allow"
+    actions   = ["iam:PassRole"]
+    resources = ["arn:aws:iam::${var.aws_account_id}:role/home-platform-dlm"]
+  }
+
   # DLM (backup.tf's daily EBS snapshot policy for the hub's root volume).
   # dlm:TagResource on "*" is confirmed required (this exact apply failed
   # with AccessDenied on dlm:TagResource, resource arn:.../policy/*, even

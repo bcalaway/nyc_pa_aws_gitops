@@ -50,6 +50,16 @@ resource "aws_iam_role_policy_attachment" "dlm" {
 }
 
 resource "aws_dlm_lifecycle_policy" "hub_root_volume" {
+  # Also waits on the same time_sleep as aws_iam_role.dlm above -- this
+  # resource's own permissions (dlm:TagResource, iam:PassRole on the dlm
+  # role) come from the same github_actions policy update, and hitting
+  # AccessDenied here isn't gated by anything that forces a wait on its own
+  # (no attribute of this resource references the policy), so without this
+  # it can run immediately after the policy update returns, before IAM has
+  # actually propagated it -- confirmed live twice (dlm:TagResource, then
+  # iam:PassRole) before this explicit dependency was added.
+  depends_on = [time_sleep.wait_for_github_actions_dlm_policy]
+
   description        = "Daily EBS snapshots of the home-platform hub root volume"
   execution_role_arn = aws_iam_role.dlm.arn
   state              = "ENABLED"
