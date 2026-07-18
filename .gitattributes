@@ -3,3 +3,11 @@
 # their #!/bin/bash shebang and execution entirely. Force LF regardless of
 # platform.
 *.sh text eol=lf
+
+# Same reasoning for cron.d files -- a trailing CR embeds itself in the
+# command string (e.g. "...2>&1\r"), which can silently break the command
+# or its redirection depending on the cron implementation. Caught live:
+# compose/aws/postgres-backup/crontab got CRLF'd on a Windows checkout
+# despite being written as LF, since it has no extension for the *.sh rule
+# above to match.
+compose/aws/postgres-backup/crontab text eol=lf
