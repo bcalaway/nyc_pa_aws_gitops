@@ -22,8 +22,10 @@ Write-Host "Fetching Authentik secrets from SSM..."
 $authentikDbPassword = (& $aws ssm get-parameter --name "/home-platform/authentik/db-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 $authentikSecretKey = (& $aws ssm get-parameter --name "/home-platform/authentik/secret-key" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 $authentikBootstrapPassword = (& $aws ssm get-parameter --name "/home-platform/authentik/bootstrap-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+$authentikGrafanaClientId = (& $aws ssm get-parameter --name "/home-platform/authentik/grafana-client-id" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+$authentikGrafanaClientSecret = (& $aws ssm get-parameter --name "/home-platform/authentik/grafana-client-secret" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 
-"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
+"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
 
 Write-Host "Copying compose stack to EC2..."
 ssh -i $sshKey $ec2Host "mkdir -p $remoteDir"

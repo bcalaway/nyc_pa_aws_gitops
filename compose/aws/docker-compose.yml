@@ -99,8 +99,25 @@ services:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     environment:
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      # Anonymous access retired (Milestone 11, ADR-0017) -- Grafana was
+      # previously reachable read-only by anyone on the internet who knew
+      # the URL (grafana.billandjessie.com's 443 is public in the security
+      # group). OIDC login via Authentik replaces it below. The native
+      # username/password login form is deliberately left enabled (not
+      # GF_AUTH_DISABLE_LOGIN_FORM) so the existing local admin account
+      # (/home-platform/grafana/admin-password) stays available as a
+      # break-glass fallback if OIDC ever breaks.
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: "https://grafana.billandjessie.com"
+      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+      GF_AUTH_GENERIC_OAUTH_NAME: "Authentik"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: "${AUTHENTIK_GRAFANA_CLIENT_ID}"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: "${AUTHENTIK_GRAFANA_CLIENT_SECRET}"
+      GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://auth.billandjessie.com/application/o/authorize/"
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://auth.billandjessie.com/application/o/token/"
+      GF_AUTH_GENERIC_OAUTH_API_URL: "https://auth.billandjessie.com/application/o/userinfo/"
+      GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: "true"
       GF_SMTP_ENABLED: "true"
       GF_SMTP_HOST: "smtp.gmail.com:587"
       GF_SMTP_USER: "bcalaway@gmail.com"
@@ -198,9 +215,16 @@ services:
       AUTHENTIK_BOOTSTRAP_EMAIL: "bcalaway@gmail.com"
       AUTHENTIK_BOOTSTRAP_PASSWORD: "${AUTHENTIK_BOOTSTRAP_PASSWORD}"
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      # Grafana OIDC client (blueprints/grafana-oidc.yaml reads these via
+      # !Env) -- not consumed directly by authentik-server itself, but both
+      # server and worker get the same env since blueprint discovery/apply
+      # isn't strictly worker-only across versions.
+      AUTHENTIK_GRAFANA_CLIENT_ID: "${AUTHENTIK_GRAFANA_CLIENT_ID}"
+      AUTHENTIK_GRAFANA_CLIENT_SECRET: "${AUTHENTIK_GRAFANA_CLIENT_SECRET}"
     volumes:
       - authentik-media:/media
       - authentik-templates:/templates
+      - ./authentik/blueprints:/blueprints/local:ro
     # Published for initial setup/testing over WireGuard only, gated by the
     # security group (10.0.3.0/24) -- same pattern as Postgres/Redis. Public
     # access via auth.billandjessie.com (nginx) comes once this is confirmed
@@ -225,6 +249,8 @@ services:
       AUTHENTIK_BOOTSTRAP_EMAIL: "bcalaway@gmail.com"
       AUTHENTIK_BOOTSTRAP_PASSWORD: "${AUTHENTIK_BOOTSTRAP_PASSWORD}"
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      AUTHENTIK_GRAFANA_CLIENT_ID: "${AUTHENTIK_GRAFANA_CLIENT_ID}"
+      AUTHENTIK_GRAFANA_CLIENT_SECRET: "${AUTHENTIK_GRAFANA_CLIENT_SECRET}"
     # Deliberately NOT mounting /var/run/docker.sock (Authentik's official
     # compose does, root + full docker socket access) -- that's only needed
     # for auto-deployed Docker-based outposts, which we're not using; we
@@ -235,6 +261,7 @@ services:
       - authentik-media:/media
       - authentik-templates:/templates
       - authentik-certs:/certs
+      - ./authentik/blueprints:/blueprints/local:ro
 
 volumes:
   prometheus-data:
