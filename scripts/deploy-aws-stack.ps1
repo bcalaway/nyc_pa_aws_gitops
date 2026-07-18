@@ -18,7 +18,12 @@ $postgresPassword = (& $aws ssm get-parameter --name "/home-platform/postgres/ad
 Write-Host "Fetching Redis password from SSM..."
 $redisPassword = (& $aws ssm get-parameter --name "/home-platform/authentik/redis-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 
-"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
+Write-Host "Fetching Authentik secrets from SSM..."
+$authentikDbPassword = (& $aws ssm get-parameter --name "/home-platform/authentik/db-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+$authentikSecretKey = (& $aws ssm get-parameter --name "/home-platform/authentik/secret-key" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+$authentikBootstrapPassword = (& $aws ssm get-parameter --name "/home-platform/authentik/bootstrap-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+
+"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
 
 Write-Host "Copying compose stack to EC2..."
 ssh -i $sshKey $ec2Host "mkdir -p $remoteDir"

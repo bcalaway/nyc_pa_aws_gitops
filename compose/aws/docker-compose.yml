@@ -179,6 +179,63 @@ services:
     ports:
       - "6379:6379"
 
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2026.2.6
+    container_name: authentik-server
+    restart: unless-stopped
+    command: server
+    depends_on:
+      - postgres
+    environment:
+      AUTHENTIK_SECRET_KEY: "${AUTHENTIK_SECRET_KEY}"
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: "${AUTHENTIK_DB_PASSWORD}"
+      # No AUTHENTIK_REDIS__* -- removed upstream in release 2025.10, see
+      # ADR-0017's "Revisited 2026-07-18" note. Everything (cache, tasks,
+      # sessions, websockets) now lives in Postgres.
+      AUTHENTIK_BOOTSTRAP_EMAIL: "bcalaway@gmail.com"
+      AUTHENTIK_BOOTSTRAP_PASSWORD: "${AUTHENTIK_BOOTSTRAP_PASSWORD}"
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+    # Published for initial setup/testing over WireGuard only, gated by the
+    # security group (10.0.3.0/24) -- same pattern as Postgres/Redis. Public
+    # access via auth.billandjessie.com (nginx) comes once this is confirmed
+    # healthy.
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2026.2.6
+    container_name: authentik-worker
+    restart: unless-stopped
+    command: worker
+    depends_on:
+      - postgres
+    environment:
+      AUTHENTIK_SECRET_KEY: "${AUTHENTIK_SECRET_KEY}"
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: "${AUTHENTIK_DB_PASSWORD}"
+      AUTHENTIK_BOOTSTRAP_EMAIL: "bcalaway@gmail.com"
+      AUTHENTIK_BOOTSTRAP_PASSWORD: "${AUTHENTIK_BOOTSTRAP_PASSWORD}"
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+    # Deliberately NOT mounting /var/run/docker.sock (Authentik's official
+    # compose does, root + full docker socket access) -- that's only needed
+    # for auto-deployed Docker-based outposts, which we're not using; we
+    # only need the built-in embedded OIDC provider. Skipping it avoids an
+    # unnecessary privilege-escalation surface, matching this repo's general
+    # pattern of scoping container mounts to what's actually used.
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - authentik-certs:/certs
+
 volumes:
   prometheus-data:
   loki-data:
@@ -188,3 +245,6 @@ volumes:
   postgres-data:
   backup-metrics:
   redis-data:
+  authentik-media:
+  authentik-templates:
+  authentik-certs:
