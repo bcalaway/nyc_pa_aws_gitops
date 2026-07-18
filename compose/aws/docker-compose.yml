@@ -164,8 +164,12 @@ services:
     image: redis:7-alpine
     container_name: redis
     restart: unless-stopped
-    # Authentik's dependency (ADR-0017) -- cache/task-queue/websocket
-    # broker, not a primary datastore.
+    # General shared cache/session store, not tied to any one app. Originally
+    # added for Authentik (ADR-0017), but upstream Authentik removed its
+    # Redis dependency in release 2025.10 (moved to Postgres) before we
+    # deployed it -- see ADR-0017's "Revisited 2026-07-18" note. Kept
+    # anyway: negligible footprint, RedisInsight already set up for it, and
+    # a future app may still want one.
     command: --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data

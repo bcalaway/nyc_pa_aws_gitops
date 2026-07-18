@@ -40,3 +40,9 @@ Grafana is reconfigured to authenticate via Authentik (OIDC) instead of anonymou
 - Grafana's anonymous-access setting (Milestone 3) gets revisited and replaced with OIDC login
 - Authentik admin credentials and OIDC client secrets go in SSM under `/home-platform/authentik/*`, per ADR-0005's convention
 - `auth.billandjessie.com` is the new subdomain for Authentik itself, following the existing `grafana.`/`status.` pattern
+
+## Revisited 2026-07-18
+
+Redis was deployed to the hub as planned above, before discovering that upstream Authentik removed its Redis dependency entirely in release 2025.10 (caching, tasks, embedded-outpost sessions, and websockets all moved to Postgres) — this ADR's "own Postgres database and Redis" premise was already stale relative to the version actually being deployed (2026.2.6). Authentik is built and configured against Postgres only; no `AUTHENTIK_REDIS__*` settings.
+
+Redis itself is kept rather than torn down — it's a negligible footprint, RedisInsight is already set up for it (matching pgAdmin's role for Postgres), and a future app may still want a cache/session store independent of Authentik. Its purpose is now "general shared cache service," not "Authentik's dependency" specifically — `compose/aws/docker-compose.yml`'s comment on the `redis` service reflects this.
