@@ -81,6 +81,16 @@ resource "aws_security_group" "ec2" {
     cidr_blocks = ["10.0.3.0/24"]
   }
 
+  # Redis — client access (e.g. RedisInsight) from WireGuard peers only,
+  # same scoping as Postgres above
+  ingress {
+    description = "Redis"
+    from_port   = 6379
+    to_port     = 6379
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.3.0/24"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
