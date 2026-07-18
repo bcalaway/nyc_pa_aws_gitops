@@ -50,3 +50,58 @@ groups:
         annotations:
           summary: "{{ $labels.instance }} is {{ $values.A }}% full on {{ $labels.mountpoint }}"
           description: "Disk usage on {{ $labels.instance }} ({{ $labels.mountpoint }}) has been above 85% for 15 minutes. Hosts monitored: aws-hub, nas2, nuc4, nuc5 (see compose/aws/prometheus/prometheus.yml's node-exporter job)."
+
+  - orgId: 1
+    name: postgres-backup
+    folder: Alerts
+    interval: 1h
+    rules:
+      - uid: postgres-backup-stale
+        title: Postgres backup stale
+        # postgres_backup_last_success_timestamp_seconds comes from
+        # compose/aws/postgres-backup/backup.sh via node-exporter's textfile
+        # collector (docker-compose.yml) -- written only after a successful
+        # pg_dumpall + S3 upload, so staleness covers both "the backup ran
+        # and failed" and "cron never fired at all" with one query.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: time() - postgres_backup_last_success_timestamp_seconds{instance="aws-hub"}
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [259200]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        # Unlike disk-space-low: no data for this metric IS the failure --
+        # it means the backup has never succeeded, or node-exporter/textfile
+        # wiring itself is broken, both of which should alert rather than
+        # silently sit in "no data" state.
+        noDataState: Alerting
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres backup on {{ $labels.instance }} hasn't succeeded in over 3 days"
+          description: "postgres-backup (compose/aws/postgres-backup) hasn't reported a successful pg_dumpall-to-S3 backup in over 3 days, or the metric is missing entirely. Check `docker logs postgres-backup` and `docker exec postgres-backup cat /var/log/cron.log` on the hub."

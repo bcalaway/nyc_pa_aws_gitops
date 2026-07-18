@@ -8,11 +8,16 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+      # postgres-backup writes postgres_backup_last_success_timestamp_seconds
+      # here after each successful backup -- node-exporter's textfile
+      # collector exposes it like any other metric, no pushgateway needed.
+      - backup-metrics:/textfile_collector:ro
     command:
       - --path.procfs=/host/proc
       - --path.sysfs=/host/sys
       - --path.rootfs=/rootfs
       - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+      - --collector.textfile.directory=/textfile_collector
     ports:
       - "9100:9100"
 
@@ -152,6 +157,8 @@ services:
       # upload (terraform/aws/tls.tf's hub_postgres_backup_write policy) --
       # no AWS keys in the container.
       BACKUP_BUCKET: "home-platform-logs-147856894209"
+    volumes:
+      - backup-metrics:/textfile_collector
 
 volumes:
   prometheus-data:
@@ -160,3 +167,4 @@ volumes:
   uptime-kuma-data:
   promtail-positions:
   postgres-data:
+  backup-metrics:
