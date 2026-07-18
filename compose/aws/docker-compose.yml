@@ -160,6 +160,17 @@ services:
     volumes:
       - backup-metrics:/textfile_collector
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    # Authentik's dependency (ADR-0017) -- cache/task-queue/websocket
+    # broker, not a primary datastore. No published port: only other
+    # containers on the compose network (Authentik) need to reach it.
+    command: --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+
 volumes:
   prometheus-data:
   loki-data:
@@ -168,3 +179,4 @@ volumes:
   promtail-positions:
   postgres-data:
   backup-metrics:
+  redis-data:

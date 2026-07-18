@@ -15,7 +15,10 @@ $smtpPassword = (& $aws ssm get-parameter --name "/home-platform/grafana/smtp-pa
 Write-Host "Fetching Postgres admin password from SSM..."
 $postgresPassword = (& $aws ssm get-parameter --name "/home-platform/postgres/admin-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 
-"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
+Write-Host "Fetching Redis password from SSM..."
+$redisPassword = (& $aws ssm get-parameter --name "/home-platform/authentik/redis-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+
+"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
 
 Write-Host "Copying compose stack to EC2..."
 ssh -i $sshKey $ec2Host "mkdir -p $remoteDir"
