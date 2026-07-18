@@ -331,7 +331,52 @@ Close and reopen the PuTTY session (or `source ~/.bashrc`) for it to take effect
 
 ---
 
-## 9. Set up NvChad on a NUC
+## 9. Install pgAdmin (Windows workstation)
+
+pgAdmin is the GUI client for the shared Postgres instance running on the AWS hub (`compose/aws/docker-compose.yml`, Milestone 11 — ADR-0016). The hub's security group only allows port 5432 from WireGuard peers (`10.0.3.0/24`, see `terraform/aws/security_groups.tf`), so this only works over the WireGuard tunnel or from a site LAN that routes to the hub (same reachability rules as SSH — see "EC2 access" in `CLAUDE.md`).
+
+```powershell
+winget install --id PostgreSQL.pgAdmin --silent --accept-package-agreements --accept-source-agreements
+```
+
+**Register the server connection via CLI** (avoids clicking through the GUI, and avoids ever typing the Postgres password into anything — it registers host/port/user only, no password):
+
+```powershell
+# First launch initializes pgAdmin's own config DB (~\AppData\Roaming\pgAdmin\pgadmin4.db)
+# and a default desktop user, pgadmin4@pgadmin.org -- launch it once and close it if the
+# steps below fail with "no such user".
+$pgadminDir = "$env:LOCALAPPDATA\Programs\pgAdmin 4"
+$serversJson = "$env:TEMP\pgadmin-servers.json"
+@'
+{
+    "Servers": {
+        "1": {
+            "Name": "Home Platform Postgres (Hub)",
+            "Group": "Servers",
+            "Host": "10.0.3.1",
+            "Port": 5432,
+            "MaintenanceDB": "postgres",
+            "Username": "postgres",
+            "SSLMode": "prefer"
+        }
+    }
+}
+'@ | Set-Content -Path $serversJson
+
+$env:PATH = "$pgadminDir\runtime;" + $env:PATH   # libpq.dll lives here; psycopg needs it on PATH
+& "$pgadminDir\python\python.exe" "$pgadminDir\web\setup.py" load-servers $serversJson --user pgadmin4@pgadmin.org --replace
+Remove-Item $serversJson
+```
+
+On first connect in the pgAdmin GUI, it'll prompt for the password — fetch it from SSM rather than storing it anywhere:
+```powershell
+(aws ssm get-parameter --name "/home-platform/postgres/admin-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+```
+Check "Save Password" in the prompt if you want pgAdmin to remember it (encrypted in its own config DB, gated by your Windows login) — or leave it unchecked and re-enter each session.
+
+---
+
+## 10. Set up NvChad on a NUC
 
 This is Bill's personal editor config for `bcalaway` on the NUCs (nuc4, nuc5) — not Ansible-managed, since it's a dotfiles preference rather than infrastructure state. Redo manually on any new/reimaged NUC. Requires the PuTTY font setup from step 8 to actually see the icons.
 
@@ -414,6 +459,7 @@ Renders as `bcalaway@nuc4~/workspace/foo [branch-name]>` inside a git repo, or `
 | `/home-platform/wireguard/laptop-private-key` | SecureString | Laptop WireGuard private key |
 | `/home-platform/wireguard/laptop-public-key` | String | Laptop WireGuard public key |
 | `/home-platform/grafana/smtp-password` | SecureString | Grafana Gmail SMTP password (set when configuring Milestone 3) |
+| `/home-platform/postgres/admin-password` | SecureString | Shared Postgres (hub) superuser password — used by pgAdmin, see step 9 |
 
 Retrieve any secret (identical on both platforms):
 ```
