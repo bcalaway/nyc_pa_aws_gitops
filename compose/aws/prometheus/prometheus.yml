@@ -11,6 +11,12 @@ scrape_configs:
     static_configs:
       - targets: ["cost-exporter:9199"]
 
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          instance: aws-hub
+
   - job_name: node-exporter
     static_configs:
       - targets: ["node-exporter:9100"]
