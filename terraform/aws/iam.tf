@@ -231,6 +231,27 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     actions   = ["iam:PassRole"]
     resources = [aws_iam_role.hub.arn]
   }
+
+  # DLM (backup.tf's daily EBS snapshot policy for the hub's root volume).
+  # dlm:TagResource on "*" is confirmed required (this exact apply failed
+  # with AccessDenied on dlm:TagResource, resource arn:.../policy/*, even
+  # though the DLM role/policy itself had already been created successfully
+  # -- so plain CreateLifecyclePolicy alone wasn't enough, DLM auto-tags the
+  # policy on creation via tags_to_add/copy_tags in backup.tf). The other
+  # actions could in principle be scoped to a specific policy ARN, but the
+  # ID doesn't exist until creation (same chicken-and-egg as the role/bucket
+  # ARN references elsewhere in this file) and this account only ever has
+  # the one DLM policy, so "*" matches the account's existing precedent for
+  # APIs without meaningful resource-level scoping (ce:*, ssm:DescribeParameters).
+  statement {
+    effect = "Allow"
+    actions = [
+      "dlm:CreateLifecyclePolicy", "dlm:GetLifecyclePolicy", "dlm:GetLifecyclePolicies",
+      "dlm:UpdateLifecyclePolicy", "dlm:DeleteLifecyclePolicy",
+      "dlm:TagResource", "dlm:UntagResource", "dlm:ListTagsForResource",
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "github_actions" {
