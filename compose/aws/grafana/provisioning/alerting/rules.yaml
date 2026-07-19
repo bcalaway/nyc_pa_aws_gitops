@@ -105,3 +105,58 @@ groups:
         annotations:
           summary: "Postgres backup on {{ $labels.instance }} hasn't succeeded in over 3 days"
           description: "postgres-backup (compose/aws/postgres-backup) hasn't reported a successful pg_dumpall-to-S3 backup in over 3 days, or the metric is missing entirely. Check `docker logs postgres-backup` and `docker exec postgres-backup cat /var/log/cron.log` on the hub."
+
+  - orgId: 1
+    name: tls-cert-expiry
+    folder: Alerts
+    interval: 1h
+    rules:
+      - uid: tls-cert-expiring-soon
+        title: TLS certificate expiring soon
+        # traefik_tls_certs_not_after (compose/aws/grafana/provisioning/dashboards/traefik.json's
+        # own expiry panel) is a Unix timestamp per cert CN. Traefik auto-renews via
+        # Let's Encrypt DNS-01 around 30 days before expiry (90-day certs) --
+        # under 14 days remaining means renewal has already failed at least
+        # once (Route53 API issue, IMDS credential problem, etc.), not just
+        # "renewal hasn't happened yet".
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: (traefik_tls_certs_not_after - time()) / 86400
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [14]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        # No data means Traefik isn't reporting cert metrics at all (down, or
+        # metrics wiring broken) -- alert rather than sit silent, same
+        # reasoning as postgres-backup-stale.
+        noDataState: Alerting
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TLS cert for {{ $labels.cn }} expires in under 14 days"
+          description: "traefik_tls_certs_not_after shows {{ $labels.cn }} has under 14 days of validity left, or the metric is missing entirely. Let's Encrypt certs renew automatically around 30 days out, so this means auto-renewal has already failed at least once -- check `docker logs traefik` for ACME errors (Route53 API/IMDS credential issues are the usual cause)."
