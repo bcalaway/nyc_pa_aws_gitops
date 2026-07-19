@@ -160,23 +160,35 @@
       <text x="500" y="138" text-anchor="middle" fill="#e6e6e6" font-size="16" font-weight="600">AWS Hub — EC2 (us-east-1)</text>
       <text x="500" y="157" text-anchor="middle" fill="#9aa0a6" font-size="11">3.82.89.106 · WireGuard 10.0.3.1</text>
 
-      <rect x="350" y="170" width="145" height="50" rx="8" fill="#1a1d24" stroke="#316cb5"/>
-      <text x="422" y="189" text-anchor="middle" fill="#e6e6e6" font-size="12" font-weight="600">Observability</text>
-      <text x="422" y="204" text-anchor="middle" fill="#9aa0a6" font-size="10.5">Prometheus · Grafana</text>
-      <text x="422" y="216" text-anchor="middle" fill="#9aa0a6" font-size="10.5">Loki · Uptime Kuma</text>
+      <!-- 3x2 grid (was 2x2) -- widened to fit Milestone 11's new app-platform
+           services without growing the outer AWS Hub box, which would cascade
+           into the WireGuard tunnel/NYC/Rambles coordinates below it. -->
+      <rect x="350" y="170" width="96" height="50" rx="8" fill="#1a1d24" stroke="#316cb5"/>
+      <text x="398" y="189" text-anchor="middle" fill="#e6e6e6" font-size="11" font-weight="600">Observability</text>
+      <text x="398" y="204" text-anchor="middle" fill="#9aa0a6" font-size="9">Prometheus</text>
+      <text x="398" y="216" text-anchor="middle" fill="#9aa0a6" font-size="9">Grafana · Loki · Kuma</text>
 
-      <rect x="505" y="170" width="145" height="50" rx="8" fill="#1a1d24" stroke="#316cb5"/>
-      <text x="577" y="189" text-anchor="middle" fill="#e6e6e6" font-size="12" font-weight="600">Public DNS / TLS</text>
-      <text x="577" y="204" text-anchor="middle" fill="#9aa0a6" font-size="10.5">Route53 · nginx</text>
-      <text x="577" y="216" text-anchor="middle" fill="#9aa0a6" font-size="10.5">Let's Encrypt</text>
+      <rect x="452" y="170" width="96" height="50" rx="8" fill="#1a1d24" stroke="#316cb5"/>
+      <text x="500" y="189" text-anchor="middle" fill="#e6e6e6" font-size="11" font-weight="600">Ingress / TLS</text>
+      <text x="500" y="204" text-anchor="middle" fill="#9aa0a6" font-size="9">Traefik</text>
+      <text x="500" y="216" text-anchor="middle" fill="#9aa0a6" font-size="9">Route53 · LE</text>
 
-      <rect x="350" y="228" width="145" height="44" rx="8" fill="#1a1d24" stroke="#316cb5"/>
-      <text x="422" y="247" text-anchor="middle" fill="#e6e6e6" font-size="12" font-weight="600">rsyslog</text>
-      <text x="422" y="262" text-anchor="middle" fill="#9aa0a6" font-size="10.5">UDP 514 → Loki</text>
+      <rect x="554" y="170" width="96" height="50" rx="8" fill="#1a1d24" stroke="#316cb5"/>
+      <text x="602" y="189" text-anchor="middle" fill="#e6e6e6" font-size="11" font-weight="600">App Platform</text>
+      <text x="602" y="204" text-anchor="middle" fill="#9aa0a6" font-size="9">Postgres</text>
+      <text x="602" y="216" text-anchor="middle" fill="#9aa0a6" font-size="9">Redis</text>
 
-      <rect x="505" y="228" width="145" height="44" rx="8" fill="#1a1d24" stroke="#316cb5"/>
-      <text x="577" y="247" text-anchor="middle" fill="#e6e6e6" font-size="12" font-weight="600">Portal (this site)</text>
-      <text x="577" y="262" text-anchor="middle" fill="#9aa0a6" font-size="10.5">S3 + CloudFront</text>
+      <rect x="350" y="228" width="96" height="44" rx="8" fill="#1a1d24" stroke="#316cb5"/>
+      <text x="398" y="247" text-anchor="middle" fill="#e6e6e6" font-size="11" font-weight="600">rsyslog</text>
+      <text x="398" y="262" text-anchor="middle" fill="#9aa0a6" font-size="9">UDP 514 → Loki</text>
+
+      <rect x="452" y="228" width="96" height="44" rx="8" fill="#1a1d24" stroke="#316cb5"/>
+      <text x="500" y="247" text-anchor="middle" fill="#e6e6e6" font-size="11" font-weight="600">Portal</text>
+      <text x="500" y="262" text-anchor="middle" fill="#9aa0a6" font-size="9">S3 + CloudFront</text>
+
+      <rect x="554" y="228" width="96" height="44" rx="8" fill="#1a1d24" stroke="#316cb5"/>
+      <text x="602" y="247" text-anchor="middle" fill="#e6e6e6" font-size="11" font-weight="600">Auth</text>
+      <text x="602" y="262" text-anchor="middle" fill="#9aa0a6" font-size="9">Authentik</text>
 
       <!-- WireGuard tunnels -->
       <line x1="420" y1="288" x2="240" y2="360" stroke="#3987e5" stroke-width="1.5" stroke-dasharray="5,4"/>
