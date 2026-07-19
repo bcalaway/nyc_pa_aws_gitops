@@ -103,6 +103,13 @@ services:
       - --entrypoints.websecure.address=:443
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # Metrics entrypoint is deliberately not published to the host --
+      # only reachable by other containers on the compose network (i.e.
+      # Prometheus), same "internal-only" posture as postgres-exporter/
+      # redis-exporter.
+      - --entrypoints.metrics.address=:8082
+      - --metrics.prometheus=true
+      - --metrics.prometheus.entrypoint=metrics
       - --certificatesresolvers.route53.acme.dnschallenge=true
       - --certificatesresolvers.route53.acme.dnschallenge.provider=route53
       - --certificatesresolvers.route53.acme.email=bcalaway@gmail.com

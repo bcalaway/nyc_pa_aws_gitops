@@ -23,6 +23,25 @@ scrape_configs:
         labels:
           instance: aws-hub
 
+  - job_name: traefik
+    static_configs:
+      - targets: ["traefik:8082"]
+        labels:
+          instance: aws-hub
+
+  # Authentik exposes Prometheus metrics on :9300 by default, no config
+  # needed on its side -- server and worker both expose their own.
+  - job_name: authentik
+    static_configs:
+      - targets: ["authentik-server:9300"]
+        labels:
+          instance: aws-hub
+          component: server
+      - targets: ["authentik-worker:9300"]
+        labels:
+          instance: aws-hub
+          component: worker
+
   - job_name: node-exporter
     static_configs:
       - targets: ["node-exporter:9100"]
