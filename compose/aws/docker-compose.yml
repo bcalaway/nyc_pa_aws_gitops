@@ -274,6 +274,18 @@ services:
     ports:
       - "6379:6379"
 
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.66.0
+    container_name: redis-exporter
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    ports:
+      - "9121:9121"
+
   authentik-server:
     image: ghcr.io/goauthentik/server:2026.2.6
     container_name: authentik-server
