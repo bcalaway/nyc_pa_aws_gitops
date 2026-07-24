@@ -191,16 +191,35 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:GetRolePolicy", "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies", "iam:AttachRolePolicy", "iam:DetachRolePolicy",
     ]
-    # dlm uses a literal ARN string, not aws_iam_role.dlm.arn -- same circular
-    # dependency as the ansible-deploy bucket above: this statement would
-    # need the role to exist to compute its ARN, but creating the role needs
-    # this statement to already grant iam:CreateRole first. IAM role ARNs
-    # are fully deterministic from the role name, so no need to reference
-    # the resource. github_actions/hub don't hit this because they predate
-    # this statement being scoped down to reference them.
+    # dlm and todo-app-github-actions use literal ARN strings, not
+    # aws_iam_role.<x>.arn -- same circular dependency as the ansible-deploy
+    # bucket above: this statement would need the role to exist to compute
+    # its ARN, but creating the role needs this statement to already grant
+    # iam:CreateRole first. IAM role ARNs are fully deterministic from the
+    # role name, so no need to reference the resource. github_actions/hub
+    # don't hit this because they predate this statement being scoped down
+    # to reference them. Every future per-app role (ADR-0019, apps.tf) adds
+    # one more literal ARN here, following this same pattern.
     resources = [
       aws_iam_role.github_actions.arn, aws_iam_role.hub.arn,
       "arn:aws:iam::${var.aws_account_id}:role/home-platform-dlm",
+      "arn:aws:iam::${var.aws_account_id}:role/todo-app-github-actions",
+    ]
+  }
+
+  # ECR — per-app repositories (ADR-0019, apps.tf). Literal ARN string for
+  # the same reason as the IAM statement above: this statement must grant
+  # CreateRepository before the repository exists, so referencing
+  # aws_ecr_repository.todo_app.arn would create the same circular
+  # dependency. One more literal ARN here per future app's ECR repo.
+  statement {
+    effect = "Allow"
+    actions = [
+      "ecr:CreateRepository", "ecr:DeleteRepository", "ecr:DescribeRepositories",
+      "ecr:TagResource", "ecr:UntagResource", "ecr:ListTagsForResource",
+    ]
+    resources = [
+      "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/todo-app",
     ]
   }
 
