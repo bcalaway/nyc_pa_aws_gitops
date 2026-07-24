@@ -62,6 +62,7 @@ Always `git push` immediately after every `git commit` without asking.
 | `/home-platform/switch/nyc-sw10g-password` | sw-10g admin password |
 | `/home-platform/nas/nyc-nas2-username` | nas2 (Synology, 10.0.1.7) admin username |
 | `/home-platform/nas/nyc-nas2-password` | nas2 admin password |
+| `/home-platform/kvm/admin-password` | JetKVM web UI password — shared by both kvm-nuc4 (10.0.1.66, NYC) and kvm-nuc5 (10.0.2.226, Rambles); no separate username field, JetKVM auth is password-only |
 | `/home-platform/nuc/rambles-nuc5-username` | nuc5 (Rambles NUC, 10.0.2.10) SSH username (`bcalaway`) — password auth, still valid as a fallback |
 | `/home-platform/nuc/rambles-nuc5-password` | nuc5 SSH/sudo password |
 | `/home-platform/ansible/nuc-private-key` | SSH private key Ansible uses to manage NUCs (key-based, passwordless sudo configured for `bcalaway`) |
