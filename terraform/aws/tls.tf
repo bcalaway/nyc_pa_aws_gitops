@@ -95,8 +95,10 @@ resource "aws_iam_role_policy" "hub_ssm_router_secrets" {
 }
 
 # Read-only access to the ansible-deploy bucket (terraform/aws/s3.tf) --
-# the RouterOS/NUC CI workflows sync ansible/ and routeros/ there, and the
-# SSM-triggered command on the hub syncs back down from it.
+# the RouterOS/NUC CI workflows sync ansible/ and routeros/ there, and app
+# CD workflows (.github/workflows/app-deploy.yml, ADR-0019) stage their
+# Compose fragments under apps/<app>/ in the same bucket. The
+# SSM-triggered command on the hub syncs back down from it in both cases.
 data "aws_iam_policy_document" "hub_ansible_deploy_read" {
   statement {
     effect    = "Allow"
@@ -109,6 +111,52 @@ resource "aws_iam_role_policy" "hub_ansible_deploy_read" {
   name   = "home-platform-hub-ansible-deploy-read"
   role   = aws_iam_role.hub.id
   policy = data.aws_iam_policy_document.hub_ansible_deploy_read.json
+}
+
+# App deploy support (ADR-0019, apps.tf) -- the hub-side deploy script
+# (.github/workflows/app-deploy.yml) runs as this role, not the GitHub
+# Actions workflow's own role, so it needs its own ECR pull access and its
+# own read access to each app's secrets. Grows by one block of statements
+# per app, same pattern as the SSM router-secrets statement above.
+data "aws_iam_policy_document" "hub_app_deploy" {
+  statement {
+    effect    = "Allow"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]
+    resources = [aws_ecr_repository.todo_app.arn]
+  }
+
+  # Secret injection at deploy time (see app-deploy.yml's header comment
+  # for the full SSM-path-to-env-var convention) -- scoped to exactly the
+  # same parameter set todo-app's own GitHub Actions role can read
+  # (apps.tf), since both roles need it for the same reason: this app's
+  # own credentials, nothing broader.
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:GetParametersByPath"]
+    resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/todo-app/*"]
+  }
+
+  statement {
+    effect  = "Allow"
+    actions = ["ssm:GetParameter"]
+    resources = [
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/postgres/todo-app-password",
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/todo-app-client-id",
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/todo-app-client-secret",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "hub_app_deploy" {
+  name   = "home-platform-hub-app-deploy"
+  role   = aws_iam_role.hub.id
+  policy = data.aws_iam_policy_document.hub_app_deploy.json
 }
 
 # Lets postgres-backup (compose/aws/postgres-backup) upload pg_dumpall

@@ -89,6 +89,56 @@ data "aws_iam_policy_document" "todo_app_github_actions_permissions" {
       "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/todo-app-client-secret",
     ]
   }
+
+  # Deploy staging -- reuses the existing ansible-deploy bucket (s3.tf)
+  # under an apps/todo-app/ prefix instead of standing up a second bucket
+  # for the same "stage an artifact, hub pulls it down" purpose the
+  # RouterOS/NUC pipeline already established. The hub's own instance role
+  # already has read access to the whole bucket (tls.tf's
+  # hub_ansible_deploy_read), so only this write grant is new; scoped to
+  # just this app's own prefix, not the ansible/routeros paths other
+  # pipelines use in the same bucket.
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:PutObject", "s3:GetObject"]
+    resources = ["arn:aws:s3:::home-platform-ansible-deploy-${var.aws_account_id}/apps/todo-app/*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = ["arn:aws:s3:::home-platform-ansible-deploy-${var.aws_account_id}"]
+  }
+
+  # Deploy triggering -- same SSM Run Command pattern as the RouterOS
+  # workflow (iam.tf's github_actions role): DescribeInstances can't be
+  # resource-scoped (EC2's Describe* actions don't support it), SendCommand
+  # is scoped to the hub instance specifically, and the Get/List actions
+  # below can't be resource-scoped either (identified by command-id, not a
+  # taggable/ARN-able resource -- same limitation noted in iam.tf).
+  statement {
+    effect    = "Allow"
+    actions   = ["ec2:DescribeInstances"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:SendCommand"]
+    resources = ["arn:aws:ssm:us-east-1::document/AWS-RunShellScript"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:SendCommand"]
+    resources = [aws_instance.hub.arn]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:GetCommandInvocation", "ssm:ListCommandInvocations", "ssm:ListCommands"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "todo_app_github_actions" {

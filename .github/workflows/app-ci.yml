@@ -1,0 +1,55 @@
+name: App CI (reusable)
+
+# Called from an app repo's own workflow on every PR (ADR-0019: build,
+# test, lint as a required check). Convention (docs/app-platform.md): every
+# app's Dockerfile defines `lint` and `test` build stages ahead of its
+# final runtime stage -- keeps this workflow language-agnostic instead of
+# hardcoding per-language tooling here, across the Python/C++/React starter
+# templates.
+
+on:
+  workflow_call:
+    inputs:
+      dockerfile:
+        description: "Path in the caller repo to its Dockerfile"
+        type: string
+        default: "Dockerfile"
+
+jobs:
+  build-test-lint:
+    name: Build, test, lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Lint
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          target: lint
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          target: test
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build (final stage)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
