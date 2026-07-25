@@ -92,7 +92,11 @@ An app repo composes these itself to pick its mode: call `app-build-push.yml` th
 
 ## Starter templates
 
-Not yet built (next task after this doc). Planned: Python, C++, React — each pre-wired with the reusable CI/CD workflow calls, a Dockerfile, and the Postgres/Auth/Traefik integration points above already filled in with placeholder values. Location TBD; update this section once decided.
+Live in this repo under `templates/<language>/`, not a separate GitHub template repository — same rationale as the reusable CI/CD workflows above (ADR-0014's "no business logic in the platform repo" is about apps, not platform-provided scaffolding). To use one: copy its contents into a new app repo and follow its own README.
+
+- **Python** (`templates/python/`) — done. FastAPI + Uvicorn, SQLAlchemy (Postgres, ADR-0016), Authlib (Authentik OIDC, ADR-0017 Pattern A), pytest, ruff. Dockerfile follows the `lint`/`test`/final-stage convention `app-ci.yml` expects. `deploy/docker-compose.yml` and `.github/workflows/cd.yml` wired to `app-build-push.yml` + `app-deploy.yml` (auto-deploy by default), with `REPLACE_WITH_APP_NAME` placeholders per app. Verified locally: full test suite passes, `ruff check` clean, and the app boots under real `uvicorn` with `/health`, `/`, `/db-check`, `/login` all behaving correctly with no Postgres/Authentik configured (graceful degradation, not a crash) — Docker itself wasn't available to test the multi-stage build locally, so that specific path is unverified until CI runs it for real.
+- **C++** — not yet built.
+- **React** — not yet built.
 
 ## Onboarding checklist for a new app
 

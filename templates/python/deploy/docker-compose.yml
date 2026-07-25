@@ -1,0 +1,32 @@
+# Deploy-time Compose fragment (docs/app-platform.md in nyc_pa_aws_gitops).
+# app-deploy.yml stages this file to the hub as-is and runs it there with
+# `docker compose pull && docker compose up -d` -- the image tag, .env
+# file, and `home-platform` network are all provided at deploy time, not
+# by this file.
+#
+# Replace every REPLACE_WITH_APP_NAME below with this app's real name
+# (must match its ECR repo / IAM role from terraform/aws/apps.tf) when
+# instantiating this template.
+
+services:
+  app:
+    image: 147856894209.dkr.ecr.us-east-1.amazonaws.com/REPLACE_WITH_APP_NAME:latest
+    container_name: REPLACE_WITH_APP_NAME
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - home-platform
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.REPLACE_WITH_APP_NAME.rule=Host(`REPLACE_WITH_APP_NAME.billandjessie.com`)"
+      - "traefik.http.routers.REPLACE_WITH_APP_NAME.entrypoints=websecure"
+      - "traefik.http.routers.REPLACE_WITH_APP_NAME.tls.certresolver=route53"
+      - "traefik.http.routers.REPLACE_WITH_APP_NAME.middlewares=hsts@docker"
+      - "traefik.http.services.REPLACE_WITH_APP_NAME.loadbalancer.server.port=8000"
+
+networks:
+  # Created once, platform-side, alongside the first app's deploy -- see
+  # the Networking section of docs/app-platform.md in nyc_pa_aws_gitops.
+  home-platform:
+    external: true
