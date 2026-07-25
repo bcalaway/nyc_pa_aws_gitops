@@ -5,7 +5,7 @@ This is the interface between an app repo and this platform repo (`nyc_pa_aws_gi
 ## What lives where
 
 - **This repo**: network, Terraform, shared services (Postgres, Redis, Authentik, Traefik, the observability stack), and this doc.
-- **App repo**: application code, its own Dockerfile, its own CI/CD workflow (calling the reusable workflow described below), its own deploy-time Compose fragment, and app-specific tests.
+- **App repo**: application code, its own Dockerfile (with `lint` and `test` build stages ahead of its final runtime stage — see "CI/CD and deploy" below), its own CI/CD workflow (calling the reusable workflows described below), its own deploy-time Compose fragment at `deploy/docker-compose.yml`, and app-specific tests.
 
 An app repo never edits this repo's Terraform or `compose/aws/docker-compose.yml` directly. A platform-side change (new shared service, new IAM role, a network change) lands here first; app repos then adopt it.
 
@@ -60,7 +60,15 @@ Append `,authentik-forward-auth@docker` to the `middlewares` line only if using 
 
 ## Secrets (ADR-0005)
 
-Every credential an app needs lives in SSM under `/home-platform/<app-or-service>/*`, following the convention already documented in this repo's `CLAUDE.md`. An app never hardcodes a secret in its own repo, in a committed `.env`, or as a GitHub Actions secret — SSM is the one source of truth, fetched at deploy time the same way `scripts/deploy-aws-stack.ps1` fetches the platform stack's own secrets today.
+Every credential an app needs lives in SSM under `/home-platform/<app-or-service>/*`, following the convention already documented in this repo's `CLAUDE.md`. An app never hardcodes a secret in its own repo, in a committed `.env`, or as a GitHub Actions secret.
+
+At deploy time, the **hub's own instance role** — not the GitHub Actions workflow, not S3 — reads an app's secrets and writes them to a `.env` file next to its Compose fragment on the hub, by convention:
+- every parameter under `/home-platform/<app>/*` becomes an env var named from its last path segment (`.../session-secret` → `SESSION_SECRET`)
+- `/home-platform/postgres/<app>-password` → `POSTGRES_PASSWORD` (if present)
+- `/home-platform/authentik/<app>-client-id` → `AUTHENTIK_CLIENT_ID` (if present)
+- `/home-platform/authentik/<app>-client-secret` → `AUTHENTIK_CLIENT_SECRET` (if present)
+
+The app's Compose fragment references these via `env_file: .env`. Secrets never pass through the GitHub Actions workflow, its logs, or S3 — see "CI/CD and deploy" below for exactly where this runs.
 
 ## Networking
 
@@ -70,17 +78,15 @@ Until that network exists, an app's own Compose fragment should declare it as `e
 
 ## CI/CD and deploy (ADR-0019)
 
-**Registry**: AWS ECR, one repository per app. Each app gets its own IAM role in this repo's Terraform (`terraform/aws/iam.tf`, or a new `apps.tf`) — OIDC trust scoped to `repo:bcalaway/<app-repo>:*` and that app's own ECR repo ARN, following the exact least-privilege pattern the `github_actions` role already uses. An app's role never gets access to this platform's own resources: not other apps' ECR repos, not Terraform state, not SSM paths outside its own `/home-platform/<app>/*` (plus whatever specific platform paths it's explicitly granted, like its Postgres/Authentik credentials).
+**Registry**: AWS ECR, one repository per app. Each app gets its own IAM role in `terraform/aws/apps.tf` — OIDC trust scoped to `repo:bcalaway/<app-repo>:*` and that app's own ECR repo ARN, following the exact least-privilege pattern the `github_actions` role already uses. An app's role never gets access to this platform's own resources: not other apps' ECR repos, not Terraform state, not SSM paths outside its own `/home-platform/<app>/*` (plus whatever specific platform paths it's explicitly granted, like its Postgres/Authentik credentials).
 
-**CI (every PR, required check)**: build, test, lint.
+**Reusable workflows** (this repo, `workflow_call`, invoked from each app repo's own thin `.github/workflows/*.yml`):
 
-**CD (on merge to main)**: build the image, tag `<git-sha>` and `latest`, push to the app's ECR repo. Then, per the app's own declared mode:
-- **Auto-deploy**: the same workflow run also triggers the deploy step immediately
-- **Manual promote**: the workflow stops after the push; a separate `workflow_dispatch` job deploys on demand
+- **`app-ci.yml`** — every PR, required check: build, test, lint. Language-agnostic by convention: every app's Dockerfile defines `lint` and `test` build stages ahead of its final runtime stage, so this workflow just runs `docker build --target lint`, `--target test`, then a plain build — no per-language tooling lives here.
+- **`app-build-push.yml`** — on merge to main: builds the final Dockerfile stage, tags it `<git-sha>` and `latest`, pushes both to the app's ECR repo via its own OIDC role. This job alone *is* manual-promote mode.
+- **`app-deploy.yml`** — the actual deploy: stages the app's Compose fragment (default path `deploy/docker-compose.yml` in the app repo) to the shared `home-platform-ansible-deploy-<account>` S3 bucket under `apps/<app>/` (reusing the bucket the RouterOS/NUC pipeline already established, not a new one), then triggers the hub via `ssm:SendCommand` — hosted runners can't reach the hub directly (security group restricted to WireGuard subnets), same constraint and same fix as `routeros.yml`. The hub-side script (built on the runner, shipped as a base64 blob) pulls the Compose file and the new image, builds the app's `.env` from SSM (see "Secrets" above), and runs `docker compose pull && docker compose up -d`.
 
-**Deploy step** (either mode): reach the hub the same way the RouterOS workflow already does for a hosted GitHub runner that can't reach `10.0.3.1` directly — AWS `ssm:SendCommand` (`AWS-RunShellScript`), telling the hub to pull the new image from ECR and `docker compose up -d` the app's own Compose fragment.
-
-**Reusable workflow**: lives in this repo (`workflow_call`), invoked from each app repo's own `.github/workflows/*.yml`. A pipeline fix lands once here and every app picks it up on its next run, instead of needing to be copied into each app repo individually.
+An app repo composes these itself to pick its mode: call `app-build-push.yml` then immediately `app-deploy.yml` for **auto-deploy**, or call `app-build-push.yml` on merge and leave `app-deploy.yml` behind a separate `workflow_dispatch` trigger for **manual-promote**.
 
 **Environment**: production only — no staging/preview tier, per Bill's explicit call in ADR-0019.
 
@@ -94,8 +100,8 @@ Not yet built (next task after this doc). Planned: Python, C++, React — each p
 2. [ ] Platform side: create the app's Postgres database + role, store the credential in SSM
 3. [ ] Platform side: add the app's Authentik OIDC blueprint (or forward-auth middleware), store client credentials in SSM
 4. [ ] Platform side: add the app's `aws_route53_record` in `terraform/aws/tls.tf`
-5. [ ] Platform side: add the app's IAM role + ECR repo in `terraform/aws/iam.tf` (or `apps.tf`)
+5. [ ] Platform side: add the app's IAM role + ECR repo in `terraform/aws/apps.tf`, plus its ECR-pull/SSM-read grant on the hub's own role in `terraform/aws/tls.tf` (`hub_app_deploy` — one block per app)
 6. [ ] Platform side (first app only): migrate `compose/aws/docker-compose.yml` onto the shared external Docker network
-7. [ ] App repo: add Traefik labels to its own Compose fragment
-8. [ ] App repo: wire the reusable CI/CD workflow, choosing auto-deploy or manual-promote
+7. [ ] App repo: Dockerfile with `lint`/`test`/runtime stages, Traefik labels on its `deploy/docker-compose.yml`
+8. [ ] App repo: thin workflow(s) calling `app-ci.yml` on PR, `app-build-push.yml` + `app-deploy.yml` on merge (chained for auto-deploy, or `app-deploy.yml` behind `workflow_dispatch` for manual-promote)
 9. [ ] Verify end-to-end: PR merges → image lands in ECR → app deploys → reachable at `https://<app>.billandjessie.com` → auth flow (Pattern A or B) actually gates access
