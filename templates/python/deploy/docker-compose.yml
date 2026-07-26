@@ -13,6 +13,10 @@ services:
     image: 147856894209.dkr.ecr.us-east-1.amazonaws.com/REPLACE_WITH_APP_NAME:latest
     container_name: REPLACE_WITH_APP_NAME
     restart: unless-stopped
+    environment:
+      # Not a secret -- set directly here rather than round-tripping
+      # through SSM/.env like the real credentials below.
+      APP_NAME: REPLACE_WITH_APP_NAME
     env_file:
       - .env
     networks:
