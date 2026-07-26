@@ -34,10 +34,25 @@ data "aws_iam_policy_document" "todo_app_github_actions_assume" {
       values   = ["sts.amazonaws.com"]
     }
 
+    # Two formats, not one -- confirmed via CloudTrail 2026-07-26 that a
+    # newly-created repo's OIDC sub claim defaults to GitHub's newer
+    # immutable-ID format (repo:OWNER@OWNER_ID/REPO@REPO_ID:...), unlike
+    # nyc_pa_aws_gitops's own github_actions role (iam.tf), created before
+    # this became the default, which still gets plain repo:OWNER/REPO:....
+    # The repo-level customization API to force the classic format
+    # (PUT .../actions/oidc/customization/sub) needs repo Administration
+    # write, which the gh CLI's fine-grained PAT in SSM doesn't have --
+    # same class of limitation as it not being able to create repos at all
+    # (see the todo-app repo creation gotcha). Trusting both formats here
+    # is the simpler fix and survives either way if that default ever
+    # changes again.
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_org}/todo-app:*"]
+      values = [
+        "repo:${var.github_org}/todo-app:*",
+        "repo:bcalaway@37939549/todo-app@1313063209:*",
+      ]
     }
   }
 }
