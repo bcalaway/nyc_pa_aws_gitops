@@ -24,8 +24,10 @@ $authentikSecretKey = (& $aws ssm get-parameter --name "/home-platform/authentik
 $authentikBootstrapPassword = (& $aws ssm get-parameter --name "/home-platform/authentik/bootstrap-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 $authentikGrafanaClientId = (& $aws ssm get-parameter --name "/home-platform/authentik/grafana-client-id" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 $authentikGrafanaClientSecret = (& $aws ssm get-parameter --name "/home-platform/authentik/grafana-client-secret" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+$authentikTodoAppClientId = (& $aws ssm get-parameter --name "/home-platform/authentik/todo-app-client-id" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+$authentikTodoAppClientSecret = (& $aws ssm get-parameter --name "/home-platform/authentik/todo-app-client-secret" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 
-"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
+"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret`nAUTHENTIK_TODO_APP_CLIENT_ID=$authentikTodoAppClientId`nAUTHENTIK_TODO_APP_CLIENT_SECRET=$authentikTodoAppClientSecret" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
 
 Write-Host "Copying compose stack to EC2..."
 ssh -i $sshKey $ec2Host "mkdir -p $remoteDir"
