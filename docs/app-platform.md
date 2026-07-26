@@ -23,9 +23,11 @@ One shared Postgres instance on the hub. Each app gets its own logical database 
 
 1. `CREATE DATABASE <app>;`
 2. `CREATE ROLE <app> WITH LOGIN PASSWORD '...';`
-3. `GRANT ALL PRIVILEGES ON DATABASE <app> TO <app>;` (plus schema-level grants once the app has run its own migrations)
-4. Store the password in SSM at `/home-platform/postgres/<app>-password`
-5. The app connects to `postgres:5432` by Docker network hostname (see "Networking" below), `sslmode=disable` — matches the existing internal-only pattern (`postgres-exporter`, Authentik); the instance is never exposed beyond WireGuard peers
+3. `GRANT ALL PRIVILEGES ON DATABASE <app> TO <app>;`
+4. `ALTER DATABASE <app> OWNER TO <app>;` then, connected to that database specifically (not the default `postgres` database), `ALTER SCHEMA public OWNER TO <app>;` — **required**, not optional, on Postgres 15+: granting database privileges alone doesn't let a non-owner role `CREATE TABLE` in the `public` schema anymore (the default changed; see CLAUDE.md's gotcha on this, hit for real onboarding `todo-app`'s database)
+5. Store the password in SSM at `/home-platform/postgres/<app>-password`
+6. The app connects to `postgres:5432` by Docker network hostname (see "Networking" below), `sslmode=disable` — matches the existing internal-only pattern (`postgres-exporter`, Authentik); the instance is never exposed beyond WireGuard peers
+7. Verify with a real `CREATE TABLE`/`DROP TABLE` test as the app's own role before considering onboarding done — don't just trust the grants
 
 ## Auth (ADR-0017)
 
