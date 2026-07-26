@@ -216,3 +216,14 @@ resource "aws_route53_record" "auth" {
   ttl     = 300
   records = [aws_eip.hub.public_ip]
 }
+
+# First app onboarded per ADR-0019/docs/app-platform.md -- one more record
+# per app going forward, no wildcard (see that doc's Ingress and DNS
+# section for why).
+resource "aws_route53_record" "todo_app" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "todo-app.billandjessie.com"
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.hub.public_ip]
+}
