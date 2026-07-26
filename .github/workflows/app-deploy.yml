@@ -89,7 +89,7 @@ jobs:
           mkdir -p "/home/ec2-user/apps/${APP}"
           aws s3 cp "s3://${DEPLOY_BUCKET}/apps/${APP}/docker-compose.yml" "/home/ec2-user/apps/${APP}/docker-compose.yml"
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 147856894209.dkr.ecr.us-east-1.amazonaws.com
-          rm -f "/home/ec2-user/apps/${APP}/.env"
+          : > "/home/ec2-user/apps/${APP}/.env"
           aws ssm get-parameters-by-path --path "/home-platform/${APP}/" --with-decryption --query "Parameters[*].[Name,Value]" --output text | while IFS=\$'\t' read -r name value; do
             key=\$(basename "\$name" | tr 'a-z-' 'A-Z_')
             echo "\${key}=\${value}" >> "/home/ec2-user/apps/${APP}/.env"
