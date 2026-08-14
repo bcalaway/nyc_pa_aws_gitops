@@ -156,6 +156,15 @@ services:
       - "traefik.http.middlewares.authentik-forward-auth.forwardauth.address=http://authentik-server:9000/outpost.goauthentik.io/auth/traefik"
       - "traefik.http.middlewares.authentik-forward-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.authentik-forward-auth.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-entitlements,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version"
+    # Additional attachment to the shared external network (Milestone 11,
+    # app-platform.md's Networking section) so Traefik's Docker provider can
+    # discover app containers -- they join home-platform, not this stack's
+    # own default network. Keeps its existing default-network membership too
+    # (still needs to reach authentik-server, grafana, etc. by hostname), so
+    # this is additive, not a replacement.
+    networks:
+      - default
+      - home-platform
 
   grafana:
     image: grafana/grafana-oss:11.4.0
@@ -235,6 +244,12 @@ services:
     # Prometheus/Loki/Uptime Kuma above.
     ports:
       - "5432:5432"
+    # Additional attachment to the shared external network -- app containers
+    # (e.g. todo-app) join home-platform and need to reach postgres by
+    # hostname from there. See traefik's networks: comment above.
+    networks:
+      - default
+      - home-platform
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.15.0
@@ -280,6 +295,11 @@ services:
     # as Postgres above.
     ports:
       - "6379:6379"
+    # Additional attachment to the shared external network -- same reasoning
+    # as postgres above, for any app that wants a shared cache/session store.
+    networks:
+      - default
+      - home-platform
 
   redis-exporter:
     image: oliver006/redis_exporter:v1.66.0
@@ -394,3 +414,12 @@ volumes:
   authentik-templates:
   authentik-certs:
   traefik-letsencrypt:
+
+networks:
+  # Created once on the hub via `docker network create home-platform` --
+  # external here (not Compose-managed) so per-app deploys can declare the
+  # same name as external:true and join it without needing to know or
+  # recreate this stack's own compose project network. See app-platform.md's
+  # Networking section (Milestone 11).
+  home-platform:
+    external: true
