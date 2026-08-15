@@ -29,6 +29,8 @@ One shared Postgres instance on the hub. Each app gets its own logical database 
 6. The app connects to `postgres:5432` by Docker network hostname (see "Networking" below), `sslmode=disable` — matches the existing internal-only pattern (`postgres-exporter`, Authentik); the instance is never exposed beyond WireGuard peers
 7. Verify with a real `CREATE TABLE`/`DROP TABLE` test as the app's own role before considering onboarding done — don't just trust the grants
 
+**Schema changes after initial onboarding:** the Python template's `create_tables()` (`app/db.py`) calls SQLAlchemy's `Base.metadata.create_all()` on every boot, which only creates tables that don't exist yet — it never alters an existing table. Adding a column/table to an app's models after it's already deployed needs a manual `ALTER TABLE`/`CREATE TABLE` against the live database (same access pattern as onboarding above), applied *before* or alongside the deploy that ships the new model — otherwise every request touching the changed table 500s with `UndefinedColumn` until it's applied. Hit for real adding `todo-app`'s `category_id` column (2026-08-15): `categories` (a wholly new table) got created automatically, `todos` (pre-existing) didn't get the new column and broke `/api/todos` in production for a few minutes until patched manually. No migration framework (e.g. Alembic) is wired up yet — until one is, treat every schema change as a two-step manual operation, not just a code change.
+
 ## Auth (ADR-0017)
 
 Authentik at `auth.billandjessie.com` is the shared OIDC provider. Two integration patterns — pick based on what the app supports:
