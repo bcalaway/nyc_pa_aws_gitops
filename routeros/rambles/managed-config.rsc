@@ -66,6 +66,7 @@
 /ip dhcp-server lease remove [find]
 /ip dhcp-server lease add mac-address=30:52:53:07:DB:22 address=10.0.2.226 comment=kvm-nuc5
 /ip dhcp-server lease add mac-address=EC:B5:FA:0F:85:97 address=10.0.2.244 comment=hue-rambles
+/ip dhcp-server lease add mac-address=48:F6:EE:A6:9E:8C address=10.0.2.245 comment=weather-rambles
 
 # ---------------------------------------------------------------------------
 # 4. DNS — static entries for known hosts at both sites (ADR-0009: router
@@ -92,6 +93,7 @@
 /ip dns static add name=hue-nyc.nyc.billandjessie.com address=10.0.1.71
 /ip dns static add name=hue-rambles.rambles.billandjessie.com address=10.0.2.244
 /ip dns static add name=kvm-nuc4.nyc.billandjessie.com address=10.0.1.66
+/ip dns static add name=weather-rambles.rambles.billandjessie.com address=10.0.2.245
 /ip dns static add name=hub.billandjessie.com address=10.0.3.1
 
 # ---------------------------------------------------------------------------
