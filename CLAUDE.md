@@ -72,10 +72,13 @@ Always `git push` immediately after every `git commit` without asking.
 
 ## Ansible NUC provisioning
 
-`ansible/` provisions the NUCs (base system, Docker, exporter stack from `compose/nuc/`). Ansible's control node doesn't support Windows, and this workstation has neither WSL nor Docker, so playbooks don't run locally — they run **from the EC2 hub**, which already has WireGuard routes to both site LANs.
+`ansible/` provisions the NUCs (base system, Docker, exporter stack from `compose/nuc/`). Ansible's control node doesn't support Windows, and neither a Windows workstation nor a bare Linux workstation without Ansible installed can run playbooks locally, so they run **from the EC2 hub**, which already has WireGuard routes to both site LANs and has `ansible-core` installed on demand.
 
 ```powershell
-scripts/deploy-nucs.ps1
+scripts/deploy-nucs.ps1    # Windows
+```
+```bash
+scripts/deploy-nucs.sh     # Linux — same logic, kept in sync with the .ps1 version
 ```
 
 This fetches the Ansible NUC private key from SSM, installs `ansible-core` on EC2 if missing, copies `ansible/` and `compose/nuc/` there, and runs `ansible-playbook site.yml` over SSH. Currently only `nuc5` (Rambles) is in `ansible/inventory/hosts.yml` — add `nuc4` once NYC's NUC has Rocky Linux installed.
@@ -102,6 +105,17 @@ If gh isn't authed yet, see the "gh CLI setup" section above.
 
 ```powershell
 ssh -i "$HOME\.ssh\home-platform.pem" ec2-user@10.0.3.1
+```
+
+## Deploying the AWS stack
+
+`scripts/deploy-aws-stack.ps1` (Windows) / `scripts/deploy-aws-stack.sh` (Linux) push `compose/aws/` to the EC2 hub and bring the stack up — Prometheus, Grafana, Loki, Uptime Kuma, Authentik, Traefik, Postgres, Redis. Both fetch the same secrets from SSM into a generated `.env`, delete remote files that no longer exist locally (see the Gotchas entry on why this matters), `scp` the compose dir over, and run `docker compose pull && docker compose build && docker compose up -d`. Keep the two scripts' deploy logic in sync when changing one.
+
+```powershell
+scripts/deploy-aws-stack.ps1    # Windows
+```
+```bash
+scripts/deploy-aws-stack.sh     # Linux
 ```
 
 ## Ingress / TLS on EC2 hub (Traefik, since 2026-07-18)
@@ -168,7 +182,7 @@ The script replaces `PLACEHOLDER` in the .rsc file with the real admin password 
 
 ## Gotchas (learned the hard way)
 
-- **AWS CLI from Git Bash mangles SSM parameter paths.** MSYS auto-converts leading-`/` arguments into Windows paths, so `aws ssm get-parameter --name /home-platform/...` silently fails with `ParameterNotFound` or a path-validation error from Git Bash. Use PowerShell for any AWS CLI call involving a path-style name (SSM, IAM paths, etc). **Not just AWS CLI — any argument starting with `/` passed to any program from Git Bash is at risk**, confirmed 2026-08-16 with a plain `python script.py "/ip dhcp-server lease print"` (RouterOS command syntax) run through paramiko: some strings passed through unmangled, others silently became `C:/Program Files/Git/ip dns static print` before Python ever saw `sys.argv` — inconsistent per-argument, not a blanket failure, which makes it easy to think the first success proves the pattern is safe. Verify with `python -c "import sys; print(repr(sys.argv))" "/your/arg"` if a leading-`/` argument's behavior is unverified from Git Bash; PowerShell doesn't have this problem at all.
+- **AWS CLI from Git Bash mangles SSM parameter paths.** MSYS auto-converts leading-`/` arguments into Windows paths, so `aws ssm get-parameter --name /home-platform/...` silently fails with `ParameterNotFound` or a path-validation error from Git Bash. Use PowerShell for any AWS CLI call involving a path-style name (SSM, IAM paths, etc). **Not just AWS CLI — any argument starting with `/` passed to any program from Git Bash is at risk**, confirmed 2026-08-16 with a plain `python script.py "/ip dhcp-server lease print"` (RouterOS command syntax) run through paramiko: some strings passed through unmangled, others silently became `C:/Program Files/Git/ip dns static print` before Python ever saw `sys.argv` — inconsistent per-argument, not a blanket failure, which makes it easy to think the first success proves the pattern is safe. Verify with `python -c "import sys; print(repr(sys.argv))" "/your/arg"` if a leading-`/` argument's behavior is unverified from Git Bash; PowerShell doesn't have this problem at all. **This is specifically an MSYS/Git-Bash-on-Windows quirk — native Linux bash (NUCs, or a Linux workstation) has no such path mangling; leading-`/` arguments work normally there, no PowerShell-equivalent workaround needed.**
 
 - **Granting a new IAM permission and using it in the same Terraform apply can fail.** If a commit both adds a permission (e.g. `cloudfront:*`) to the GitHub Actions role's policy *and* creates a resource requiring it, the apply may run before the policy change has propagated (IAM is eventually consistent, typically a few seconds). Symptom: `AccessDeniedException` right after a successful policy update in the same run. Fix is just to re-run — or apply locally once with admin creds, which is unaffected since it's a different principal.
 
