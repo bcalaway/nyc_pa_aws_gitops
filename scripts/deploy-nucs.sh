@@ -8,6 +8,11 @@
 # Linux counterpart of deploy-nucs.ps1 -- keep both in sync when changing deploy logic.
 
 set -euo pipefail
+# Unlike deploy-nucs.ps1's $ErrorActionPreference (which only governs
+# PowerShell cmdlets, not native ssh/scp exit codes -- see that script's
+# comment for the real incident this caused), `set -e` here genuinely does
+# abort on any non-zero exit from ssh/scp, so no per-command check is
+# needed in this version.
 
 SSH_KEY="$HOME/.ssh/home-platform.pem"
 EC2_HOST="ec2-user@10.0.3.1"

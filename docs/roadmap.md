@@ -204,20 +204,22 @@ Tasks:
 - [x] 🧑 Architecture agreed: single `hue` repo (`hub/` Python, `agent/` C++ — precedent-setting language choice for future larger projects), gRPC between hub and agent per ADR-0020, no database for MVP (pure live pass-through, nothing stored until an advanced-automations phase actually needs it)
 - [x] 🧑 NYC Hue bridge (`hue-nyc`, 10.0.1.71) local API key minted and verified live — `/home-platform/hue/nyc-api-key`
 - [ ] 🧑 Rambles Hue bridge (`hue-rambles`, 10.0.2.244) local API key — needs the same on-site physical link-button press
-- [ ] 🧑 Create the `hue` GitHub repo via the web UI (the stored gh PAT can't create repos — see CLAUDE.md's Gotchas)
-- [ ] 🤖 Terraform: ECR repo + IAM role + OIDC trust for `hue` (`terraform/aws/apps.tf`, same pattern as `todo-app`)
-- [ ] 🤖 Terraform: `hue.billandjessie.com` Route53 record
-- [ ] 🤖 Terraform: hub's `hub_app_deploy` policy grant for `hue` (ECR pull + SSM read scoped to `/home-platform/hue/*`)
-- [ ] 🤖 Authentik OIDC blueprint for `hue` (Pattern A, matches `todo-app`/Grafana)
-- [ ] 🤖 Scaffold `hub/` from `templates/python/` and `agent/` from `templates/cpp/`, both in the one `hue` repo
-- [ ] 🤖 Define the hub↔agent gRPC contract (`proto/`) for querying current state (lights, active scenes, active automations) — first real use of the ADR-0020 pattern beyond the C++ template's own example service
-- [ ] 🤖 Agent: Hue Bridge local CLIP API client reading lights/scenes/automations state
-- [ ] 🤖 Agent: gRPC service exposing that state to the hub, internal-only on `home-platform` per ADR-0020 (never through Traefik)
-- [ ] 🤖 Hub: UI showing current state, pulled live from the site agent via gRPC on each page load (no caching/sync needed yet — that's an "advanced automations" concern, not MVP)
-- [ ] 🤖 `hue`'s own thin CI/CD workflows for the hub component, calling `app-ci.yml`/`app-build-push.yml`/`app-deploy.yml`
-- [ ] 🤖 Deploy path for the agent: **new platform capability, not just an app-repo concern** — today's `app-build-push.yml`/`app-deploy.yml` only know how to deploy to the hub via ECR + SSM SendCommand; NUCs are Ansible-provisioned, a completely different mechanism. Plan: extend the existing Ansible NUC role (`ansible/roles/`) + a new `compose/nuc/` fragment to pull the agent's image from ECR and run it, triggered manually via `scripts/deploy-nucs.ps1` same as the exporter stack today — full auto-deploy-on-push for NUC apps is explicitly out of scope for now, this just needs to work, not be as slick as the hub's pipeline yet
-- [ ] 🧑 Verify end-to-end: `https://hue.billandjessie.com` gated behind Authentik login, shows live NYC state pulled through the real agent
+- [x] 🧑 Create the `hue` GitHub repo via the web UI (the stored gh PAT can't create repos — see CLAUDE.md's Gotchas)
+- [x] 🤖 Terraform: ECR repo + IAM role + OIDC trust for `hue` (`terraform/aws/apps.tf`, same pattern as `todo-app`) — applied 2026-08-20, all 4 resources confirmed live
+- [x] 🤖 Terraform: `hue.billandjessie.com` Route53 record — live, confirmed resolving to the hub's Elastic IP
+- [x] 🤖 Terraform: hub's `hub_app_deploy` policy grant for `hue` (ECR pull + SSM read scoped to `/home-platform/hue/*`)
+- [x] 🤖 Authentik OIDC blueprint for `hue` (Pattern A, matches `todo-app`/Grafana) — deployed, `https://auth.billandjessie.com/application/o/hue/.well-known/openid-configuration` confirmed returning a real discovery document
+- [x] 🤖 Scaffold `hub/` from `templates/python/` and `agent/` from `templates/cpp/`, both in the one `hue` repo — pushed to [github.com/bcalaway/hue](https://github.com/bcalaway/hue)
+- [x] 🤖 Define the hub↔agent gRPC contract (`proto/`) for querying current state (lights, active scenes, active automations) — first real use of the ADR-0020 pattern beyond the C++ template's own example service. Field shapes (brightness as CLIP v2's 0-100 percentage not CLIP v1's 0-254, `scene.status.active`, `behavior_instance.enabled`/`.status`) confirmed against the real NYC bridge before finalizing, not assumed from Hue's docs
+- [x] 🤖 Agent: Hue Bridge local CLIP v2 API client reading lights/scenes/automations state
+- [x] 🤖 Agent: gRPC service exposing that state to the hub, internal-only on `home-platform` per ADR-0020 (never through Traefik), plus the standard `grpc.health.v1.Health` service
+- [x] 🤖 Hub: UI showing current state, pulled live from the site agent via gRPC on each page load (no caching/sync needed yet — that's an "advanced automations" concern, not MVP)
+- [x] 🤖 `hue`'s own thin CI/CD workflows for the hub component, calling `app-ci.yml`/`app-build-push.yml`/`app-deploy.yml` — one real bug caught by an actual failed run: `app-deploy.yml`'s `compose_file` input defaults to `deploy/docker-compose.yml`, which is wrong for a two-component repo like this one (it's at `hub/deploy/docker-compose.yml` here) and has to be passed explicitly
+- [x] 🤖 Deploy path for the agent: **new platform capability, not just an app-repo concern** — built as a new `ansible/roles/hue-agent/` role, gated per-host by `hue_agent_enabled` (`inventory/hosts.yml`). The agent's image lives in its own ECR repo (`hue-agent`, one more small Terraform apply — reuses the existing `hue-github-actions` IAM role rather than a second role, since only the *deploy* path differs) and is pulled on the hub (which has AWS credentials) then relayed to the NUC as a plain `docker save`/copy/`docker load` tarball, since the NUC itself has none. Triggered manually via `scripts/deploy-nucs.ps1`, not auto-deploy-on-push, as planned
+- [x] 🧑 Verify end-to-end: deployed for real to `nuc4` and confirmed working through the full production chain — `https://hue.billandjessie.com` live and gated behind Authentik (`/api/state` correctly 401s unauthenticated), the production hub container confirmed able to reach `nuc4:9090` over the network, and the real agent on `nuc4` returning real live NYC bridge data via `grpcurl`. The actual authenticated browser view is the one piece only Bill can confirm (same login-credential restriction as `todo-app`'s verification) — worth a manual look
 - [ ] 🤖 Extend to Rambles once its bridge key exists — same agent binary/config, deployed to `nuc5`
+
+**MVP is functionally complete and live as of 2026-08-20** — the two remaining open items (Rambles' key, extending there) are blocked on Bill's next on-site visit, not on any more platform work. Along the way, this pass also fixed two real bugs unrelated to `hue` itself but found while deploying it: `deploy-nucs.ps1` was silently continuing past failed `scp` uploads (PowerShell's `$ErrorActionPreference` doesn't cover native-process exit codes) and had been running a stale copy of `ansible/` on the hub as a result; and `nuc4`'s pre-existing exporter stack had a corrupted Docker network reference (fixed with `docker compose down && up -d`) that had nothing to do with this deploy but was blocking it. See CLAUDE.md's Gotchas for both.
 
 ## Future / Deferred
 
