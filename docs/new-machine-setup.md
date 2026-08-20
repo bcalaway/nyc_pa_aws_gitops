@@ -294,7 +294,9 @@ State is in S3 (`home-platform-terraform-state-147856894209`) — no local state
 
 ---
 
-## 8. Set up PuTTY for SSH to Linux boxes (NUCs, EC2 hub)
+## 8. Set up PuTTY for SSH to Linux boxes (NUCs, EC2 hub) — Windows only
+
+> Skip this step entirely on a Linux workstation — it's only needed when SSHing *from* Windows *to* a remote Linux box. A native Linux terminal (GNOME Terminal, Konsole, etc.) already renders truecolor correctly with no PuTTY-style `COLORTERM`/character-set config needed. For the box-drawing/devicon glyphs, download a Nerd Font release (e.g. JetBrainsMono NF) from `github.com/ryanoasis/nerd-fonts/releases`, unzip into `~/.local/share/fonts`, run `fc-cache -f`, then set it as the terminal profile's font.
 
 PuTTY renders using a font installed on *this* Windows machine, not anything on the remote Linux box — without a proper font, Claude Code's box-drawing/status symbols and Neovim's devicons/statusline glyphs show up as boxes or garbage.
 
@@ -334,6 +336,8 @@ Close and reopen the PuTTY session (or `source ~/.bashrc`) for it to take effect
 ## 9. Install pgAdmin (Windows workstation)
 
 pgAdmin is the GUI client for the shared Postgres instance running on the AWS hub (`compose/aws/docker-compose.yml`, Milestone 11 — ADR-0016). The hub's security group only allows port 5432 from WireGuard peers (`10.0.3.0/24`, see `terraform/aws/security_groups.tf`), so this only works over the WireGuard tunnel or from a site LAN that routes to the hub (same reachability rules as SSH — see "EC2 access" in `CLAUDE.md`).
+
+> **Linux workstation:** this step and the CLI-registration trick below are Windows-specific (pgAdmin's desktop-app config layout). The simpler cross-platform path is the `psql` CLI directly: `sudo dnf install -y postgresql`, then `PGPASSWORD="$(aws ssm get-parameter --name /home-platform/postgres/admin-password --with-decryption --region us-east-1 --query Parameter.Value --output text)" psql -h 10.0.3.1 -U postgres`. A GUI client (pgAdmin ships an official RPM repo at `www.pgadmin.org/download/pgadmin-4-rpm/`, or use its web/Flatpak build) is optional and not yet set up/documented for Linux — add steps here if it's actually needed.
 
 ```powershell
 winget install --id PostgreSQL.pgAdmin --silent --accept-package-agreements --accept-source-agreements
@@ -379,6 +383,8 @@ Check "Save Password" in the prompt if you want pgAdmin to remember it (encrypte
 ## 10. Install RedisInsight (Windows workstation)
 
 RedisInsight is the GUI client for the shared Redis instance running on the AWS hub (`compose/aws/docker-compose.yml`, Milestone 11 — ADR-0017, Authentik's dependency). Same reachability rules as pgAdmin above — security group only allows port 6379 from WireGuard peers (`10.0.3.0/24`).
+
+> **Linux workstation:** as with pgAdmin above, the simpler cross-platform path is the `redis-cli` CLI: `sudo dnf install -y redis`, then `redis-cli -h 10.0.3.1 -a "$(aws ssm get-parameter --name /home-platform/authentik/redis-password --with-decryption --region us-east-1 --query Parameter.Value --output text)"`. RedisInsight itself ships a Linux `.deb`/`.rpm`/AppImage from `redis.io/insight` if the GUI is actually wanted — not yet set up/documented here.
 
 ```powershell
 winget install --id RedisInsight.RedisInsight --silent --accept-package-agreements --accept-source-agreements
