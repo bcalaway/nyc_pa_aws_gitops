@@ -473,6 +473,47 @@ Renders as `bcalaway@nuc4~/workspace/foo [branch-name]>` inside a git repo, or `
 
 ---
 
+## 12. Install app-template development tooling — Linux
+
+Needed to actually build/test `templates/python`, `templates/react`, and `templates/cpp` locally (as opposed to the infra-ops tooling in steps 1–7 above). Verified for real on Rocky Linux 10.2, 2026-08-20 — building each template end-to-end (deps install, tests, lint, running the binary/server and curling its example routes) surfaced several gaps not covered by a plain `dnf install` guess. Windows already has clang/cmake/vcpkg/Node/Python readily available via winget/Docker Desktop and hasn't hit these; this section is Linux-specific.
+
+**Python and React templates** — already covered by tools installed earlier: Python/pip (base OS) and Node/npm (already needed for Claude Code itself, step 0) are enough. `pip install -r requirements.txt -r requirements-dev.txt` / `npm install` and each template's own `README.md` "Local development" section work as documented.
+
+**C++ template** needs a real native toolchain plus vcpkg, and Rocky 10 + EPEL10 is missing several packages a "just apt/dnf install the usual C++ list" assumption would expect:
+
+```bash
+sudo dnf install -y cmake clang-tools-extra bison flex samurai zip unzip perl perl-FindBin
+```
+
+- `clang`, `clang++`, `gcc`/`g++` are already present by default on this image — only `cmake` (not installed by default) and `clang-tools-extra` (for `clang-tidy`) needed adding.
+- **`ninja-build` doesn't exist in EPEL10 yet** (as of 2026-08-20) — the only ninja-compatible package available is `samurai`, and it installs its binary as `/usr/bin/samu`, not `ninja`. CMake's `-G Ninja` generator looks for a binary literally named `ninja` and fails outright (`CMake was unable to find a build program corresponding to "Ninja"`) without it. Fix: symlink it into the same `~/.local/bin` used elsewhere in this doc for the NvChad Neovim install (already on `PATH`):
+  ```bash
+  mkdir -p ~/.local/bin
+  ln -sf /usr/bin/samu ~/.local/bin/ninja
+  ```
+- `bison`/`flex` — needed by vcpkg's `libpq` port (same root cause as the Docker-build gotcha in `CLAUDE.md`, just hit locally instead of in the container image this time).
+- `zip`/`unzip` — needed by vcpkg's own `bootstrap-vcpkg.sh`, which fails immediately with an explicit list of missing tools if absent (`curl`/`tar` are already present on this image by default).
+- `perl` (the full metapackage, not just the `perl-interpreter` this image ships by default) and `perl-FindBin` — needed by the `openssl` vcpkg port's `Configure` script, which pulls in several perl core modules (`IPC::Cmd`, `FindBin`) that Rocky 10's minimal default `perl-interpreter` package doesn't include. Installing just `perl-interpreter`'s dependents one at a time is real whack-a-mole here — installing the full `perl` package up front avoids it.
+
+**vcpkg itself** isn't packaged — clone and bootstrap it once, and keep the clone around (its build cache makes every subsequent `grpc`/`protobuf`/`openssl` configure much faster than the first):
+
+```bash
+git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
+~/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+echo 'export VCPKG_ROOT=~/vcpkg' >> ~/.bashrc   # then `source ~/.bashrc` or reconnect
+```
+
+Then per the template's own README:
+```bash
+export CC=clang CXX=clang++
+cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+cmake --build build
+```
+
+**The first configure is genuinely slow** — building `grpc`/`protobuf`/`openssl`/`libpqxx` and their dependency tree from source took ~26 minutes on this box with a cold vcpkg cache, exactly as the template's README warns. Subsequent configures on the same machine reuse `~/vcpkg`'s build cache and are fast.
+
+---
+
 ## Key inventory (all in SSM)
 
 | SSM Path | Type | Contents |
