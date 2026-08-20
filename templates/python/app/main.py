@@ -1,12 +1,38 @@
 from authlib.integrations.starlette_client import OAuth
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.db import check_connection
 
+# Routes reachable without an authenticated session -- everything else is
+# gated by RequireAuthMiddleware below.
+PUBLIC_PATHS = {"/health", "/login", "/auth/callback"}
+
 app = FastAPI(title=settings.app_name)
+
+
+class RequireAuthMiddleware(BaseHTTPMiddleware):
+    # Only enforced once real Authentik credentials are configured -- pre-onboarding
+    # (no client id/secret in SSM yet), the app stays open rather than locking itself
+    # out before auth is even wired up.
+    async def dispatch(self, request: Request, call_next):
+        if not _auth_configured or request.url.path in PUBLIC_PATHS:
+            return await call_next(request)
+        if not request.session.get("user"):
+            if request.url.path.startswith("/api/"):
+                return JSONResponse({"error": "authentication required"}, status_code=401)
+            return RedirectResponse(url="/login")
+        return await call_next(request)
+
+
+# Starlette's add_middleware prepends to the middleware list, so the middleware
+# added LAST ends up running FIRST on an incoming request. RequireAuthMiddleware
+# reads request.session, so it must run after SessionMiddleware -- meaning
+# RequireAuthMiddleware has to be added first, SessionMiddleware second.
+app.add_middleware(RequireAuthMiddleware)
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 
 # Registered only when real credentials are present (post-onboarding, see
