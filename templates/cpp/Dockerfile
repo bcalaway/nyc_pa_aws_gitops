@@ -17,6 +17,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential clang clang-tidy cmake ninja-build git curl zip unzip tar pkg-config ca-certificates python3 \
       bison flex \
+    # bison/flex: not needed by this template's own code, but vcpkg's libpq
+    # port (pulled in by libpqxx) builds Postgres's parser/lexer from source
+    # and fails without them -- confirmed live, see CLAUDE.md's Gotchas.
     && rm -rf /var/lib/apt/lists/*
 ENV CC=clang CXX=clang++
 
