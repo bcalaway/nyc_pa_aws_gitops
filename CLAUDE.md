@@ -83,7 +83,7 @@ scripts/deploy-nucs.ps1    # Windows
 scripts/deploy-nucs.sh     # Linux — same logic, kept in sync with the .ps1 version
 ```
 
-This fetches the Ansible NUC private key from SSM, installs `ansible-core` on EC2 if missing, copies `ansible/` and `compose/nuc/` there, and runs `ansible-playbook site.yml` over SSH. Currently only `nuc5` (Rambles) is in `ansible/inventory/hosts.yml` — add `nuc4` once NYC's NUC has Rocky Linux installed.
+This fetches the Ansible NUC private key from SSM, installs `ansible-core` on EC2 if missing, copies `ansible/` and `compose/nuc/` there, and runs `ansible-playbook site.yml` over SSH. Both NUCs are in `ansible/inventory/hosts.yml` (`nuc4`/NYC at 10.0.1.34, `nuc5`/Rambles at 10.0.2.10).
 
 To add a new NUC to Ansible management: install the public key from SSM (`/home-platform/ansible/nuc-public-key`) into its `authorized_keys`, and configure passwordless sudo for its admin user (see the `bcalaway-ansible` sudoers drop-in on nuc5 for the pattern).
 
