@@ -1,0 +1,20 @@
+---
+# Scoped to this app's own code (src/, tests/) -- the Dockerfile's lint
+# stage runs clang-tidy only against those files, not vcpkg-installed
+# third-party headers or generated protobuf/grpc code (see HeaderFilterRegex).
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic
+
+HeaderFilterRegex: '^(src|tests)/'
+WarningsAsErrors: ''
+FormatStyle: none

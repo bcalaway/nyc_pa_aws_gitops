@@ -1,0 +1,14 @@
+{
+  "name": "cpp-app-template",
+  "version": "0.1.0",
+  "dependencies": [
+    "grpc",
+    "gtest",
+    "libpqxx",
+    "nlohmann-json",
+    {
+      "name": "cpp-httplib",
+      "features": ["openssl"]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package app_template;
+
+// Working example, not a requirement -- replace with the real service API.
+// Internal-only per ADR-0020: this service is reachable by other containers
+// on the shared `home-platform` Docker network by hostname, never exposed
+// through Traefik or to the internet (see docs/app-platform.md's
+// "Service-to-service communication" section in nyc_pa_aws_gitops).
+service ExampleService {
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+message PingRequest {
+  string message = 1;
+}
+
+message PingResponse {
+  string message = 1;
+}

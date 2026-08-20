@@ -1,0 +1,8 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  ci:
+    uses: bcalaway/nyc_pa_aws_gitops/.github/workflows/app-ci.yml@main
