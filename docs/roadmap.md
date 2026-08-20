@@ -196,6 +196,29 @@ The first real app onboarding, validating the whole Milestone 11 framework. Repo
 4. Verified end-to-end: container `todo-app` running on the hub, joined to `home-platform`; `https://todo-app.billandjessie.com/` returns 200; `/db-check` returns `{"connected":true}` against the real `todo-app` Postgres database; `/login` redirects to Authentik's real `/application/o/authorize/` endpoint with the correct `client_id` and callback URL. (The actual login click-through wasn't done as part of this automated pass — worth a manual once-over.)
 5. This task is checked off above. The milestone as a whole stays open — C++ and React starter templates are still unbuilt.
 
+### Milestone 12 — Hue Lighting Controller
+
+**Goal:** A hub-based UI + per-site NUC agents giving cross-site visibility into both Hue systems (NYC and Rambles) and direct control, without replacing Hue's own automation engine — see ADR-0014/0015 for the original compute-placement reasoning, and ADR-0020 for the gRPC standard this app is the first real implementation of. MVP is read-only: see what's on, what scene is active, what automations are running. Kicking off scenes/automations, and eventually a small set of "advanced" automations Hue's own engine can't do, are later phases, not scoped as tasks yet.
+
+Tasks:
+- [x] 🧑 Architecture agreed: single `hue` repo (`hub/` Python, `agent/` C++ — precedent-setting language choice for future larger projects), gRPC between hub and agent per ADR-0020, no database for MVP (pure live pass-through, nothing stored until an advanced-automations phase actually needs it)
+- [x] 🧑 NYC Hue bridge (`hue-nyc`, 10.0.1.71) local API key minted and verified live — `/home-platform/hue/nyc-api-key`
+- [ ] 🧑 Rambles Hue bridge (`hue-rambles`, 10.0.2.244) local API key — needs the same on-site physical link-button press
+- [ ] 🧑 Create the `hue` GitHub repo via the web UI (the stored gh PAT can't create repos — see CLAUDE.md's Gotchas)
+- [ ] 🤖 Terraform: ECR repo + IAM role + OIDC trust for `hue` (`terraform/aws/apps.tf`, same pattern as `todo-app`)
+- [ ] 🤖 Terraform: `hue.billandjessie.com` Route53 record
+- [ ] 🤖 Terraform: hub's `hub_app_deploy` policy grant for `hue` (ECR pull + SSM read scoped to `/home-platform/hue/*`)
+- [ ] 🤖 Authentik OIDC blueprint for `hue` (Pattern A, matches `todo-app`/Grafana)
+- [ ] 🤖 Scaffold `hub/` from `templates/python/` and `agent/` from `templates/cpp/`, both in the one `hue` repo
+- [ ] 🤖 Define the hub↔agent gRPC contract (`proto/`) for querying current state (lights, active scenes, active automations) — first real use of the ADR-0020 pattern beyond the C++ template's own example service
+- [ ] 🤖 Agent: Hue Bridge local CLIP API client reading lights/scenes/automations state
+- [ ] 🤖 Agent: gRPC service exposing that state to the hub, internal-only on `home-platform` per ADR-0020 (never through Traefik)
+- [ ] 🤖 Hub: UI showing current state, pulled live from the site agent via gRPC on each page load (no caching/sync needed yet — that's an "advanced automations" concern, not MVP)
+- [ ] 🤖 `hue`'s own thin CI/CD workflows for the hub component, calling `app-ci.yml`/`app-build-push.yml`/`app-deploy.yml`
+- [ ] 🤖 Deploy path for the agent: **new platform capability, not just an app-repo concern** — today's `app-build-push.yml`/`app-deploy.yml` only know how to deploy to the hub via ECR + SSM SendCommand; NUCs are Ansible-provisioned, a completely different mechanism. Plan: extend the existing Ansible NUC role (`ansible/roles/`) + a new `compose/nuc/` fragment to pull the agent's image from ECR and run it, triggered manually via `scripts/deploy-nucs.ps1` same as the exporter stack today — full auto-deploy-on-push for NUC apps is explicitly out of scope for now, this just needs to work, not be as slick as the hub's pipeline yet
+- [ ] 🧑 Verify end-to-end: `https://hue.billandjessie.com` gated behind Authentik login, shows live NYC state pulled through the real agent
+- [ ] 🤖 Extend to Rambles once its bridge key exists — same agent binary/config, deployed to `nuc5`
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*
