@@ -1,0 +1,27 @@
+name: CD
+
+# Auto-deploy by default (matches ADR-0019's household-app default) --
+# build-push runs on every merge to main, and deploy runs immediately
+# after. For manual-promote instead: delete the `deploy` job below, and
+# add a separate workflow_dispatch-triggered workflow that calls
+# app-deploy.yml on its own (see docs/app-platform.md).
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-push:
+    uses: bcalaway/nyc_pa_aws_gitops/.github/workflows/app-build-push.yml@main
+    with:
+      app_name: REPLACE_WITH_APP_NAME
+
+  deploy:
+    needs: build-push
+    uses: bcalaway/nyc_pa_aws_gitops/.github/workflows/app-deploy.yml@main
+    with:
+      app_name: REPLACE_WITH_APP_NAME
