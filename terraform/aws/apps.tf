@@ -163,15 +163,23 @@ resource "aws_iam_role_policy" "todo_app_github_actions" {
 }
 
 # ---------------------------------------------------------------------------
-# hue (Milestone 12) -- covers only the hub component's own CI/CD. The
-# agent (deployed to the NUCs via Ansible, not this pipeline) has no
-# GitHub-OIDC-assumed role at all -- see docs/roadmap.md's Milestone 12 for
-# why that's a separate, not-yet-built deploy path.
+# hue (Milestone 12) -- one IAM role (this section), two ECR repositories:
+# `hue` (the hub component, deployed to the AWS hub via the normal
+# app-build-push.yml/app-deploy.yml pipeline) and `hue-agent` (deployed to
+# the NUCs via Ansible instead -- a different mechanism, see
+# ansible/roles/hue-agent/ and docs/roadmap.md's Milestone 12). Both images
+# are built and pushed by the same hue-github-actions role/repo's CI; a
+# second IAM role isn't needed just because the *deploy* path differs.
 # ---------------------------------------------------------------------------
 
 resource "aws_ecr_repository" "hue" {
   name = "hue"
   tags = { Name = "hue" }
+}
+
+resource "aws_ecr_repository" "hue_agent" {
+  name = "hue-agent"
+  tags = { Name = "hue-agent" }
 }
 
 data "aws_iam_policy_document" "hue_github_actions_assume" {
@@ -225,7 +233,7 @@ data "aws_iam_policy_document" "hue_github_actions_permissions" {
       "ecr:PutImage", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload",
       "ecr:DescribeRepositories", "ecr:ListImages",
     ]
-    resources = [aws_ecr_repository.hue.arn]
+    resources = [aws_ecr_repository.hue.arn, aws_ecr_repository.hue_agent.arn]
   }
 
   # No Postgres credential here -- Milestone 12's MVP has no database (pure

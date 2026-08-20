@@ -1,0 +1,114 @@
+---
+# Deploys the hue-agent container (Milestone 12, docs/roadmap.md) to a
+# site's NUC. New ground compared to the other roles in this repo: the
+# image comes from a *private* ECR repo, and the NUC itself has no AWS
+# credentials at all (it's on-prem hardware, not an EC2 instance -- no
+# IMDS/instance-profile to lean on). So the pull happens on the hub
+# (delegate_to: localhost, i.e. the control node -- this playbook always
+# runs from the EC2 hub, see deploy-nucs.ps1/.sh), using the hub's own
+# instance role (terraform/aws/tls.tf's hub_app_deploy grant), and the
+# image is relayed to the NUC as a plain tarball (`docker save` /
+# `copy` / `docker load`) rather than trying to give the NUC registry
+# credentials of its own.
+#
+# Gated per-host by hue_agent_enabled (inventory/hosts.yml) -- false for
+# nuc5/Rambles until that site's Hue bridge API key exists.
+- name: hue-agent
+  when: hue_agent_enabled | default(false)
+  block:
+    - name: Fetch this site's Hue bridge API key from SSM (on the hub)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command:
+        cmd: >-
+          aws ssm get-parameter --name /home-platform/hue/{{ site }}-api-key
+          --with-decryption --region us-east-1 --query Parameter.Value --output text
+      register: hue_api_key_result
+      changed_when: false
+      no_log: true
+
+    - name: Log in to ECR (on the hub)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.shell: >-
+        aws ecr get-login-password --region us-east-1
+        | docker login --username AWS --password-stdin 147856894209.dkr.ecr.us-east-1.amazonaws.com
+      changed_when: false
+      no_log: true
+
+    - name: Pull hue-agent image (on the hub)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command: docker pull 147856894209.dkr.ecr.us-east-1.amazonaws.com/hue-agent:latest
+      register: pull_result
+      changed_when: "'Downloaded newer image' in pull_result.stdout"
+
+    - name: Save image to a tarball (on the hub)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command: >-
+        docker save -o /tmp/hue-agent.tar 147856894209.dkr.ecr.us-east-1.amazonaws.com/hue-agent:latest
+      when: pull_result.changed
+
+    - name: Copy image tarball to the NUC
+      ansible.builtin.copy:
+        src: /tmp/hue-agent.tar
+        dest: /tmp/hue-agent.tar
+        mode: "0644"
+      when: pull_result.changed
+
+    - name: Load image on the NUC
+      ansible.builtin.command: docker load -i /tmp/hue-agent.tar
+      when: pull_result.changed
+      notify: Restart hue-agent
+
+    - name: Clean up tarball on the NUC
+      ansible.builtin.file:
+        path: /tmp/hue-agent.tar
+        state: absent
+      when: pull_result.changed
+
+    - name: Clean up tarball on the hub
+      delegate_to: localhost
+      become: false
+      ansible.builtin.file:
+        path: /tmp/hue-agent.tar
+        state: absent
+      when: pull_result.changed
+
+    - name: Create hue-agent compose directory
+      ansible.builtin.file:
+        path: /opt/compose/hue-agent
+        state: directory
+        mode: "0755"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Deploy hue-agent compose file
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: /opt/compose/hue-agent/docker-compose.yml
+        mode: "0644"
+      vars:
+        hue_api_key: "{{ hue_api_key_result.stdout }}"
+      notify: Restart hue-agent
+
+    - name: Open firewalld port for gRPC from the WireGuard subnet
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - "--add-rich-rule=rule family=ipv4 source address=10.0.3.0/24 port port=9090 protocol=tcp accept"
+      register: fw_add
+      changed_when: "'ALREADY_ENABLED' not in (fw_add.stderr | default(''))"
+      notify: Reload firewalld
+
+    - name: Flush handlers so the firewall rule and fresh image are live before compose starts
+      ansible.builtin.meta: flush_handlers
+
+    - name: Start hue-agent
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: /opt/compose/hue-agent
+      register: compose_up
+      changed_when: "'Started' in compose_up.stdout or 'Created' in compose_up.stdout"

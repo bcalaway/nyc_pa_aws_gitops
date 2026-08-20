@@ -1,0 +1,14 @@
+# Rendered by ansible/roles/hue-agent/tasks/main.yml -- not committed to
+# Git as a static file, since hue_api_key comes from SSM at deploy time.
+services:
+  hue-agent:
+    image: 147856894209.dkr.ecr.us-east-1.amazonaws.com/hue-agent:latest
+    container_name: hue-agent
+    restart: unless-stopped
+    environment:
+      SITE: "{{ site }}"
+      HUE_BRIDGE_HOST: "{{ hue_bridge_host }}"
+      HUE_API_KEY: "{{ hue_api_key }}"
+      GRPC_PORT: "9090"
+    ports:
+      - "9090:9090"

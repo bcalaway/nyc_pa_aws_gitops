@@ -7,3 +7,4 @@
     - exporters
     - security
     - logging
+    - hue-agent

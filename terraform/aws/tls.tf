@@ -152,12 +152,18 @@ data "aws_iam_policy_document" "hub_app_deploy" {
     ]
   }
 
-  # hue (Milestone 12) -- covers only the hub component; the agent deploys
-  # to the NUCs via Ansible, entirely outside this SSM-SendCommand path.
+  # hue (Milestone 12) -- the hub component (deployed here via the normal
+  # SSM-SendCommand path) and the agent, which is NOT deployed by
+  # app-deploy.yml at all -- it's relayed to the NUCs by Ansible
+  # (ansible/roles/hue-agent), running on this same hub, using this same
+  # role's credentials to `docker pull` from hue-agent's ECR repo and then
+  # `docker save`/scp/`docker load` the image onto the NUC (which has no
+  # AWS credentials of its own). ssm:GetParametersByPath below already
+  # covers Ansible's need to read the site Hue bridge API keys.
   statement {
     effect    = "Allow"
     actions   = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]
-    resources = [aws_ecr_repository.hue.arn]
+    resources = [aws_ecr_repository.hue.arn, aws_ecr_repository.hue_agent.arn]
   }
 
   statement {
