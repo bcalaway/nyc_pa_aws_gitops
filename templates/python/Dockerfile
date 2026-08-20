@@ -24,4 +24,8 @@ RUN pytest
 
 FROM base AS final
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --proxy-headers/--forwarded-allow-ips: Traefik terminates TLS and proxies
+# to the app over plain HTTP on the internal Docker network. Without this,
+# uvicorn ignores Traefik's X-Forwarded-Proto and builds http:// redirect
+# URIs (e.g. for OIDC), which Authentik's strict-match redirect_uris reject.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
