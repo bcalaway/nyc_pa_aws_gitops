@@ -151,6 +151,29 @@ data "aws_iam_policy_document" "hub_app_deploy" {
       "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/todo-app-client-secret",
     ]
   }
+
+  # hue (Milestone 12) -- covers only the hub component; the agent deploys
+  # to the NUCs via Ansible, entirely outside this SSM-SendCommand path.
+  statement {
+    effect    = "Allow"
+    actions   = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]
+    resources = [aws_ecr_repository.hue.arn]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:GetParametersByPath"]
+    resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/hue/*"]
+  }
+
+  statement {
+    effect  = "Allow"
+    actions = ["ssm:GetParameter"]
+    resources = [
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-id",
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-secret",
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "hub_app_deploy" {
@@ -223,6 +246,14 @@ resource "aws_route53_record" "auth" {
 resource "aws_route53_record" "todo_app" {
   zone_id = aws_route53_zone.main.zone_id
   name    = "todo-app.billandjessie.com"
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.hub.public_ip]
+}
+
+resource "aws_route53_record" "hue" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "hue.billandjessie.com"
   type    = "A"
   ttl     = 300
   records = [aws_eip.hub.public_ip]

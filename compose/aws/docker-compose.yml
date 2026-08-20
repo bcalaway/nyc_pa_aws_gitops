@@ -341,6 +341,9 @@ services:
       # todo-app OIDC client (blueprints/todo-app-oidc.yaml), same pattern.
       AUTHENTIK_TODO_APP_CLIENT_ID: "${AUTHENTIK_TODO_APP_CLIENT_ID}"
       AUTHENTIK_TODO_APP_CLIENT_SECRET: "${AUTHENTIK_TODO_APP_CLIENT_SECRET}"
+      # hue OIDC client (blueprints/hue-oidc.yaml), same pattern.
+      AUTHENTIK_HUE_CLIENT_ID: "${AUTHENTIK_HUE_CLIENT_ID}"
+      AUTHENTIK_HUE_CLIENT_SECRET: "${AUTHENTIK_HUE_CLIENT_SECRET}"
     volumes:
       - authentik-media:/media
       - authentik-templates:/templates
@@ -389,6 +392,8 @@ services:
       AUTHENTIK_GRAFANA_CLIENT_SECRET: "${AUTHENTIK_GRAFANA_CLIENT_SECRET}"
       AUTHENTIK_TODO_APP_CLIENT_ID: "${AUTHENTIK_TODO_APP_CLIENT_ID}"
       AUTHENTIK_TODO_APP_CLIENT_SECRET: "${AUTHENTIK_TODO_APP_CLIENT_SECRET}"
+      AUTHENTIK_HUE_CLIENT_ID: "${AUTHENTIK_HUE_CLIENT_ID}"
+      AUTHENTIK_HUE_CLIENT_SECRET: "${AUTHENTIK_HUE_CLIENT_SECRET}"
     # Deliberately NOT mounting /var/run/docker.sock (Authentik's official
     # compose does, root + full docker socket access) -- that's only needed
     # for auto-deployed Docker-based outposts, which we're not using; we

@@ -161,3 +161,129 @@ resource "aws_iam_role_policy" "todo_app_github_actions" {
   role   = aws_iam_role.todo_app_github_actions.id
   policy = data.aws_iam_policy_document.todo_app_github_actions_permissions.json
 }
+
+# ---------------------------------------------------------------------------
+# hue (Milestone 12) -- covers only the hub component's own CI/CD. The
+# agent (deployed to the NUCs via Ansible, not this pipeline) has no
+# GitHub-OIDC-assumed role at all -- see docs/roadmap.md's Milestone 12 for
+# why that's a separate, not-yet-built deploy path.
+# ---------------------------------------------------------------------------
+
+resource "aws_ecr_repository" "hue" {
+  name = "hue"
+  tags = { Name = "hue" }
+}
+
+data "aws_iam_policy_document" "hue_github_actions_assume" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    # Same dual-format trust as todo_app above -- confirmed via
+    # `gh api repos/bcalaway/hue` that this newly-created repo also
+    # presents the newer immutable-ID sub claim, not the plain one.
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values = [
+        "repo:${var.github_org}/hue:*",
+        "repo:bcalaway@37939549/hue@1340907446:*",
+      ]
+    }
+  }
+}
+
+resource "aws_iam_role" "hue_github_actions" {
+  name               = "hue-github-actions"
+  assume_role_policy = data.aws_iam_policy_document.hue_github_actions_assume.json
+
+  tags = { Name = "hue-github-actions" }
+}
+
+data "aws_iam_policy_document" "hue_github_actions_permissions" {
+  statement {
+    effect    = "Allow"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "ecr:BatchCheckLayerAvailability", "ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage",
+      "ecr:PutImage", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload",
+      "ecr:DescribeRepositories", "ecr:ListImages",
+    ]
+    resources = [aws_ecr_repository.hue.arn]
+  }
+
+  # No Postgres credential here -- Milestone 12's MVP has no database (pure
+  # live pass-through from the agent, nothing stored yet). The
+  # /home-platform/hue/* wildcard also covers the two site Hue bridge API
+  # keys (SSM), which this role can therefore read even though only the
+  # NUC-side agent (a different deploy path entirely) actually uses them --
+  # accepted as low-risk rather than splitting them into a separate SSM
+  # namespace for one household app.
+  statement {
+    effect  = "Allow"
+    actions = ["ssm:GetParameter", "ssm:GetParameters"]
+    resources = [
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/hue/*",
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-id",
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-secret",
+    ]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:PutObject", "s3:GetObject"]
+    resources = ["arn:aws:s3:::home-platform-ansible-deploy-${var.aws_account_id}/apps/hue/*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = ["arn:aws:s3:::home-platform-ansible-deploy-${var.aws_account_id}"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ec2:DescribeInstances"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:SendCommand"]
+    resources = ["arn:aws:ssm:us-east-1::document/AWS-RunShellScript"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:SendCommand"]
+    resources = [aws_instance.hub.arn]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:GetCommandInvocation", "ssm:ListCommandInvocations", "ssm:ListCommands"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "hue_github_actions" {
+  name   = "hue-github-actions"
+  role   = aws_iam_role.hue_github_actions.id
+  policy = data.aws_iam_policy_document.hue_github_actions_permissions.json
+}
