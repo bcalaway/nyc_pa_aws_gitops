@@ -1,0 +1,58 @@
+---
+# Deploys the weather-exporter container (docs/roadmap.md) to a site's NUC.
+# Unlike hue-agent, this builds directly on the NUC via `docker compose
+# build` rather than relaying a tarball from the hub -- no private registry
+# involved, and NUCs get a real docker-buildx-plugin from the official
+# Docker CE repo (see ansible/roles/docker), so a plain local build works
+# the same way cost-exporter's does on the EC2 hub.
+#
+# Gated per-host by weather_station_host (inventory/hosts.yml) -- unset for
+# nuc4/NYC unless/until a weather station exists there too.
+- name: weather-exporter
+  when: weather_station_host is defined and weather_station_host | length > 0
+  block:
+    - name: Create weather-exporter compose directory
+      ansible.builtin.file:
+        path: /opt/compose/weather-exporter
+        state: directory
+        mode: "0755"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Copy weather-exporter source
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../compose/nuc/weather-exporter/{{ item }}"
+        dest: "/opt/compose/weather-exporter/{{ item }}"
+        mode: "0644"
+      loop:
+        - weather_exporter.py
+        - Dockerfile
+        - requirements.txt
+      notify: Restart weather-exporter
+
+    - name: Deploy weather-exporter compose file
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: /opt/compose/weather-exporter/docker-compose.yml
+        mode: "0644"
+      notify: Restart weather-exporter
+
+    - name: Open firewalld port for Prometheus scraping from the WireGuard subnet
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - "--add-rich-rule=rule family=ipv4 source address=10.0.3.0/24 port port=9101 protocol=tcp accept"
+      register: fw_add
+      changed_when: "'ALREADY_ENABLED' not in (fw_add.stderr | default(''))"
+      notify: Reload firewalld
+
+    - name: Flush handlers so the firewall rule and fresh source are live before compose starts
+      ansible.builtin.meta: flush_handlers
+
+    - name: Start weather-exporter
+      ansible.builtin.command:
+        cmd: docker compose up -d --build
+        chdir: /opt/compose/weather-exporter
+      register: compose_up
+      changed_when: "'Started' in compose_up.stdout or 'Created' in compose_up.stdout"

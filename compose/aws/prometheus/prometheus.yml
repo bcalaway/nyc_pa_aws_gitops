@@ -95,6 +95,15 @@ scrape_configs:
         labels:
           instance: nuc4
 
+  # weather-exporter runs on nuc5 only for now (weather-rambles/WS3900B) --
+  # see ansible/roles/weather-exporter, gated by weather_station_host.
+  - job_name: weather
+    static_configs:
+      - targets: ["10.0.2.10:9101"]
+        labels:
+          instance: nuc5
+          site: rambles
+
   # MikroTik RB5009s via snmp_exporter, over the WireGuard tunnel.
   # Reaches routers through the hub, so no exporter needs to run at the sites.
   - job_name: snmp

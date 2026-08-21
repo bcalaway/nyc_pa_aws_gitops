@@ -1,0 +1,12 @@
+# Rendered by ansible/roles/weather-exporter/tasks/main.yml -- not committed
+# to Git as a static file, since STATION_HOST varies per site.
+services:
+  weather-exporter:
+    build: .
+    container_name: weather-exporter
+    restart: unless-stopped
+    environment:
+      STATION_HOST: "{{ weather_station_host }}"
+      POLL_INTERVAL_SECONDS: "60"
+    ports:
+      - "9101:9101"

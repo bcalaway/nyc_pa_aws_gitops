@@ -8,3 +8,4 @@
     - security
     - logging
     - hue-agent
+    - weather-exporter
