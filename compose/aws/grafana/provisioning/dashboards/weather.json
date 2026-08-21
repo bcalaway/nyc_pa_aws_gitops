@@ -202,7 +202,7 @@
       "id": 13,
       "title": "Indoor Temp (Console)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 8 },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [{ "expr": "weather_indoor_temp_fahrenheit", "refId": "A" }],
       "options": { "graphMode": "area", "colorMode": "value" },
@@ -212,53 +212,17 @@
       "id": 14,
       "title": "Indoor Humidity (Console)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 8 },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [{ "expr": "weather_indoor_humidity_percent", "refId": "A" }],
       "options": { "graphMode": "area", "colorMode": "value" },
       "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] }
     },
     {
-      "id": 15,
-      "title": "Extra Sensor 1",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-      "targets": [
-        { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"1\"}", "legendFormat": "temp", "refId": "A" }
-      ],
-      "options": { "graphMode": "area", "colorMode": "value" },
-      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
-    },
-    {
-      "id": 16,
-      "title": "Extra Sensor 2",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-      "targets": [
-        { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"2\"}", "legendFormat": "temp", "refId": "A" }
-      ],
-      "options": { "graphMode": "area", "colorMode": "value" },
-      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
-    },
-    {
-      "id": 17,
-      "title": "Extra Sensor 3",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-      "targets": [
-        { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"3\"}", "legendFormat": "temp", "refId": "A" }
-      ],
-      "options": { "graphMode": "area", "colorMode": "value" },
-      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
-    },
-    {
       "id": 18,
       "title": "Rain Sensor Voltage (Piezo)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 8 },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [{ "expr": "weather_rain_sensor_voltage{sensor=\"piezo\"}", "refId": "A" }],
       "options": { "graphMode": "area", "colorMode": "value" },
@@ -275,10 +239,70 @@
       }
     },
     {
+      "id": 15,
+      "title": "Indoor RV - Temp",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"1\"}", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "id": 28,
+      "title": "Indoor RV - Humidity",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_extra_sensor_humidity_percent{channel=\"1\"}", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] }
+    },
+    {
+      "id": 16,
+      "title": "Indoor Big Cabin - Temp",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"2\"}", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "id": 29,
+      "title": "Indoor Big Cabin - Humidity",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_extra_sensor_humidity_percent{channel=\"2\"}", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] }
+    },
+    {
+      "id": 17,
+      "title": "Indoor Little Cabin - Temp",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"3\"}", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "id": 30,
+      "title": "Indoor Little Cabin - Humidity",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_extra_sensor_humidity_percent{channel=\"3\"}", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] }
+    },
+    {
       "id": 19,
       "title": "Temperature History",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "weather_outdoor_temp_fahrenheit", "legendFormat": "outdoor", "refId": "A" },
@@ -292,7 +316,7 @@
       "id": 20,
       "title": "Humidity History",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "weather_outdoor_humidity_percent", "legendFormat": "outdoor", "refId": "A" },
@@ -304,7 +328,7 @@
       "id": 21,
       "title": "Wind History",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "weather_wind_speed_mph", "legendFormat": "speed", "refId": "A" },
@@ -317,7 +341,7 @@
       "id": 22,
       "title": "Wind Direction History",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [{ "expr": "weather_wind_direction_degrees", "legendFormat": "direction", "refId": "A" }],
       "fieldConfig": {
@@ -334,7 +358,7 @@
       "id": 23,
       "title": "Pressure History",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "weather_pressure_relative_inhg", "legendFormat": "relative", "refId": "A" },
@@ -346,7 +370,7 @@
       "id": 24,
       "title": "Solar Radiation & UV History",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "weather_solar_radiation_watts_per_m2", "legendFormat": "solar (W/m²)", "refId": "A" },
@@ -358,7 +382,7 @@
       "id": 25,
       "title": "Rain Rate History",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "weather_rain_rate_inches_per_hour{sensor=\"bucket\"}", "legendFormat": "bucket", "refId": "A" },
@@ -373,7 +397,7 @@
       "id": 26,
       "title": "Rain Accumulation (Today)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "weather_rain_day_inches{sensor=\"bucket\"}", "legendFormat": "bucket", "refId": "A" },
@@ -386,14 +410,29 @@
     },
     {
       "id": 27,
-      "title": "Extra Sensor Temps History",
+      "title": "Cabin/RV Temps History",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 44 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "weather_extra_sensor_temp_fahrenheit", "legendFormat": "channel {{channel}}", "refId": "A" }
+        { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"1\"}", "legendFormat": "RV", "refId": "A" },
+        { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"2\"}", "legendFormat": "Big Cabin", "refId": "B" },
+        { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"3\"}", "legendFormat": "Little Cabin", "refId": "C" }
       ],
       "fieldConfig": { "defaults": { "unit": "fahrenheit" }, "overrides": [] }
+    },
+    {
+      "id": 31,
+      "title": "Cabin/RV Humidity History",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_extra_sensor_humidity_percent{channel=\"1\"}", "legendFormat": "RV", "refId": "A" },
+        { "expr": "weather_extra_sensor_humidity_percent{channel=\"2\"}", "legendFormat": "Big Cabin", "refId": "B" },
+        { "expr": "weather_extra_sensor_humidity_percent{channel=\"3\"}", "legendFormat": "Little Cabin", "refId": "C" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] }
     }
   ]
 }
