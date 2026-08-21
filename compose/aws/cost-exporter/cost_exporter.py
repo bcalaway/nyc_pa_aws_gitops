@@ -24,6 +24,21 @@ g_mtd_total = Gauge("aws_cost_month_to_date_usd", "Unblended AWS cost so far thi
 g_forecast_total = Gauge(
     "aws_cost_forecast_month_usd", "Forecasted total unblended AWS cost for the current month"
 )
+# Net cost (aws_cost_month_to_date_usd) alone hid a real signal: confirmed
+# 2026-08-21 that this account is drawing down an AWS credit balance that's
+# been offsetting real usage almost dollar-for-dollar, service by service
+# (Cost Explorer attributes each credit to the specific service it applies
+# against, so a per-SERVICE breakdown shows every line item as ~$0 even
+# though real usage -- and real gross cost -- is accruing underneath). Split
+# out via RECORD_TYPE so the credit being drawn down is actually visible
+# before it runs out and net cost jumps with no warning.
+g_mtd_gross_usage = Gauge(
+    "aws_cost_month_to_date_gross_usage_usd", "Month-to-date gross usage cost, before credits"
+)
+g_mtd_credits = Gauge(
+    "aws_cost_month_to_date_credits_usd",
+    "Month-to-date credits applied (negative -- reduces cost, per AWS's own sign convention)",
+)
 g_last_success = Gauge(
     "aws_cost_exporter_last_success_timestamp_seconds", "Unix timestamp of the last successful poll"
 )
@@ -70,6 +85,32 @@ def poll():
         mtd_total = float(resp["ResultsByTime"][0]["Total"]["UnblendedCost"]["Amount"])
     g_mtd_total.set(mtd_total)
 
+    # Same MTD window, broken down by RECORD_TYPE instead of SERVICE, to
+    # recover the gross-usage/credit split that the net total and the
+    # per-service breakdown above both hide. Only "Usage" and "Credit" are
+    # populated for this account as of 2026-08-21 -- other RECORD_TYPE
+    # values (Tax, Refund, RIFee, etc.) exist in AWS's model but aren't
+    # mapped here since this account has never shown them; a real value
+    # under one just wouldn't show up as gross usage or credits yet.
+    resp = ce.get_cost_and_usage(
+        TimePeriod={"Start": first_of_month.isoformat(), "End": mtd_end.isoformat()},
+        Granularity="MONTHLY",
+        Metrics=["UnblendedCost"],
+        GroupBy=[{"Type": "DIMENSION", "Key": "RECORD_TYPE"}],
+    )
+    gross_usage = 0.0
+    credits_applied = 0.0
+    if resp["ResultsByTime"]:
+        for group in resp["ResultsByTime"][0]["Groups"]:
+            record_type = group["Keys"][0]
+            amount = float(group["Metrics"]["UnblendedCost"]["Amount"])
+            if record_type == "Usage":
+                gross_usage = amount
+            elif record_type == "Credit":
+                credits_applied = amount
+    g_mtd_gross_usage.set(gross_usage)
+    g_mtd_credits.set(credits_applied)
+
     # Forecast for the rest of the month, added to what's already been spent.
     # Needs a few weeks of billing history to work -- skip quietly until then.
     try:
@@ -86,8 +127,8 @@ def poll():
 
     g_last_success.set(time.time())
     log.info(
-        "poll ok: yesterday=$%.2f mtd=$%.2f services=%d",
-        day_total, mtd_total, seen_services,
+        "poll ok: yesterday=$%.2f mtd=$%.2f (gross=$%.2f credits=$%.2f) services=%d",
+        day_total, mtd_total, gross_usage, credits_applied, seen_services,
     )
 
 

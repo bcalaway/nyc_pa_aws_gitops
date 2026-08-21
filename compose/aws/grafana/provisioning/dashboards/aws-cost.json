@@ -42,22 +42,83 @@
       "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 }, "overrides": [] }
     },
     {
+      "id": 6,
+      "title": "MTD Gross Usage (before credits)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "aws_cost_month_to_date_gross_usage_usd", "legendFormat": "Gross usage", "refId": "A" }
+      ],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 }, "overrides": [] }
+    },
+    {
+      "id": 7,
+      "title": "MTD Credits Applied",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        {
+          "expr": "abs(aws_cost_month_to_date_credits_usd)",
+          "legendFormat": "Credits applied",
+          "refId": "A"
+        }
+      ],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
       "id": 4,
       "title": "Month-to-Date Trend",
       "type": "timeseries",
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 6 },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "aws_cost_month_to_date_usd", "legendFormat": "MTD actual", "refId": "A" },
+        { "expr": "aws_cost_month_to_date_usd", "legendFormat": "MTD actual (net)", "refId": "A" },
         { "expr": "aws_cost_forecast_month_usd", "legendFormat": "Forecasted total", "refId": "B" }
       ],
       "fieldConfig": { "defaults": { "unit": "currencyUSD" }, "overrides": [] }
     },
     {
+      "id": 8,
+      "title": "Gross Usage vs Credits Applied (MTD)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        {
+          "expr": "aws_cost_month_to_date_gross_usage_usd",
+          "legendFormat": "Gross usage",
+          "refId": "A"
+        },
+        {
+          "expr": "abs(aws_cost_month_to_date_credits_usd)",
+          "legendFormat": "Credits applied",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "currencyUSD", "custom": { "fillOpacity": 15 } },
+        "overrides": []
+      }
+    },
+    {
       "id": 5,
       "title": "Daily Cost by Service",
       "type": "timeseries",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 15 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 29 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "aws_cost_by_service_usd", "legendFormat": "{{service}}", "refId": "A" }
