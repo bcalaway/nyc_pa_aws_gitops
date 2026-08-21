@@ -43,38 +43,57 @@
       register: pull_result
       changed_when: "'Downloaded newer image' in pull_result.stdout"
 
+    - name: Check whether the NUC itself already has this image loaded
+      ansible.builtin.command: docker image inspect 147856894209.dkr.ecr.us-east-1.amazonaws.com/hue-agent:latest
+      register: nuc_image_check
+      failed_when: false
+      changed_when: false
+
+    # Gating the transfer on pull_result.changed alone missed the case where
+    # the hub's own docker cache already had :latest (e.g. from a previous
+    # NUC's deploy) but *this* NUC had never received it yet -- confirmed
+    # for real onboarding nuc5 (2026-08-21): the hub skipped straight past
+    # save/copy/load, and the restart handler then tried `docker compose up`
+    # on the NUC, which attempted to pull from ECR directly and failed since
+    # the NUC has no AWS credentials of its own. Must transfer whenever
+    # EITHER the hub pulled something new OR the target NUC doesn't have the
+    # image yet.
+    - name: Determine whether the image needs to be transferred to this NUC
+      ansible.builtin.set_fact:
+        hue_agent_needs_transfer: "{{ pull_result.changed or nuc_image_check.rc != 0 }}"
+
     - name: Save image to a tarball (on the hub)
       delegate_to: localhost
       become: false
       ansible.builtin.command: >-
-        docker save -o /tmp/hue-agent.tar 147856894209.dkr.ecr.us-east-1.amazonaws.com/hue-agent:latest
-      when: pull_result.changed
+        docker save -o /tmp/hue-agent-{{ inventory_hostname }}.tar 147856894209.dkr.ecr.us-east-1.amazonaws.com/hue-agent:latest
+      when: hue_agent_needs_transfer
 
     - name: Copy image tarball to the NUC
       ansible.builtin.copy:
-        src: /tmp/hue-agent.tar
-        dest: /tmp/hue-agent.tar
+        src: /tmp/hue-agent-{{ inventory_hostname }}.tar
+        dest: /tmp/hue-agent-{{ inventory_hostname }}.tar
         mode: "0644"
-      when: pull_result.changed
+      when: hue_agent_needs_transfer
 
     - name: Load image on the NUC
-      ansible.builtin.command: docker load -i /tmp/hue-agent.tar
-      when: pull_result.changed
+      ansible.builtin.command: docker load -i /tmp/hue-agent-{{ inventory_hostname }}.tar
+      when: hue_agent_needs_transfer
       notify: Restart hue-agent
 
     - name: Clean up tarball on the NUC
       ansible.builtin.file:
-        path: /tmp/hue-agent.tar
+        path: /tmp/hue-agent-{{ inventory_hostname }}.tar
         state: absent
-      when: pull_result.changed
+      when: hue_agent_needs_transfer
 
     - name: Clean up tarball on the hub
       delegate_to: localhost
       become: false
       ansible.builtin.file:
-        path: /tmp/hue-agent.tar
+        path: /tmp/hue-agent-{{ inventory_hostname }}.tar
         state: absent
-      when: pull_result.changed
+      when: hue_agent_needs_transfer
 
     - name: Create hue-agent compose directory
       ansible.builtin.file:
