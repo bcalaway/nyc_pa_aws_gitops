@@ -222,12 +222,22 @@ Tasks:
 
 **Milestone complete as of 2026-08-21** — both sites' Hue bridges are keyed, both agents are deployed and reachable from the hub, and the hub UI itself shows live data for both. Along the way, this pass (and the earlier `nuc4` one) fixed real bugs unrelated to `hue`'s core logic but found while extending it to a second site: `deploy-nucs.ps1` was silently continuing past failed `scp` uploads and had been running a stale copy of `ansible/` on the hub as a result; `nuc4`'s pre-existing exporter stack had a corrupted Docker network reference; the hue-agent role's image-transfer logic didn't account for onboarding a second NUC; and the hub itself was never actually built for more than one site despite the milestone's goal describing "cross-site visibility into both Hue systems" from the start. See CLAUDE.md's Gotchas for the first three.
 
+### Milestone 13 — Weather Collection & Dashboard
+
+**Goal:** Rambles' EcoWitt WS3900B weather station collected into Prometheus and shown on a dedicated Grafana dashboard, current conditions + history.
+
+Tasks:
+- [x] 🤖 `weather-exporter`: custom Python exporter (same shape as `cost-exporter`) polling the station's local `get_livedata_info` API every 60s, exposing outdoor/indoor temp, humidity, dew point, apparent temp, wind (speed/gust/direction/daily max gust), pressure (rel/abs), solar radiation, UV index, rain (both the classic tipping-bucket gauge and the WS90 piezo sensor — they report battery differently, see the code comment), and 3 extra temp/humidity sensor channels — 2026-08-21. That endpoint is undocumented (Ecowitt publishes no field reference for it), so the id→field mapping was confirmed against real live readings from `weather-rambles`, not assumed from memory; a handful of ids seen in the raw response weren't confidently identified and were deliberately left unmapped rather than guessed
+- [x] 🤖 New `ansible/roles/weather-exporter/` role, gated by `weather_station_host` (set for `nuc5` only) — builds the image locally on the NUC via `docker compose build` rather than relaying a tarball from the hub like `hue-agent` does, since NUCs have a real `docker-buildx-plugin` (from the official Docker CE repo) and this image is as simple as `cost-exporter`'s. Deployed and verified live via `deploy-nucs.ps1`
+- [x] 🤖 Prometheus scrape job (`compose/aws/prometheus/prometheus.yml`) — verified live via a direct query against the real deployed target, not just config review
+- [x] 🤖 Grafana dashboard (`compose/aws/grafana/provisioning/dashboards/weather.json`) — current-conditions stat tiles plus 24h history timeseries panels, styled consistently with the existing dashboards (stat/timeseries panel types, shared Prometheus datasource UID). Deployed; the actual rendered view is one more thing only Bill can check (Grafana's behind Authentik login, same restriction noted elsewhere in this doc) — worth a look at `https://grafana.billandjessie.com`
+- [ ] 🧑 NYC has no weather station yet — extend the same exporter there if one is ever added
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*
 - UPS at both sites
 - Environmental / temperature sensors
-- Weather and external data feeds in Grafana
 - VRRP dual-router per site
 - MikroTik RB5009 cold spare
 - Home Assistant integration
