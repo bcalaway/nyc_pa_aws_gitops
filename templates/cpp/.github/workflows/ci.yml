@@ -6,3 +6,9 @@ on:
 jobs:
   ci:
     uses: bcalaway/nyc_pa_aws_gitops/.github/workflows/app-ci.yml@main
+    # secrets: inherit -- passes this repo's own VCPKG_PAT_TOKEN through as
+    # app-ci.yml's `vcpkg_pat` secret, so PR builds (same-repo branches have
+    # secrets access, unlike fork PRs) get the fast GitHub Packages vcpkg
+    # cache instead of always paying the cold-cache cost. See
+    # templates/cpp/Dockerfile for why this specific secret exists.
+    secrets: inherit

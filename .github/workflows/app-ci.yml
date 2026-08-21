@@ -14,6 +14,16 @@ on:
         description: "Path in the caller repo to its Dockerfile"
         type: string
         default: "Dockerfile"
+    secrets:
+      vcpkg_pat:
+        description: >-
+          Optional classic GitHub PAT (write:packages/read:packages) for
+          vcpkg's GitHub Packages NuGet binary cache -- only consumed by
+          Dockerfiles that declare a `--mount=type=secret,id=vcpkg_pat`
+          (currently just templates/cpp; harmless no-op for every other
+          app's Dockerfile). Pass through with `secrets: inherit` from the
+          caller, or omit entirely if the app isn't C++.
+        required: false
 
 jobs:
   build-test-lint:
@@ -34,6 +44,8 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          secrets: |
+            vcpkg_pat=${{ secrets.vcpkg_pat }}
 
       - name: Test
         uses: docker/build-push-action@v6
@@ -44,6 +56,8 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          secrets: |
+            vcpkg_pat=${{ secrets.vcpkg_pat }}
 
       - name: Build (final stage)
         uses: docker/build-push-action@v6
@@ -53,3 +67,5 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          secrets: |
+            vcpkg_pat=${{ secrets.vcpkg_pat }}

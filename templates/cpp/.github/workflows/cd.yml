@@ -19,6 +19,14 @@ jobs:
     uses: bcalaway/nyc_pa_aws_gitops/.github/workflows/app-build-push.yml@main
     with:
       app_name: REPLACE_WITH_APP_NAME
+    # secrets: inherit -- passes this repo's own VCPKG_PAT_TOKEN through as
+    # app-build-push.yml's `vcpkg_pat` secret. See templates/cpp/Dockerfile
+    # for why this specific secret exists (vcpkg's GitHub Packages binary
+    # cache). Requires a classic PAT with write:packages/read:packages
+    # stored as this repo's own `VCPKG_PAT_TOKEN` Actions secret -- a
+    # fine-grained PAT does not work here (confirmed live, see hue's
+    # cd.yml/CLAUDE.md for the same fix applied there first).
+    secrets: inherit
 
   deploy:
     needs: build-push

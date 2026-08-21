@@ -15,6 +15,7 @@ Two servers, one process: an HTTP server (browser-facing, Traefik-routed, port 8
 3. Set `APP_NAME` in the deploy environment to the same value (comes from SSM per the platform's secrets convention, or just hardcode it as a plain env var in `deploy/docker-compose.yml` since it's not a secret).
 4. Follow the onboarding checklist in `docs/app-platform.md` (database, Authentik client, Route53 record, IAM role) — these are platform-side steps, not something this template does for you.
 5. Build out `proto/example_service.proto` and `src/grpc_service.cpp` into the real service API, and `src/http_server.cpp` into the real browser-facing routes. `/health`, `/`, `/db-check`, `/login`, `/auth/callback`, and the `ExampleService.Ping` RPC are working examples, not requirements.
+6. Add a `VCPKG_PAT_TOKEN` repo secret (Settings → Secrets and variables → Actions) — a classic GitHub PAT with `write:packages`/`read:packages` scope (a fine-grained PAT does not work here, confirmed live) — so CI/CD builds use the GitHub Packages NuGet feed for vcpkg's binary cache instead of recompiling `grpc`'s whole dependency tree from source on every build. Without it the build still works, just slowly (tens of minutes instead of well under a minute on a warm cache) — see the Dockerfile's comments and `nyc_pa_aws_gitops/CLAUDE.md`'s Gotchas for how this was diagnosed on `hue/agent`, the first app to hit it.
 
 ## Local development
 

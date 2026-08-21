@@ -21,6 +21,17 @@ on:
         description: "Path in the caller repo to its Dockerfile"
         type: string
         default: "Dockerfile"
+    secrets:
+      vcpkg_pat:
+        description: >-
+          Optional classic GitHub PAT (write:packages/read:packages) for
+          vcpkg's GitHub Packages NuGet binary cache -- only consumed by
+          Dockerfiles that declare a `--mount=type=secret,id=vcpkg_pat`
+          (currently just templates/cpp; harmless no-op for every other
+          app's Dockerfile, which never asks for this mount). Pass through
+          with `secrets: inherit` from the caller, or omit entirely if the
+          app isn't C++.
+        required: false
     outputs:
       image_tag:
         description: "Git SHA tag pushed to ECR (also tagged as latest)"
@@ -67,3 +78,5 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/${{ inputs.app_name }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          secrets: |
+            vcpkg_pat=${{ secrets.vcpkg_pat }}
