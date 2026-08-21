@@ -1,0 +1,399 @@
+{
+  "title": "Weather (Rambles)",
+  "uid": "weather",
+  "tags": ["home-platform"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Outdoor Temp",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_outdoor_temp_fahrenheit", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "fahrenheit",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "green", "value": 32 },
+              { "color": "orange", "value": 85 },
+              { "color": "red", "value": 95 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Feels Like",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_apparent_temp_fahrenheit", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "id": 3,
+      "title": "Humidity",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_outdoor_humidity_percent", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] }
+    },
+    {
+      "id": 4,
+      "title": "Dew Point",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_dew_point_fahrenheit", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "id": 5,
+      "title": "Wind Speed",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_wind_speed_mph", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocitymph",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 15 },
+              { "color": "orange", "value": 25 },
+              { "color": "red", "value": 40 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Wind Gust",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_wind_gust_mph", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "velocitymph", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "id": 7,
+      "title": "Wind Direction",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_wind_direction_degrees", "refId": "A" }],
+      "options": { "graphMode": "none", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "degree" }, "overrides": [] }
+    },
+    {
+      "id": 8,
+      "title": "Pressure (Rel)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_pressure_relative_inhg", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "pressurehg", "decimals": 2 }, "overrides": [] }
+    },
+    {
+      "id": 9,
+      "title": "Solar Radiation (W/m²)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_solar_radiation_watts_per_m2", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "decimals": 0 }, "overrides": [] }
+    },
+    {
+      "id": 10,
+      "title": "UV Index",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_uv_index", "refId": "A" }],
+      "options": { "graphMode": "none", "colorMode": "value" },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "orange", "value": 6 },
+              { "color": "red", "value": 8 },
+              { "color": "purple", "value": 11 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "title": "Rain Today (Bucket)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_rain_day_inches{sensor=\"bucket\"}", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "lengthin",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "gray", "value": null }, { "color": "blue", "value": 0.01 }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 12,
+      "title": "Data Age",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "time() - weather_exporter_last_success_timestamp_seconds", "refId": "A" }
+      ],
+      "options": { "graphMode": "none", "colorMode": "value" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 180 },
+              { "color": "red", "value": 600 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "title": "Indoor Temp (Console)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_indoor_temp_fahrenheit", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "id": 14,
+      "title": "Indoor Humidity (Console)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_indoor_humidity_percent", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] }
+    },
+    {
+      "id": 15,
+      "title": "Extra Sensor 1",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"1\"}", "legendFormat": "temp", "refId": "A" }
+      ],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "id": 16,
+      "title": "Extra Sensor 2",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"2\"}", "legendFormat": "temp", "refId": "A" }
+      ],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "id": 17,
+      "title": "Extra Sensor 3",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"3\"}", "legendFormat": "temp", "refId": "A" }
+      ],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "fahrenheit", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "id": 18,
+      "title": "Rain Sensor Voltage (Piezo)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_rain_sensor_voltage{sensor=\"piezo\"}", "refId": "A" }],
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "volt",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 2.4 }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 19,
+      "title": "Temperature History",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_outdoor_temp_fahrenheit", "legendFormat": "outdoor", "refId": "A" },
+        { "expr": "weather_apparent_temp_fahrenheit", "legendFormat": "feels like", "refId": "B" },
+        { "expr": "weather_dew_point_fahrenheit", "legendFormat": "dew point", "refId": "C" },
+        { "expr": "weather_indoor_temp_fahrenheit", "legendFormat": "indoor", "refId": "D" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "fahrenheit" }, "overrides": [] }
+    },
+    {
+      "id": 20,
+      "title": "Humidity History",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_outdoor_humidity_percent", "legendFormat": "outdoor", "refId": "A" },
+        { "expr": "weather_indoor_humidity_percent", "legendFormat": "indoor", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] }
+    },
+    {
+      "id": 21,
+      "title": "Wind History",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_wind_speed_mph", "legendFormat": "speed", "refId": "A" },
+        { "expr": "weather_wind_gust_mph", "legendFormat": "gust", "refId": "B" },
+        { "expr": "weather_wind_gust_daily_max_mph", "legendFormat": "daily max gust", "refId": "C" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "velocitymph" }, "overrides": [] }
+    },
+    {
+      "id": 22,
+      "title": "Wind Direction History",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "weather_wind_direction_degrees", "legendFormat": "direction", "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "degree",
+          "min": 0,
+          "max": 360,
+          "custom": { "drawStyle": "points", "pointSize": 4, "lineWidth": 0 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 23,
+      "title": "Pressure History",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_pressure_relative_inhg", "legendFormat": "relative", "refId": "A" },
+        { "expr": "weather_pressure_absolute_inhg", "legendFormat": "absolute", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "pressurehg" }, "overrides": [] }
+    },
+    {
+      "id": 24,
+      "title": "Solar Radiation & UV History",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_solar_radiation_watts_per_m2", "legendFormat": "solar (W/m²)", "refId": "A" },
+        { "expr": "weather_uv_index * 50", "legendFormat": "UV index (x50, shared axis)", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 25,
+      "title": "Rain Rate History",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_rain_rate_inches_per_hour{sensor=\"bucket\"}", "legendFormat": "bucket", "refId": "A" },
+        { "expr": "weather_rain_rate_inches_per_hour{sensor=\"piezo\"}", "legendFormat": "piezo", "refId": "B" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "lengthin", "custom": { "drawStyle": "bars", "fillOpacity": 40 } },
+        "overrides": []
+      }
+    },
+    {
+      "id": 26,
+      "title": "Rain Accumulation (Today)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_rain_day_inches{sensor=\"bucket\"}", "legendFormat": "bucket", "refId": "A" },
+        { "expr": "weather_rain_day_inches{sensor=\"piezo\"}", "legendFormat": "piezo", "refId": "B" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "lengthin", "custom": { "drawStyle": "line", "fillOpacity": 20 } },
+        "overrides": []
+      }
+    },
+    {
+      "id": 27,
+      "title": "Extra Sensor Temps History",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 44 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "weather_extra_sensor_temp_fahrenheit", "legendFormat": "channel {{channel}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "fahrenheit" }, "overrides": [] }
+    }
+  ]
+}
