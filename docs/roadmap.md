@@ -203,7 +203,7 @@ The first real app onboarding, validating the whole Milestone 11 framework. Repo
 Tasks:
 - [x] 🧑 Architecture agreed: single `hue` repo (`hub/` Python, `agent/` C++ — precedent-setting language choice for future larger projects), gRPC between hub and agent per ADR-0020, no database for MVP (pure live pass-through, nothing stored until an advanced-automations phase actually needs it)
 - [x] 🧑 NYC Hue bridge (`hue-nyc`, 10.0.1.71) local API key minted and verified live — `/home-platform/hue/nyc-api-key`
-- [ ] 🧑 Rambles Hue bridge (`hue-rambles`, 10.0.2.244) local API key — needs the same on-site physical link-button press
+- [x] 🧑 Rambles Hue bridge (`hue-rambles`, 10.0.2.244) local API key minted and verified live — `/home-platform/hue/rambles-api-key`
 - [x] 🧑 Create the `hue` GitHub repo via the web UI (the stored gh PAT can't create repos — see CLAUDE.md's Gotchas)
 - [x] 🤖 Terraform: ECR repo + IAM role + OIDC trust for `hue` (`terraform/aws/apps.tf`, same pattern as `todo-app`) — applied 2026-08-20, all 4 resources confirmed live
 - [x] 🤖 Terraform: `hue.billandjessie.com` Route53 record — live, confirmed resolving to the hub's Elastic IP
