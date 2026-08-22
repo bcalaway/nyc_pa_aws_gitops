@@ -78,5 +78,9 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/${{ inputs.app_name }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          secrets: |
-            vcpkg_pat=${{ secrets.vcpkg_pat }}
+          # Only passed when a caller actually supplies vcpkg_pat -- an
+          # unconditional `vcpkg_pat=` line (empty value) makes
+          # docker/build-push-action emit a "not a valid secret" annotation
+          # on every non-C++ app's build (confirmed live on hue's hub-build-
+          # push, which has no reason to pass this secret at all).
+          secrets: ${{ secrets.vcpkg_pat != '' && format('vcpkg_pat={0}', secrets.vcpkg_pat) || '' }}
