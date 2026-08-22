@@ -187,6 +187,14 @@ services:
       # break-glass fallback if OIDC ever breaks.
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_SERVER_ROOT_URL: "https://grafana.billandjessie.com"
+      # Bill wants to never see a login prompt again unless he explicitly
+      # logs out -- Grafana's own session cookie defaults to a 7d inactive /
+      # 30d absolute lifetime regardless of how long Authentik's own SSO
+      # session lasts (see authentik/blueprints/session-duration.yaml),
+      # since Grafana keeps its own separate session on top of the OIDC
+      # login. ~10 years is "effectively never".
+      GF_AUTH_LOGIN_MAXIMUM_INACTIVE_LIFETIME_DURATION: "3650d"
+      GF_AUTH_LOGIN_MAXIMUM_LIFETIME_DURATION: "3650d"
       GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
       GF_AUTH_GENERIC_OAUTH_NAME: "Authentik"
       GF_AUTH_GENERIC_OAUTH_CLIENT_ID: "${AUTHENTIK_GRAFANA_CLIENT_ID}"

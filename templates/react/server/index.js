@@ -40,6 +40,16 @@ export function createApp() {
           response_type: "code",
           scope: "openid profile email",
         },
+        // express-openid-connect's own defaults are a 24h rolling / 7d
+        // absolute session -- separate from however long Authentik's own
+        // SSO session lasts (nyc_pa_aws_gitops's
+        // compose/aws/authentik/blueprints/session-duration.yaml). ~10
+        // years matches the same "don't ask again" intent applied there
+        // and to Grafana's own session config.
+        session: {
+          rollingDuration: 60 * 60 * 24 * 3650,
+          absoluteDuration: 60 * 60 * 24 * 3650,
+        },
       }),
     );
 

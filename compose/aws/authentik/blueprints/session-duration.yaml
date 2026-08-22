@@ -1,0 +1,18 @@
+version: 1
+metadata:
+  name: session-duration
+entries:
+  # Authentik's own SSO session -- separate from each app's own session
+  # cookie (Grafana/hue/todo-app each keep their own on top of this).
+  # Confirmed live 2026-08-22 via `ak shell` that the built-in
+  # `default-authentication-login` stage (used by `default-authentication-flow`,
+  # the only login flow this deployment actually uses -- no external sources
+  # configured) shipped with `session_duration=seconds=0`. Bill wants to
+  # never see a login prompt again unless he explicitly logs out; ~10 years
+  # is "effectively never" without relying on an implicit meaning for `0`.
+  - model: authentik_stages_user_login.userloginstage
+    identifiers:
+      name: default-authentication-login
+    state: present
+    attrs:
+      session_duration: "days=3650"
