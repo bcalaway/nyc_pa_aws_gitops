@@ -195,6 +195,15 @@ services:
       GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://auth.billandjessie.com/application/o/authorize/"
       GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://auth.billandjessie.com/application/o/token/"
       GF_AUTH_GENERIC_OAUTH_API_URL: "https://auth.billandjessie.com/application/o/userinfo/"
+      # Without this, Grafana sometimes can't find the email in Authentik's
+      # userinfo response and falls back to a GitHub-specific
+      # "{api_url}/emails" endpoint Authentik doesn't implement at all --
+      # confirmed live in Grafana's own logs (a 404 on
+      # ".../userinfo//emails", intermittent, which is exactly the
+      # "sometimes have to log in twice" symptom Bill hit 2026-08-22).
+      # Pointing this at the plain "email" claim makes Grafana find it
+      # directly and never need that fallback.
+      GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH: "email"
       GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: "true"
       GF_SMTP_ENABLED: "true"
       GF_SMTP_HOST: "smtp.gmail.com:587"
