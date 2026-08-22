@@ -233,6 +233,20 @@ Tasks:
 - [x] 🤖 Grafana dashboard (`compose/aws/grafana/provisioning/dashboards/weather.json`) — current-conditions stat tiles plus 24h history timeseries panels, styled consistently with the existing dashboards (stat/timeseries panel types, shared Prometheus datasource UID). Deployed; the actual rendered view is one more thing only Bill can check (Grafana's behind Authentik login, same restriction noted elsewhere in this doc) — worth a look at `https://grafana.billandjessie.com`
 - [ ] 🧑 NYC has no weather station yet — extend the same exporter there if one is ever added
 
+### Milestone 14 — Hue Control, Styling & Animations
+
+**Goal:** Extend Milestone 12's read-only Hue MVP with direct control (light on/off, scene activation) and a React UI that matches the rest of the platform's look. Scene-alternation animations (flip between two scenes on a timer) are a planned follow-on, not built yet.
+
+Tasks:
+- [x] 🤖 Proto: `SetLightState`/`ActivateScene` RPCs added to `agent_service.proto` as new fields only — no reuse of existing field numbers, per the standing forward/backward-compatibility rule this repo learned the hard way in Milestone 12 (see CLAUDE.md's Gotchas)
+- [x] 🤖 Agent: `HueClient::SetLightOn`/`RecallScene` — CLIP v2 `PUT` passthroughs (`/clip/v2/resource/light/{id}` and `/clip/v2/resource/scene/{id}`), returning a plain ok/fail rather than throwing, since a bridge rejection (stale id, unreachable bridge) is a routine outcome, not a program bug
+- [x] 🤖 Hub: `POST /api/site/{site}/light/{light_id}` and `/api/site/{site}/scene/{scene_id}/activate`, proxying to the new RPCs
+- [x] 🤖 Hub UI rebuilt in React + Vite (`hue` repo's `hub/frontend/`), styled to match the `billandjessie.com` landing page's dark theme (same color tokens) instead of the MVP's plain unstyled HTML. Built into the Python backend's static assets at Docker build time (multi-stage build, no Node runtime in the final image) — see `hub/Dockerfile`. Light tiles toggle on/off (optimistic update, reverts on bridge rejection); scene chips activate their scene
+- [x] 🧑 Verified live against a real Rambles light 2026-08-22: `set_light_state` toggled a real light on then off through the full production path (hub → gRPC → `nuc5` agent → bridge), called directly against the deployed hub container (bypassing Authentik, same verification pattern as Milestone 12). `nuc4`/NYC couldn't get the same live verification — its WireGuard tunnel had been down since earlier that week — but the agent image itself passed CI (compiled, unit-tested) and is queued for `nuc4` once that tunnel recovers
+- [ ] 🧑 `hub/frontend/package-lock.json` doesn't exist yet — this dev machine had no local Node to generate one, so `hub/Dockerfile` uses `npm install` instead of `npm ci` for now (works either way, just not reproducible-build-pinned). Generate a real lockfile from a machine with Node and commit it, then switch the Dockerfile back to `npm ci`, matching `templates/react/Dockerfile`'s convention
+- [ ] 🧑 The actual rendered UI (dropdown, room cards, on/off toggle, scene click) is one more thing only Bill can check firsthand — same browser-pane limitation noted elsewhere in this doc blocks a screenshot-based check
+- [ ] Scene-alternation animations: pick two scenes for a room, flip between them on a timer. Runs on the hub (no hard local-latency need, per ADR-0015) rather than the agent. Open design question: persist animation config/state in a new `hue` Postgres database (survives hub redeploys, which happen often) vs. in-memory only (simpler, but silently stops on every hub deploy) — leaning persisted, not yet decided
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*
