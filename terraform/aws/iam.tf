@@ -204,6 +204,12 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       aws_iam_role.github_actions.arn, aws_iam_role.hub.arn,
       "arn:aws:iam::${var.aws_account_id}:role/home-platform-dlm",
       "arn:aws:iam::${var.aws_account_id}:role/todo-app-github-actions",
+      # hue-github-actions was missing here entirely since onboarding
+      # (Milestone 12) -- the actual root cause of every hue-related
+      # `terraform apply` failing in CI with AccessDenied on iam:GetRole,
+      # forcing a local apply with admin credentials instead every time
+      # (confirmed live 2026-08-22, see docs/roadmap.md's Milestone 14).
+      "arn:aws:iam::${var.aws_account_id}:role/hue-github-actions",
     ]
   }
 
@@ -220,6 +226,11 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     ]
     resources = [
       "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/todo-app",
+      # Same gap as the IAM statement above -- hue's two ECR repos were
+      # never added here, so ecr:DescribeRepositories on them has always
+      # been AccessDenied for this role.
+      "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/hue",
+      "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/hue-agent",
     ]
   }
 
