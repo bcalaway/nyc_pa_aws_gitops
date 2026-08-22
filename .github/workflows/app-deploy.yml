@@ -54,6 +54,18 @@ jobs:
     name: Deploy to hub
     runs-on: ubuntu-latest
     environment: production
+    # Two deploys of the SAME app running concurrently both write and
+    # execute /tmp/deploy.sh on the hub -- the same shared path every time,
+    # since the deploy script itself has no per-run uniqueness. Confirmed
+    # live 2026-08-22: two hue pushes ~30s apart raced on that file, and
+    # the second deploy's script got corrupted mid-write ("line 5:
+    # .amazonaws.com: command not found" -- a truncated fragment of the ECR
+    # registry URL from the OTHER run's script bleeding into this one).
+    # Queuing same-app deploys instead of racing them fixes this; different
+    # apps still deploy fully in parallel since the group is per app_name.
+    concurrency:
+      group: app-deploy-${{ inputs.app_name }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
