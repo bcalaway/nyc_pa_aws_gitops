@@ -178,6 +178,9 @@ data "aws_iam_policy_document" "hub_app_deploy" {
     resources = [
       "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-id",
       "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-secret",
+      # Milestone 14: hue's hub component now has its own Postgres database
+      # (animation configs), same onboarding pattern as todo-app.
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/postgres/hue-password",
     ]
   }
 }

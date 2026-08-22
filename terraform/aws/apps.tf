@@ -236,13 +236,17 @@ data "aws_iam_policy_document" "hue_github_actions_permissions" {
     resources = [aws_ecr_repository.hue.arn, aws_ecr_repository.hue_agent.arn]
   }
 
-  # No Postgres credential here -- Milestone 12's MVP has no database (pure
-  # live pass-through from the agent, nothing stored yet). The
-  # /home-platform/hue/* wildcard also covers the two site Hue bridge API
-  # keys (SSM), which this role can therefore read even though only the
+  # The /home-platform/hue/* wildcard also covers the two site Hue bridge
+  # API keys (SSM), which this role can therefore read even though only the
   # NUC-side agent (a different deploy path entirely) actually uses them --
   # accepted as low-risk rather than splitting them into a separate SSM
   # namespace for one household app.
+  #
+  # Postgres password (Milestone 14, animation persistence): matches
+  # todo-app's identical grant on its own CI role above, even though the
+  # actual deploy-time read happens on the hub itself via hub_app_deploy's
+  # role (tls.tf), not this one -- kept for consistency with the
+  # established per-app pattern.
   statement {
     effect  = "Allow"
     actions = ["ssm:GetParameter", "ssm:GetParameters"]
@@ -250,6 +254,7 @@ data "aws_iam_policy_document" "hue_github_actions_permissions" {
       "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/hue/*",
       "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-id",
       "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-secret",
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/postgres/hue-password",
     ]
   }
 
