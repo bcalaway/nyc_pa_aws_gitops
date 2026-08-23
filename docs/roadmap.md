@@ -252,6 +252,19 @@ Tasks:
 - [ ] 🧑 `hub/frontend/package-lock.json` doesn't exist yet — this dev machine had no local Node to generate one, so `hub/Dockerfile` uses `npm install` instead of `npm ci` for now (works either way, just not reproducible-build-pinned). Generate a real lockfile from a machine with Node and commit it, then switch the Dockerfile back to `npm ci`, matching `templates/react/Dockerfile`'s convention
 - [ ] 🧑 The actual rendered UI (collapsed/expanded rooms, on/off toggle, scene click, animate panel, automation definitions) is one more thing only Bill can check firsthand — same browser-pane limitation noted elsewhere in this doc blocks a screenshot-based check
 
+### Milestone 15 — Propane Tank Monitoring
+
+**Goal:** Rambles' propane tanks (fitted with Mopeka Pro Check BLE sensors) monitored into Prometheus/Grafana, matching the `weather-exporter`/`cost-exporter` pattern.
+
+Tasks:
+- [x] 🤖 Investigated whether `nuc5`'s onboard Bluetooth is in range of any tank sensor (2026-08-21) — found and fixed a real, unrelated pre-existing bug along the way: `nuc5`'s Bluetooth adapter was completely dead (missing MediaTek MT7922 firmware blob, RHEL/Rocky excludes it). Fixed live and persisted into `ansible/roles/base/` so it applies to any NUC with this chip — see CLAUDE.md's Gotchas
+- [x] 🤖 Scanned live from `nuc5` once Bluetooth worked: no Mopeka sensor advertisements in range from that location (only Apple/Bose devices seen). Concluded a proxy device is needed closer to the tanks rather than relying on either NUC's onboard radio
+- [x] 🤖 `esphome/mopeka-proxy/` — ESPHome config for an ESP32 running as a pure BLE→WiFi relay (`bluetooth_proxy` component, passive scan) to be placed near the tanks. Chosen over a Raspberry Pi as cheaper/simpler for a single-purpose relay; recommended board: M5Stack Atom Lite (~$10, enclosed, USB-C powered, no soldering)
+- [ ] 🧑 Buy the board and do the one-time flash (two documented paths in `esphome/mopeka-proxy/README.md` — ESPHome's official prebuilt Bluetooth Proxy firmware via the web flasher, or this repo's tracked YAML via the ESPHome CLI), place/power it near the tanks on the Rambles LAN, report its IP
+- [ ] 🤖 `mopeka-exporter`: Python exporter connecting to the ESP32's native API (`aioesphomeapi`, no Home Assistant needed) to receive forwarded BLE advertisements, decoding Mopeka's manufacturer data via the open-source `mopeka-iot-ble` library (the same one Home Assistant's own integration uses) rather than hand-rolling the byte-level protocol — not started, blocked on the ESP32 being online
+- [ ] 🤖 New `ansible/roles/mopeka-exporter/` role (mirrors `weather-exporter`), Prometheus scrape job, Grafana dashboard (tank level %, temperature, battery per sensor)
+- [ ] 🧑 Provide sensor count/names/placement once known, for friendly dashboard labeling; confirm real tank-level readings against a physical check the first time (same "don't trust the pipeline blind" pattern as other exporters in this doc)
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*

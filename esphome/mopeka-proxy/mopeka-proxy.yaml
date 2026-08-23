@@ -1,0 +1,51 @@
+esphome:
+  name: mopeka-proxy
+  friendly_name: Mopeka BLE Proxy
+
+esp32:
+  # Generic ESP32-WROOM-32 board id -- works for a plain DevKit and for the
+  # M5Stack Atom Lite (ESP32-PICO-D4) alike. Only affects flash-size/pin
+  # defaults, not whether this builds -- doesn't need to be exact.
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+# The native ESPHome API -- this is what a subscriber connects to, whether
+# that's Home Assistant or, here, a standalone Python script using
+# aioesphomeapi directly. No Home Assistant install required.
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Falls back to a local AP if it can't join the real network, so a bad
+  # credential doesn't turn this into a brick that needs a re-flash.
+  ap:
+    ssid: "Mopeka-Proxy Fallback"
+    password: !secret fallback_ap_password
+
+captive_portal:
+
+# Passive scan -- this board only ever needs to *receive* advertisements
+# (Mopeka sensors broadcast on their own, unprompted), never to scan
+# actively/connect, which keeps it simpler and lighter on battery-powered
+# sensors' own radios.
+esp32_ble_tracker:
+  scan_parameters:
+    active: false
+
+# "active: false" here means "don't proxy an active BLE connection for
+# Home Assistant's benefit" -- it still forwards every raw advertisement
+# (including Mopeka's manufacturer-specific data) to any connected API
+# client, which is all a passive BLE broadcast sensor needs.
+bluetooth_proxy:
+  active: false

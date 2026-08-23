@@ -1,2 +1,8 @@
 __pycache__/
 *.pyc
+
+# ESPHome device secrets (WiFi creds, API/OTA keys) -- never commit the real
+# file, only esphome/*/secrets.yaml.example.
+esphome/**/secrets.yaml
+esphome/**/.esphome/
+
