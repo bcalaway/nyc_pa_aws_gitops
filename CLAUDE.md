@@ -71,6 +71,7 @@ Always `git push` immediately after every `git commit` without asking.
 | `/home-platform/ansible/nuc-public-key` | Matching public key — already installed in nuc5's `authorized_keys`; add to any new NUC the same way |
 | `/home-platform/github/nuc-ssh-private-key` | Shared ed25519 key for `bcalaway`'s own `git@github.com:` SSH access from the NUCs (as `~/.ssh/id_ed25519`) — registered on GitHub as "nuc key". One keypair shared across nuc4/nuc5, same pattern as the Ansible key above. Not needed on nuc4 unless its clone is switched from HTTPS to SSH — see the "New machine checklist" note |
 | `/home-platform/github/nuc-ssh-public-key` | Matching public key |
+| `/home-platform/rachio/api-key` | Personal API key for Bill's Rachio account (get from the Rachio app/web account settings page) — used by `rachio-exporter` (`compose/aws/rachio-exporter/`) to poll which irrigation zone is currently watering |
 
 ## Ansible NUC provisioning
 

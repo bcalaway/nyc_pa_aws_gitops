@@ -49,6 +49,15 @@ services:
     ports:
       - "9199:9199"
 
+  rachio-exporter:
+    build: ./rachio-exporter
+    container_name: rachio-exporter
+    restart: unless-stopped
+    environment:
+      RACHIO_API_KEY: ${RACHIO_API_KEY}
+    ports:
+      - "9200:9200"
+
   loki:
     image: grafana/loki:3.3.2
     container_name: loki

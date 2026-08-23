@@ -18,6 +18,9 @@ $postgresPassword = (& $aws ssm get-parameter --name "/home-platform/postgres/ad
 Write-Host "Fetching Redis password from SSM..."
 $redisPassword = (& $aws ssm get-parameter --name "/home-platform/authentik/redis-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 
+Write-Host "Fetching Rachio API key from SSM..."
+$rachioApiKey = (& $aws ssm get-parameter --name "/home-platform/rachio/api-key" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+
 Write-Host "Fetching Authentik secrets from SSM..."
 $authentikDbPassword = (& $aws ssm get-parameter --name "/home-platform/authentik/db-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 $authentikSecretKey = (& $aws ssm get-parameter --name "/home-platform/authentik/secret-key" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
@@ -29,7 +32,7 @@ $authentikTodoAppClientSecret = (& $aws ssm get-parameter --name "/home-platform
 $authentikHueClientId = (& $aws ssm get-parameter --name "/home-platform/authentik/hue-client-id" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 $authentikHueClientSecret = (& $aws ssm get-parameter --name "/home-platform/authentik/hue-client-secret" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 
-"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret`nAUTHENTIK_TODO_APP_CLIENT_ID=$authentikTodoAppClientId`nAUTHENTIK_TODO_APP_CLIENT_SECRET=$authentikTodoAppClientSecret`nAUTHENTIK_HUE_CLIENT_ID=$authentikHueClientId`nAUTHENTIK_HUE_CLIENT_SECRET=$authentikHueClientSecret" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
+"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nRACHIO_API_KEY=$rachioApiKey`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret`nAUTHENTIK_TODO_APP_CLIENT_ID=$authentikTodoAppClientId`nAUTHENTIK_TODO_APP_CLIENT_SECRET=$authentikTodoAppClientSecret`nAUTHENTIK_HUE_CLIENT_ID=$authentikHueClientId`nAUTHENTIK_HUE_CLIENT_SECRET=$authentikHueClientSecret" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
 
 Write-Host "Copying compose stack to EC2..."
 ssh -i $sshKey $ec2Host "mkdir -p $remoteDir"

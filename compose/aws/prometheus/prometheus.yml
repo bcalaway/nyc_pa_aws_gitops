@@ -11,6 +11,10 @@ scrape_configs:
     static_configs:
       - targets: ["cost-exporter:9199"]
 
+  - job_name: rachio-exporter
+    static_configs:
+      - targets: ["rachio-exporter:9200"]
+
   - job_name: postgres
     static_configs:
       - targets: ["postgres-exporter:9187"]

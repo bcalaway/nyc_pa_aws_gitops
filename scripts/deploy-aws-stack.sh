@@ -24,6 +24,9 @@ POSTGRES_PASSWORD=$(ssm "/home-platform/postgres/admin-password")
 echo "Fetching Redis password from SSM..."
 REDIS_PASSWORD=$(ssm "/home-platform/authentik/redis-password")
 
+echo "Fetching Rachio API key from SSM..."
+RACHIO_API_KEY=$(ssm "/home-platform/rachio/api-key")
+
 echo "Fetching Authentik secrets from SSM..."
 AUTHENTIK_DB_PASSWORD=$(ssm "/home-platform/authentik/db-password")
 AUTHENTIK_SECRET_KEY=$(ssm "/home-platform/authentik/secret-key")
@@ -39,6 +42,7 @@ cat > "$LOCAL_DIR/.env" <<EOF
 GRAFANA_SMTP_PASSWORD=$GRAFANA_SMTP_PASSWORD
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 REDIS_PASSWORD=$REDIS_PASSWORD
+RACHIO_API_KEY=$RACHIO_API_KEY
 AUTHENTIK_DB_PASSWORD=$AUTHENTIK_DB_PASSWORD
 AUTHENTIK_SECRET_KEY=$AUTHENTIK_SECRET_KEY
 AUTHENTIK_BOOTSTRAP_PASSWORD=$AUTHENTIK_BOOTSTRAP_PASSWORD
