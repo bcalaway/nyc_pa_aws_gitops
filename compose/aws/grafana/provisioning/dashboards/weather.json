@@ -441,7 +441,7 @@
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 56 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "rachio_zone_watering", "legendFormat": "{{zone}}", "refId": "A" }
+        { "expr": "rachio_valve_watered_today", "legendFormat": "{{valve}}", "refId": "A" }
       ],
       "options": { "mergeValues": true, "showValue": "never" },
       "fieldConfig": {
