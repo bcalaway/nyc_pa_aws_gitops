@@ -1,0 +1,12 @@
+---
+# Module removal order matters: btusb depends on btmtk, so removing btmtk
+# first fails with "Module btmtk is in use" -- hit for real on nuc5
+# (2026-08-21). modprobe (not rmmod) on the way back up so btmtk gets pulled
+# in automatically as btusb's dependency.
+- name: Reload MT7922 Bluetooth kernel modules
+  ansible.builtin.shell: |
+    set -e
+    modprobe -r btusb
+    modprobe -r btmtk
+    modprobe btusb
+  changed_when: true

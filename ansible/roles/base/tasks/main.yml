@@ -27,6 +27,33 @@
     state: started
     enabled: true
 
+- name: Check for a MediaTek MT7922 combo WiFi/BT card
+  ansible.builtin.command: lspci
+  register: lspci_output
+  changed_when: false
+
+# RHEL/Rocky's linux-firmware package excludes some MediaTek blobs for
+# licensing reasons (Ubuntu/Fedora ship them). Without this file, btmtk logs
+# "Direct firmware load ... failed with error -2" and the onboard Bluetooth
+# adapter never comes up at all -- found for real on nuc5 (2026-08-21)
+# investigating Bluetooth range for propane-tank sensors. Fetched straight
+# from the upstream linux-firmware git repo, which does carry it.
+- name: Check whether the MT7922 Bluetooth firmware blob is already installed
+  ansible.builtin.stat:
+    path: /usr/lib/firmware/mediatek/BT_RAM_CODE_MT7922_1_1_hdr.bin
+  register: mt7922_bt_firmware
+  when: "'MT7922' in lspci_output.stdout"
+
+- name: Install MT7922 Bluetooth firmware blob
+  ansible.builtin.get_url:
+    url: https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/mediatek/BT_RAM_CODE_MT7922_1_1_hdr.bin
+    dest: /usr/lib/firmware/mediatek/BT_RAM_CODE_MT7922_1_1_hdr.bin
+    mode: "0644"
+  when:
+    - "'MT7922' in lspci_output.stdout"
+    - not mt7922_bt_firmware.stat.exists
+  notify: Reload MT7922 Bluetooth kernel modules
+
 - name: Check SELinux status
   ansible.builtin.command: getenforce
   register: se_status
