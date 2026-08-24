@@ -222,6 +222,23 @@ services:
       # directly and never need that fallback.
       GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH: "email"
       GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: "true"
+      # Grafana links an OAuth login to a Grafana user by the IdP's stable
+      # external ID (auth_id, from the sub claim), not by email -- if that
+      # ID doesn't match what's already linked, it refuses to fall back to
+      # an existing user and errors "user already exists" instead, even
+      # though the email matches. Hit for real 2026-08-24: an earlier login
+      # via the akadmin bootstrap account (which also has email
+      # bcalaway@gmail.com set) got linked to the bcalaway@gmail.com
+      # Grafana user first, storing akadmin's uid as the auth_id. Every
+      # later real login via the actual bcalaway account presents a
+      # different uid and fails with "Login failed, User sync failed" --
+      # confirmed via Grafana's own logs (logger=user.sync msg="Failed to
+      # create user" error="user already exists") and cross-checked against
+      # both Authentik users' .uid values via `ak shell`. This setting
+      # makes Grafana re-link by email instead of hard-failing when the
+      # external ID drifts, which also just correctly reflects that
+      # akadmin/bcalaway are the same person here.
+      GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP: "true"
       GF_SMTP_ENABLED: "true"
       GF_SMTP_HOST: "smtp.gmail.com:587"
       GF_SMTP_USER: "bcalaway@gmail.com"
