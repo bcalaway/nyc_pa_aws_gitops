@@ -19,6 +19,7 @@
       - curl
       - git
       - dnf-plugins-core
+      - pciutils
     state: present
 
 - name: Ensure firewalld is running and enabled
