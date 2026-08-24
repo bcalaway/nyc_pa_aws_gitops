@@ -43,8 +43,27 @@
       register: pull_result
       changed_when: "'Downloaded newer image' in pull_result.stdout"
 
-    - name: Check whether the NUC itself already has this image loaded
-      ansible.builtin.command: docker image inspect 147856894209.dkr.ecr.us-east-1.amazonaws.com/hue-agent:latest
+    - name: Get the image ID the hub just pulled
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command:
+        argv:
+          - docker
+          - image
+          - inspect
+          - 147856894209.dkr.ecr.us-east-1.amazonaws.com/hue-agent:latest
+          - --format={{ '{{' }}.Id{{ '}}' }}
+      register: hub_image_id
+      changed_when: false
+
+    - name: Check which image ID (if any) the NUC itself already has loaded
+      ansible.builtin.command:
+        argv:
+          - docker
+          - image
+          - inspect
+          - 147856894209.dkr.ecr.us-east-1.amazonaws.com/hue-agent:latest
+          - --format={{ '{{' }}.Id{{ '}}' }}
       register: nuc_image_check
       failed_when: false
       changed_when: false
@@ -52,15 +71,20 @@
     # Gating the transfer on pull_result.changed alone missed the case where
     # the hub's own docker cache already had :latest (e.g. from a previous
     # NUC's deploy) but *this* NUC had never received it yet -- confirmed
-    # for real onboarding nuc5 (2026-08-21): the hub skipped straight past
-    # save/copy/load, and the restart handler then tried `docker compose up`
-    # on the NUC, which attempted to pull from ECR directly and failed since
-    # the NUC has no AWS credentials of its own. Must transfer whenever
-    # EITHER the hub pulled something new OR the target NUC doesn't have the
-    # image yet.
+    # for real onboarding nuc5 (2026-08-21). Fixed then by also checking
+    # whether the NUC has *an* image tagged :latest at all -- but that
+    # follow-up fix was itself incomplete: it checked tag presence, not
+    # digest, so a NUC with a genuinely stale :latest (tagged from a much
+    # earlier deploy, never updated since) silently passed the check and
+    # kept running the old image indefinitely. Confirmed for real on nuc4
+    # (2026-08-24): it sat on a 2026-08-20 image through at least one later
+    # milestone's worth of agent changes because the hub's own pull had
+    # nothing new to report (already cached from nuc5's deploy) and nuc4's
+    # stale local tag made the presence check pass. Comparing actual image
+    # IDs closes both gaps at once.
     - name: Determine whether the image needs to be transferred to this NUC
       ansible.builtin.set_fact:
-        hue_agent_needs_transfer: "{{ pull_result.changed or nuc_image_check.rc != 0 }}"
+        hue_agent_needs_transfer: "{{ nuc_image_check.rc != 0 or nuc_image_check.stdout != hub_image_id.stdout }}"
 
     - name: Save image to a tarball (on the hub)
       delegate_to: localhost
