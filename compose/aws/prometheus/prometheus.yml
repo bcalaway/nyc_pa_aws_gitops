@@ -108,6 +108,18 @@ scrape_configs:
           instance: nuc5
           site: rambles
 
+  # mopeka-exporter runs on nuc5 only (Rambles propane tanks; ESP32 BLE
+  # proxy at 10.0.2.127) -- see ansible/roles/mopeka-exporter, gated by
+  # mopeka_proxy_host. Adverts are intermittent, so scrape less often and
+  # rely on mopeka_sensor_last_seen_timestamp_seconds for staleness.
+  - job_name: mopeka
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["10.0.2.10:9102"]
+        labels:
+          instance: nuc5
+          site: rambles
+
   # MikroTik RB5009s via snmp_exporter, over the WireGuard tunnel.
   # Reaches routers through the hub, so no exporter needs to run at the sites.
   - job_name: snmp

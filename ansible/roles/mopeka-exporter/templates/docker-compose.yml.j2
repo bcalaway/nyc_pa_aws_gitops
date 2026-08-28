@@ -1,0 +1,15 @@
+# Rendered by ansible/roles/mopeka-exporter/tasks/main.yml -- not committed
+# to Git as a static file, since MOPEKA_PROXY_HOST varies per site and
+# MOPEKA_API_KEY comes from SSM at deploy time. File is mode 0600 (holds
+# the proxy PSK).
+services:
+  mopeka-exporter:
+    build: .
+    container_name: mopeka-exporter
+    restart: unless-stopped
+    environment:
+      MOPEKA_PROXY_HOST: "{{ mopeka_proxy_host }}"
+      MOPEKA_API_KEY: "{{ mopeka_api_key }}"
+      METRICS_PORT: "9102"
+    ports:
+      - "9102:9102"

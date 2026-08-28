@@ -1,0 +1,75 @@
+---
+# Deploys the mopeka-exporter container (Milestone 15, docs/roadmap.md) to
+# a site's NUC. Same local-build model as weather-exporter (pure Python,
+# no private registry, NUCs have a real docker-buildx-plugin) -- the only
+# extra wrinkle is a secret: the ESPHome BLE proxy's native API requires
+# noise encryption, so the exporter needs the proxy's PSK. That's fetched
+# from SSM on the hub (delegate_to: localhost -- this playbook always runs
+# from the EC2 hub, which has an instance role; the NUC has no AWS creds),
+# exactly like ansible/roles/hue-agent fetches the Hue bridge key.
+#
+# Gated per-host by mopeka_proxy_host (inventory/hosts.yml) -- set for
+# nuc5/Rambles only (that's where the propane tanks and the ESP32 proxy
+# are).
+- name: mopeka-exporter
+  when: mopeka_proxy_host is defined and mopeka_proxy_host | length > 0
+  block:
+    - name: Fetch the BLE proxy API encryption key from SSM (on the hub)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command:
+        cmd: >-
+          aws ssm get-parameter --name /home-platform/mopeka-proxy/api-encryption-key
+          --with-decryption --region us-east-1 --query Parameter.Value --output text
+      register: mopeka_api_key_result
+      changed_when: false
+      no_log: true
+
+    - name: Create mopeka-exporter compose directory
+      ansible.builtin.file:
+        path: /opt/compose/mopeka-exporter
+        state: directory
+        mode: "0755"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Copy mopeka-exporter source
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../compose/nuc/mopeka-exporter/{{ item }}"
+        dest: "/opt/compose/mopeka-exporter/{{ item }}"
+        mode: "0644"
+      loop:
+        - mopeka_exporter.py
+        - Dockerfile
+        - requirements.txt
+      notify: Restart mopeka-exporter
+
+    - name: Deploy mopeka-exporter compose file
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: /opt/compose/mopeka-exporter/docker-compose.yml
+        mode: "0600"
+      vars:
+        mopeka_api_key: "{{ mopeka_api_key_result.stdout }}"
+      no_log: true
+      notify: Restart mopeka-exporter
+
+    - name: Open firewalld port for Prometheus scraping from the WireGuard subnet
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - "--add-rich-rule=rule family=ipv4 source address=10.0.3.0/24 port port=9102 protocol=tcp accept"
+      register: fw_add
+      changed_when: "'ALREADY_ENABLED' not in (fw_add.stderr | default(''))"
+      notify: Reload firewalld
+
+    - name: Flush handlers so the firewall rule and fresh source are live before compose starts
+      ansible.builtin.meta: flush_handlers
+
+    - name: Start mopeka-exporter
+      ansible.builtin.command:
+        cmd: docker compose up -d --build
+        chdir: /opt/compose/mopeka-exporter
+      register: compose_up
+      changed_when: "'Started' in compose_up.stdout or 'Created' in compose_up.stdout"

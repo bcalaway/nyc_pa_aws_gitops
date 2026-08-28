@@ -9,3 +9,4 @@
     - logging
     - hue-agent
     - weather-exporter
+    - mopeka-exporter
