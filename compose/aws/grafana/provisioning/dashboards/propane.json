@@ -6,7 +6,7 @@
   "schemaVersion": 39,
   "version": 1,
   "refresh": "1m",
-  "time": { "from": "now-30d", "to": "now" },
+  "time": { "from": "now-7d", "to": "now" },
   "panels": [
     {
       "id": 1,
@@ -15,12 +15,13 @@
       "gridPos": { "h": 7, "w": 14, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_fill_percent", "legendFormat": "{{sensor}}", "refId": "A" }
+        { "expr": "mopeka_sensor_fill_percent", "legendFormat": "{{sensor}}", "refId": "A", "instant": true }
       ],
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true },
         "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "showThresholdMarkers": true,
+        "orientation": "auto"
       },
       "fieldConfig": {
         "defaults": {
@@ -47,7 +48,7 @@
       "gridPos": { "h": 7, "w": 4, "x": 14, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_battery_percent", "legendFormat": "{{sensor}}", "refId": "A" }
+        { "expr": "mopeka_sensor_battery_percent", "legendFormat": "{{sensor}}", "refId": "A", "instant": true }
       ],
       "options": {
         "graphMode": "none",
@@ -78,7 +79,7 @@
       "gridPos": { "h": 7, "w": 3, "x": 18, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "max by (sensor) (mopeka_sensor_signal_dbm)", "legendFormat": "{{sensor}}", "refId": "A" }
+        { "expr": "max by (sensor) (mopeka_sensor_signal_dbm)", "legendFormat": "{{sensor}}", "refId": "A", "instant": true }
       ],
       "options": {
         "graphMode": "none",
@@ -107,7 +108,9 @@
       "type": "stat",
       "gridPos": { "h": 7, "w": 3, "x": 21, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-      "targets": [{ "expr": "mopeka_proxy_up", "legendFormat": "{{proxy}}", "refId": "A" }],
+      "targets": [
+        { "expr": "mopeka_proxy_up", "legendFormat": "{{proxy}}", "refId": "A", "instant": true }
+      ],
       "options": {
         "graphMode": "none",
         "colorMode": "background",
@@ -207,9 +210,9 @@
       "gridPos": { "h": 4, "w": 12, "x": 0, "y": 24 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "time() - max(mopeka_sensor_last_seen_timestamp_seconds)", "refId": "A" }
+        { "expr": "time() - max(mopeka_sensor_last_seen_timestamp_seconds)", "refId": "A", "instant": true }
       ],
-      "options": { "graphMode": "none", "colorMode": "value" },
+      "options": { "graphMode": "none", "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
