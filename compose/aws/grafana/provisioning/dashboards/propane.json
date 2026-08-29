@@ -7,7 +7,7 @@
   "version": 1,
   "refresh": "1m",
   "time": { "from": "now-7d", "to": "now" },
-  "__comment": "Tank order is fixed alphabetically via explicit A-F targets on the headline panels. Pair colors: Left = lighter, Right/2 = darker. Downstairs green, Grill orange, RV blue. A new tank needs a target line + a color override added here, plus its sensors.yaml entry.",
+  "__comment": "Every per-tank panel uses explicit A-F targets in alphabetical order (Prometheus 3.1 here has no sort_by_label, and the Grafana legend has no sort-by-name), so tiles and legend rows stay ordered. Pair colors via byName overrides: Downstairs green, Grill orange, RV blue; Left lighter, Right/2 darker. Adding a tank = a sensors.yaml entry + one target line and one color override in each per-tank panel here.",
   "panels": [
     {
       "id": 1,
@@ -109,7 +109,8 @@
       "gridPos": { "h": 7, "w": 3, "x": 21, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_proxy_up", "legendFormat": "{{proxy}}", "refId": "A", "instant": true }
+        { "refId": "A", "instant": true, "expr": "mopeka_proxy_up{proxy=\"10.0.2.123\"}", "legendFormat": "10.0.2.123" },
+        { "refId": "B", "instant": true, "expr": "mopeka_proxy_up{proxy=\"10.0.2.127\"}", "legendFormat": "10.0.2.127" }
       ],
       "options": {
         "graphMode": "none", "colorMode": "background",
@@ -135,7 +136,12 @@
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 7 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_fill_percent", "legendFormat": "{{sensor}}", "refId": "A" }
+        { "refId": "A", "expr": "mopeka_sensor_fill_percent{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
+        { "refId": "B", "expr": "mopeka_sensor_fill_percent{sensor=\"Downstairs Right\"}", "legendFormat": "Downstairs Right" },
+        { "refId": "C", "expr": "mopeka_sensor_fill_percent{sensor=\"Grill 1\"}",          "legendFormat": "Grill 1" },
+        { "refId": "D", "expr": "mopeka_sensor_fill_percent{sensor=\"Grill 2\"}",          "legendFormat": "Grill 2" },
+        { "refId": "E", "expr": "mopeka_sensor_fill_percent{sensor=\"RV Left\"}",           "legendFormat": "RV Left" },
+        { "refId": "F", "expr": "mopeka_sensor_fill_percent{sensor=\"RV Right\"}",          "legendFormat": "RV Right" }
       ],
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
       "fieldConfig": {
@@ -157,7 +163,12 @@
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 7 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_tank_level_mm", "legendFormat": "{{sensor}}", "refId": "A" }
+        { "refId": "A", "expr": "mopeka_sensor_tank_level_mm{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
+        { "refId": "B", "expr": "mopeka_sensor_tank_level_mm{sensor=\"Downstairs Right\"}", "legendFormat": "Downstairs Right" },
+        { "refId": "C", "expr": "mopeka_sensor_tank_level_mm{sensor=\"Grill 1\"}",          "legendFormat": "Grill 1" },
+        { "refId": "D", "expr": "mopeka_sensor_tank_level_mm{sensor=\"Grill 2\"}",          "legendFormat": "Grill 2" },
+        { "refId": "E", "expr": "mopeka_sensor_tank_level_mm{sensor=\"RV Left\"}",           "legendFormat": "RV Left" },
+        { "refId": "F", "expr": "mopeka_sensor_tank_level_mm{sensor=\"RV Right\"}",          "legendFormat": "RV Right" }
       ],
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
       "fieldConfig": {
@@ -179,7 +190,12 @@
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_battery_volts", "legendFormat": "{{sensor}}", "refId": "A" }
+        { "refId": "A", "expr": "mopeka_sensor_battery_volts{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
+        { "refId": "B", "expr": "mopeka_sensor_battery_volts{sensor=\"Downstairs Right\"}", "legendFormat": "Downstairs Right" },
+        { "refId": "C", "expr": "mopeka_sensor_battery_volts{sensor=\"Grill 1\"}",          "legendFormat": "Grill 1" },
+        { "refId": "D", "expr": "mopeka_sensor_battery_volts{sensor=\"Grill 2\"}",          "legendFormat": "Grill 2" },
+        { "refId": "E", "expr": "mopeka_sensor_battery_volts{sensor=\"RV Left\"}",           "legendFormat": "RV Left" },
+        { "refId": "F", "expr": "mopeka_sensor_battery_volts{sensor=\"RV Right\"}",          "legendFormat": "RV Right" }
       ],
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
       "fieldConfig": {
@@ -201,7 +217,12 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_temperature_celsius * 9 / 5 + 32", "legendFormat": "{{sensor}}", "refId": "A" }
+        { "refId": "A", "expr": "mopeka_sensor_temperature_celsius{sensor=\"Downstairs Left\"} * 9 / 5 + 32",  "legendFormat": "Downstairs Left" },
+        { "refId": "B", "expr": "mopeka_sensor_temperature_celsius{sensor=\"Downstairs Right\"} * 9 / 5 + 32", "legendFormat": "Downstairs Right" },
+        { "refId": "C", "expr": "mopeka_sensor_temperature_celsius{sensor=\"Grill 1\"} * 9 / 5 + 32",          "legendFormat": "Grill 1" },
+        { "refId": "D", "expr": "mopeka_sensor_temperature_celsius{sensor=\"Grill 2\"} * 9 / 5 + 32",          "legendFormat": "Grill 2" },
+        { "refId": "E", "expr": "mopeka_sensor_temperature_celsius{sensor=\"RV Left\"} * 9 / 5 + 32",           "legendFormat": "RV Left" },
+        { "refId": "F", "expr": "mopeka_sensor_temperature_celsius{sensor=\"RV Right\"} * 9 / 5 + 32",          "legendFormat": "RV Right" }
       ],
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
       "fieldConfig": {
@@ -223,7 +244,12 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_reading_quality_percent", "legendFormat": "{{sensor}}", "refId": "A" }
+        { "refId": "A", "expr": "mopeka_sensor_reading_quality_percent{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
+        { "refId": "B", "expr": "mopeka_sensor_reading_quality_percent{sensor=\"Downstairs Right\"}", "legendFormat": "Downstairs Right" },
+        { "refId": "C", "expr": "mopeka_sensor_reading_quality_percent{sensor=\"Grill 1\"}",          "legendFormat": "Grill 1" },
+        { "refId": "D", "expr": "mopeka_sensor_reading_quality_percent{sensor=\"Grill 2\"}",          "legendFormat": "Grill 2" },
+        { "refId": "E", "expr": "mopeka_sensor_reading_quality_percent{sensor=\"RV Left\"}",           "legendFormat": "RV Left" },
+        { "refId": "F", "expr": "mopeka_sensor_reading_quality_percent{sensor=\"RV Right\"}",          "legendFormat": "RV Right" }
       ],
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
       "fieldConfig": {
