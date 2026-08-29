@@ -7,25 +7,24 @@
 #
 # level -> percent:
 #   `mopeka_sensor_tank_level_mm` (raw: height of propane above the sensor)
-#   is always exported. Add `full_mm` (and optionally `empty_mm`, default 0)
-#   to also get `mopeka_sensor_fill_percent`:
-#     clamp(100 * (level - empty_mm) / (full_mm - empty_mm), 0, 100)
-#   Linear -- correct for these vertical DOT cylinders (grill + RV tanks).
+#   is always exported. `full_mm` / `empty_mm` add
+#     mopeka_sensor_fill_percent = clamp(100 * (level - empty_mm) / (full_mm - empty_mm), 0, 100)
+#   Linear -- fine for these vertical DOT cylinders in the normal range.
 #
-#   The full_mm values below are ESTIMATES from the nominal tank size, so
-#   the panel isn't blank. To make them exact, either:
-#     (a) read the % the Mopeka phone app shows for each tank and tell
-#         Claude -- full_mm = raw_mm / (app_percent / 100); or
-#     (b) note each tank's raw reading right after its next fill.
-#   The raw mm is ground truth regardless of full_mm.
+#   Calibrated 2026-08-29 from the Mopeka phone app: a 2-point linear fit
+#   per tank size, using both sensors of that size against the app's % and
+#   the raw reading at that moment. Matches the app to <0.2% across all six.
+#   The low-fill points (Downstairs Right 2%, Grill 1 9%) are quantized and
+#   noisy, so `empty_mm` for the 30/20 lb pairs is soft -- refine after a
+#   fill cycle if the ends look off. Raw mm is unaffected regardless.
 
 sensors:
-  # 40 lb (10 gal) DOT cylinders
-  "D4:32:71:CD:9F:A8": { name: "RV Right",         full_mm: 560 }  # ESTIMATE (40 lb)
-  "FB:10:69:78:C5:8B": { name: "RV Left",          full_mm: 560 }  # ESTIMATE (40 lb)
-  # 30 lb (7.5 gal) DOT cylinders
-  "E8:E2:7F:AC:71:D8": { name: "Downstairs Left",  full_mm: 430 }  # ESTIMATE (30 lb)
-  "C6:41:60:E7:C2:90": { name: "Downstairs Right", full_mm: 430 }  # ESTIMATE (30 lb)
-  # 20 lb (5 gal) DOT cylinders
-  "E8:96:9A:1A:94:A2": { name: "Grill 1",          full_mm: 280 }  # ESTIMATE (20 lb)
-  "CA:5C:F8:2E:F5:30": { name: "Grill 2",          full_mm: 280 }  # ESTIMATE (20 lb)
+  # 40 lb (10 gal) -- fit: RV Right 485mm@100%, RV Left 156mm@25%
+  "D4:32:71:CD:9F:A8": { name: "RV Right",         full_mm: 485, empty_mm: 46 }
+  "FB:10:69:78:C5:8B": { name: "RV Left",          full_mm: 485, empty_mm: 46 }
+  # 30 lb (7.5 gal) -- fit: Downstairs Left 275mm@69%, Downstairs Right 41mm@2%
+  "E8:E2:7F:AC:71:D8": { name: "Downstairs Left",  full_mm: 384, empty_mm: 34 }
+  "C6:41:60:E7:C2:90": { name: "Downstairs Right", full_mm: 384, empty_mm: 34 }
+  # 20 lb (5 gal) -- fit: Grill 2 100mm@29%, Grill 1 58mm@9%
+  "E8:96:9A:1A:94:A2": { name: "Grill 1",          full_mm: 249, empty_mm: 39 }
+  "CA:5C:F8:2E:F5:30": { name: "Grill 2",          full_mm: 249, empty_mm: 39 }
