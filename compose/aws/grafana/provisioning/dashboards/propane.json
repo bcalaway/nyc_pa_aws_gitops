@@ -7,13 +7,23 @@
   "version": 1,
   "refresh": "1m",
   "time": { "from": "now-7d", "to": "now" },
-  "__comment": "Every per-tank panel uses explicit A-F targets in alphabetical order (Prometheus 3.1 here has no sort_by_label, and the Grafana legend has no sort-by-name), so tiles and legend rows stay ordered. Pair colors via byName overrides: Downstairs green, Grill orange, RV blue; Left lighter, Right/2 darker. Adding a tank = a sensors.yaml entry + one target line and one color override in each per-tank panel here.",
+  "__comment": "Every per-tank panel uses explicit A-F targets in alphabetical order (Prometheus 3.1 here has no sort_by_label, and the Grafana legend has no sort-by-name), so tiles and legend rows stay ordered. Pair colors via byName overrides: Downstairs green, Grill orange, RV blue; Left lighter, Right/2 darker. The gauge also carries a displayName override per tank so the tiles show the tank size. Adding a tank = a sensors.yaml entry + one target line and one color/displayName override in each per-tank panel here, plus a row in the text panel.",
   "panels": [
+    {
+      "id": 12,
+      "title": "",
+      "type": "text",
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "**📣 Re-calibration wanted** — the `full_mm` behind these percentages is a one-time linear fit against the Mopeka app (2026-08-29). **Next time you see a tank at 100% right after a fill, tell Claude which tank and its raw-mm reading** so it can be pinned exactly. The raw mm below is always accurate regardless.\n\n**Tank sizes** — 🔵 RV Left / RV Right = **40 lb** · 🟢 Downstairs Left / Downstairs Right = **30 lb** · 🟠 Grill 1 / Grill 2 = **20 lb**"
+      }
+    },
     {
       "id": 1,
       "title": "Tank Fill",
       "type": "gauge",
-      "gridPos": { "h": 7, "w": 14, "x": 0, "y": 0 },
+      "gridPos": { "h": 7, "w": 14, "x": 0, "y": 3 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "refId": "A", "instant": true, "expr": "mopeka_sensor_fill_percent{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
@@ -37,12 +47,12 @@
           ] }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Downstairs Left" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } } ] },
-          { "matcher": { "id": "byName", "options": "Downstairs Right" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#37872D" } } ] },
-          { "matcher": { "id": "byName", "options": "Grill 1" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FFB357" } } ] },
-          { "matcher": { "id": "byName", "options": "Grill 2" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0752D" } } ] },
-          { "matcher": { "id": "byName", "options": "RV Left" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8AB8FF" } } ] },
-          { "matcher": { "id": "byName", "options": "RV Right" },         "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1F60C4" } } ] }
+          { "matcher": { "id": "byName", "options": "Downstairs Left" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } }, { "id": "displayName", "value": "Downstairs Left — 30 lb" } ] },
+          { "matcher": { "id": "byName", "options": "Downstairs Right" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#37872D" } }, { "id": "displayName", "value": "Downstairs Right — 30 lb" } ] },
+          { "matcher": { "id": "byName", "options": "Grill 1" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FFB357" } }, { "id": "displayName", "value": "Grill 1 — 20 lb" } ] },
+          { "matcher": { "id": "byName", "options": "Grill 2" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0752D" } }, { "id": "displayName", "value": "Grill 2 — 20 lb" } ] },
+          { "matcher": { "id": "byName", "options": "RV Left" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8AB8FF" } }, { "id": "displayName", "value": "RV Left — 40 lb" } ] },
+          { "matcher": { "id": "byName", "options": "RV Right" },         "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1F60C4" } }, { "id": "displayName", "value": "RV Right — 40 lb" } ] }
         ]
       }
     },
@@ -50,7 +60,7 @@
       "id": 2,
       "title": "Battery",
       "type": "stat",
-      "gridPos": { "h": 7, "w": 4, "x": 14, "y": 0 },
+      "gridPos": { "h": 7, "w": 4, "x": 14, "y": 3 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "refId": "A", "instant": true, "expr": "mopeka_sensor_battery_percent{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
@@ -78,7 +88,7 @@
       "id": 3,
       "title": "Signal (best proxy)",
       "type": "stat",
-      "gridPos": { "h": 7, "w": 3, "x": 18, "y": 0 },
+      "gridPos": { "h": 7, "w": 3, "x": 18, "y": 3 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "refId": "A", "instant": true, "expr": "max by (sensor) (mopeka_sensor_signal_dbm{sensor=\"Downstairs Left\"})",  "legendFormat": "Downstairs Left" },
@@ -106,7 +116,7 @@
       "id": 4,
       "title": "Proxies",
       "type": "stat",
-      "gridPos": { "h": 7, "w": 3, "x": 21, "y": 0 },
+      "gridPos": { "h": 7, "w": 3, "x": 21, "y": 3 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "refId": "A", "instant": true, "expr": "mopeka_proxy_up{proxy=\"10.0.2.123\"}", "legendFormat": "10.0.2.123" },
@@ -133,7 +143,7 @@
       "id": 5,
       "title": "Fill % History",
       "type": "timeseries",
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 7 },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 10 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "refId": "A", "expr": "mopeka_sensor_fill_percent{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
@@ -160,7 +170,7 @@
       "id": 6,
       "title": "Raw Level (mm above sensor)",
       "type": "timeseries",
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 7 },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 10 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "refId": "A", "expr": "mopeka_sensor_tank_level_mm{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
@@ -187,7 +197,7 @@
       "id": 7,
       "title": "Battery Voltage",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 19 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "refId": "A", "expr": "mopeka_sensor_battery_volts{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
@@ -214,7 +224,7 @@
       "id": 8,
       "title": "Sensor Temperature",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 19 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "refId": "A", "expr": "mopeka_sensor_temperature_celsius{sensor=\"Downstairs Left\"} * 9 / 5 + 32",  "legendFormat": "Downstairs Left" },
@@ -241,7 +251,7 @@
       "id": 9,
       "title": "Reading Quality",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 19 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "refId": "A", "expr": "mopeka_sensor_reading_quality_percent{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
@@ -268,7 +278,7 @@
       "id": 10,
       "title": "Data Age (last reading, any tank)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 24 },
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 27 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "time() - max(mopeka_sensor_last_seen_timestamp_seconds)", "refId": "A", "instant": true }
@@ -288,7 +298,7 @@
       "id": 11,
       "title": "BLE Signal per Sensor per Proxy",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "mopeka_sensor_signal_dbm", "legendFormat": "{{sensor}} via {{proxy}}", "refId": "A" }
