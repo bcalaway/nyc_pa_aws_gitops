@@ -9,23 +9,39 @@ from home_assistant_bluetooth import BluetoothServiceInfoBleak
 from mopeka_iot_ble import MopekaIOTBluetoothDeviceData
 from prometheus_client import Gauge, start_http_server
 
-PROXY_HOST = os.environ["MOPEKA_PROXY_HOST"]
+# One or more ESPHome BLE proxies, as parallel comma-separated lists (same
+# order, same length): MOPEKA_PROXIES=host1,host2 and
+# MOPEKA_API_KEYS=key1,key2. base64 noise PSKs never contain a comma, so a
+# plain split is safe.
+PROXY_HOSTS = [h.strip() for h in os.environ["MOPEKA_PROXIES"].split(",") if h.strip()]
+PROXY_KEYS = [k.strip() for k in os.environ["MOPEKA_API_KEYS"].split(",")]
 PROXY_PORT = int(os.environ.get("MOPEKA_PROXY_PORT", "6053"))
-API_KEY = os.environ["MOPEKA_API_KEY"]
 METRICS_PORT = int(os.environ.get("METRICS_PORT", "9102"))
 RECONNECT_DELAY_SECONDS = int(os.environ.get("RECONNECT_DELAY_SECONDS", "10"))
+
+if len(PROXY_HOSTS) != len(PROXY_KEYS):
+    raise SystemExit(
+        "MOPEKA_PROXIES and MOPEKA_API_KEYS must have the same number of comma-separated entries"
+    )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("mopeka-exporter")
 
 # The propane-tank Mopeka Pro Check sensors broadcast passively -- we never
-# connect to them. An ESP32 running ESPHome's bluetooth_proxy (near the
-# tanks, on the Rambles LAN -- see esphome/mopeka-proxy/ and
-# docs/network-inventory.md) relays every raw BLE advertisement it hears to
-# whoever subscribes to its native API. This exporter is that subscriber:
-# it decodes the Mopeka-specific advertisements with mopeka-iot-ble (the
-# same library Home Assistant's own Mopeka integration uses) and exposes
-# the readings as Prometheus gauges. No Home Assistant involved.
+# connect to them. One or more ESP32s running ESPHome's bluetooth_proxy
+# (near the tanks, on the Rambles LAN -- see esphome/mopeka-proxy/ and
+# docs/network-inventory.md) relay every raw BLE advertisement they hear to
+# whoever subscribes to their native API. This exporter subscribes to all
+# of them at once, decodes the Mopeka-specific advertisements with
+# mopeka-iot-ble (the same library Home Assistant's own Mopeka integration
+# uses), and exposes the readings as Prometheus gauges. No Home Assistant
+# involved.
+#
+# Multiple proxies are how BLE coverage scales when the tanks are spread
+# out -- a sensor heard by more than one proxy just updates the same
+# per-sensor gauges from whichever advertisement arrives; only
+# mopeka_sensor_signal_dbm carries a `proxy` label, so you can see which
+# proxy has the best line to each tank (max by (sensor)).
 #
 # NOTE: the ESPHome prebuilt "Bluetooth Proxy" firmware only pushes *raw*
 # advertisements (subscribe_bluetooth_le_raw_advertisements) -- the parsed
@@ -64,36 +80,40 @@ g_reading_quality = Gauge(
 )
 g_signal_dbm = Gauge(
     "mopeka_sensor_signal_dbm",
-    "BLE signal strength of this sensor as heard by the proxy",
-    ["sensor", "mac"],
+    "BLE signal strength of this sensor as heard by a given proxy",
+    ["sensor", "mac", "proxy"],
 )
 g_last_seen = Gauge(
     "mopeka_sensor_last_seen_timestamp_seconds",
-    "Unix timestamp of the last decoded advertisement from this sensor",
+    "Unix timestamp of the last decoded advertisement from this sensor (via any proxy)",
     ["sensor", "mac"],
 )
 g_proxy_up = Gauge(
     "mopeka_proxy_up",
-    "1 if the exporter currently has a live connection to the ESPHome BLE proxy API",
+    "1 if the exporter currently has a live connection to this ESPHome BLE proxy's API",
+    ["proxy"],
 )
 g_last_success = Gauge(
     "mopeka_exporter_last_success_timestamp_seconds",
-    "Unix timestamp the proxy API connection was last established",
+    "Unix timestamp this proxy's API connection was last established",
+    ["proxy"],
 )
 
 # mopeka-iot-ble DeviceKey.key -> the gauge it feeds. Keys it emits that
 # aren't useful on a tank dashboard (accelerometer_x/y, reading_quality_raw)
-# are intentionally left out.
+# are intentionally left out; signal_strength is handled separately from the
+# raw advertisement RSSI so it can carry the proxy label.
 _METRIC_BY_KEY = {
     "temperature": g_temp,
     "battery": g_battery_percent,
     "battery_voltage": g_battery_volts,
     "tank_level": g_tank_level_mm,
     "reading_quality": g_reading_quality,
-    "signal_strength": g_signal_dbm,
 }
 
 # mac -> MopekaIOTBluetoothDeviceData (stateful; keep one per known sensor).
+# All proxy tasks share this via the single asyncio event loop -- callbacks
+# are sync with no await between dict ops, so no lock is needed.
 _sensors: dict[str, MopekaIOTBluetoothDeviceData] = {}
 
 
@@ -108,7 +128,7 @@ def _sensor_name(update, fallback: str) -> str:
     return fallback
 
 
-def _handle_advertisement(address: int, rssi: int, raw: bytes) -> None:
+def _handle_advertisement(proxy: str, address: int, rssi: int, raw: bytes) -> None:
     mac = _mac(address)
     local_name, service_uuids, service_data, manufacturer_data, tx_power = (
         parse_advertisement_data_bytes(raw)
@@ -134,7 +154,7 @@ def _handle_advertisement(address: int, rssi: int, raw: bytes) -> None:
         if not candidate.supported(service_info):
             return  # not a Mopeka advertisement -- ignore (re-checked next time)
         sensor = _sensors[mac] = candidate
-        log.info("discovered Mopeka sensor %s (%s)", mac, local_name or "?")
+        log.info("[%s] discovered Mopeka sensor %s (%s)", proxy, mac, local_name or "?")
 
     update = sensor.update(service_info)
     name = _sensor_name(update, mac)
@@ -142,65 +162,65 @@ def _handle_advertisement(address: int, rssi: int, raw: bytes) -> None:
         gauge = _METRIC_BY_KEY.get(device_key.key)
         if gauge is not None and isinstance(value.native_value, (int, float)):
             gauge.labels(sensor=name, mac=mac).set(value.native_value)
+    g_signal_dbm.labels(sensor=name, mac=mac, proxy=proxy).set(rssi)
     g_last_seen.labels(sensor=name, mac=mac).set(time.time())
 
 
-def _on_raw(response) -> None:
+def _on_raw(proxy: str, response) -> None:
     for adv in response.advertisements:
         try:
-            _handle_advertisement(adv.address, adv.rssi, bytes(adv.data))
+            _handle_advertisement(proxy, adv.address, adv.rssi, bytes(adv.data))
         except Exception:
-            log.exception("failed to handle advertisement from %s", _mac(adv.address))
+            log.exception("[%s] failed to handle advertisement from %s", proxy, _mac(adv.address))
 
 
-async def _run_once() -> None:
+async def _run_once(host: str, key: str) -> None:
     disconnected: asyncio.Event = asyncio.Event()
 
     async def on_stop(expected_disconnect: bool) -> None:
-        log.warning("proxy connection closed (expected=%s)", expected_disconnect)
+        log.warning("[%s] proxy connection closed (expected=%s)", host, expected_disconnect)
         disconnected.set()
 
-    client = APIClient(PROXY_HOST, PROXY_PORT, password="", noise_psk=API_KEY)
+    client = APIClient(host, PROXY_PORT, password="", noise_psk=key)
     try:
         await client.connect(on_stop=on_stop, login=True)
         info = await client.device_info()
-        log.info(
-            "connected to BLE proxy %s (%s, esphome %s)",
-            PROXY_HOST,
-            info.name,
-            info.esphome_version,
-        )
-        g_proxy_up.set(1)
-        g_last_success.set(time.time())
-        client.subscribe_bluetooth_le_raw_advertisements(_on_raw)
+        log.info("[%s] connected (%s, esphome %s)", host, info.name, info.esphome_version)
+        g_proxy_up.labels(proxy=host).set(1)
+        g_last_success.labels(proxy=host).set(time.time())
+        client.subscribe_bluetooth_le_raw_advertisements(lambda resp: _on_raw(host, resp))
         await disconnected.wait()
     finally:
-        g_proxy_up.set(0)
+        g_proxy_up.labels(proxy=host).set(0)
         try:
             await client.disconnect()
         except Exception:
             pass
 
 
-async def _run_forever() -> None:
+async def _proxy_loop(host: str, key: str) -> None:
     while True:
         try:
-            await _run_once()
+            await _run_once(host, key)
         except Exception:
-            log.exception("proxy connection error; retrying in %ds", RECONNECT_DELAY_SECONDS)
+            log.exception("[%s] connection error; retrying in %ds", host, RECONNECT_DELAY_SECONDS)
         else:
-            log.info("proxy disconnected; reconnecting in %ds", RECONNECT_DELAY_SECONDS)
+            log.info("[%s] disconnected; reconnecting in %ds", host, RECONNECT_DELAY_SECONDS)
         await asyncio.sleep(RECONNECT_DELAY_SECONDS)
+
+
+async def _run_forever() -> None:
+    await asyncio.gather(*(_proxy_loop(host, key) for host, key in zip(PROXY_HOSTS, PROXY_KEYS)))
 
 
 def main() -> None:
     start_http_server(METRICS_PORT)
-    g_proxy_up.set(0)
+    for host in PROXY_HOSTS:
+        g_proxy_up.labels(proxy=host).set(0)
     log.info(
-        "mopeka-exporter listening on :%d, proxy %s:%d",
+        "mopeka-exporter listening on :%d, proxies: %s",
         METRICS_PORT,
-        PROXY_HOST,
-        PROXY_PORT,
+        ", ".join(f"{h}:{PROXY_PORT}" for h in PROXY_HOSTS),
     )
     asyncio.run(_run_forever())
 

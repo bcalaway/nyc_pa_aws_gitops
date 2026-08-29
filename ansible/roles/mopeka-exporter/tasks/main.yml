@@ -2,26 +2,31 @@
 # Deploys the mopeka-exporter container (Milestone 15, docs/roadmap.md) to
 # a site's NUC. Same local-build model as weather-exporter (pure Python,
 # no private registry, NUCs have a real docker-buildx-plugin) -- the only
-# extra wrinkle is a secret: the ESPHome BLE proxy's native API requires
-# noise encryption, so the exporter needs the proxy's PSK. That's fetched
-# from SSM on the hub (delegate_to: localhost -- this playbook always runs
-# from the EC2 hub, which has an instance role; the NUC has no AWS creds),
-# exactly like ansible/roles/hue-agent fetches the Hue bridge key.
+# extra wrinkle is secrets: each ESPHome BLE proxy's native API requires
+# noise encryption, so the exporter needs every proxy's PSK. Those are
+# fetched from SSM on the hub (delegate_to: localhost -- this playbook
+# always runs from the EC2 hub, which has an instance role; the NUC has no
+# AWS creds), exactly like ansible/roles/hue-agent fetches the Hue bridge
+# key.
 #
-# Gated per-host by mopeka_proxy_host (inventory/hosts.yml) -- set for
-# nuc5/Rambles only (that's where the propane tanks and the ESP32 proxy
-# are).
+# Gated per-host by `mopeka_proxies` (inventory/hosts.yml), a list of
+# {host, ssm_key} -- set for nuc5/Rambles only (that's where the propane
+# tanks and the ESP32 proxies are). Multiple proxies = wider BLE coverage
+# when the tanks are spread out; the exporter subscribes to all of them.
 - name: mopeka-exporter
-  when: mopeka_proxy_host is defined and mopeka_proxy_host | length > 0
+  when: mopeka_proxies is defined and mopeka_proxies | length > 0
   block:
-    - name: Fetch the BLE proxy API encryption key from SSM (on the hub)
+    - name: Fetch each BLE proxy's API encryption key from SSM (on the hub)
       delegate_to: localhost
       become: false
       ansible.builtin.command:
         cmd: >-
-          aws ssm get-parameter --name /home-platform/mopeka-proxy/api-encryption-key
+          aws ssm get-parameter --name {{ item.ssm_key }}
           --with-decryption --region us-east-1 --query Parameter.Value --output text
-      register: mopeka_api_key_result
+      loop: "{{ mopeka_proxies }}"
+      loop_control:
+        label: "{{ item.host }}"
+      register: mopeka_key_results
       changed_when: false
       no_log: true
 
@@ -50,7 +55,8 @@
         dest: /opt/compose/mopeka-exporter/docker-compose.yml
         mode: "0600"
       vars:
-        mopeka_api_key: "{{ mopeka_api_key_result.stdout }}"
+        mopeka_proxy_hosts: "{{ mopeka_proxies | map(attribute='host') | join(',') }}"
+        mopeka_api_keys: "{{ mopeka_key_results.results | map(attribute='stdout') | join(',') }}"
       no_log: true
       notify: Restart mopeka-exporter
 

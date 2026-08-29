@@ -186,14 +186,16 @@ data "aws_iam_policy_document" "hub_app_deploy" {
 
   # Milestone 15: mopeka-exporter is relayed to nuc5 by Ansible
   # (ansible/roles/mopeka-exporter), running on this hub, the same way
-  # hue-agent is. It needs the ESPHome BLE proxy's native-API encryption
+  # hue-agent is. It needs each ESPHome BLE proxy's native-API encryption
   # key (noise PSK) fetched here at deploy time and injected into the
-  # rendered compose file's environment.
+  # rendered compose file's environment. One entry per proxy listed in
+  # ansible/inventory/hosts.yml's mopeka_proxies.
   statement {
     effect  = "Allow"
     actions = ["ssm:GetParameter"]
     resources = [
       "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/mopeka-proxy/api-encryption-key",
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/mopeka-proxy/api-encryption-key-2",
     ]
   }
 }

@@ -99,6 +99,7 @@
 /ip dns static add name=hub.billandjessie.com address=10.0.3.1
 /ip dns static add name=weather.rambles.billandjessie.com address=10.0.2.245
 /ip dns static add name=mopeka-proxy.rambles.billandjessie.com address=10.0.2.127
+/ip dns static add name=mopeka-proxy-2.rambles.billandjessie.com address=10.0.2.123
 
 # ---------------------------------------------------------------------------
 # 5. WireGuard — tunnel to AWS hub (10.0.3.1)
