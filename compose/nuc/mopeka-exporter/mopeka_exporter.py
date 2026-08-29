@@ -3,6 +3,7 @@ import logging
 import os
 import time
 
+import yaml
 from aioesphomeapi import APIClient
 from bluetooth_data_tools import parse_advertisement_data_bytes
 from home_assistant_bluetooth import BluetoothServiceInfoBleak
@@ -18,6 +19,7 @@ PROXY_KEYS = [k.strip() for k in os.environ["MOPEKA_API_KEYS"].split(",")]
 PROXY_PORT = int(os.environ.get("MOPEKA_PROXY_PORT", "6053"))
 METRICS_PORT = int(os.environ.get("METRICS_PORT", "9102"))
 RECONNECT_DELAY_SECONDS = int(os.environ.get("RECONNECT_DELAY_SECONDS", "10"))
+SENSORS_FILE = os.environ.get("MOPEKA_SENSORS_FILE", "sensors.yaml")
 
 if len(PROXY_HOSTS) != len(PROXY_KEYS):
     raise SystemExit(
@@ -26,6 +28,49 @@ if len(PROXY_HOSTS) != len(PROXY_KEYS):
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("mopeka-exporter")
+
+
+def _load_sensor_map() -> dict[str, dict]:
+    """MAC (upper-case, colon-separated) -> {name, tank_height_mm?}. Missing
+    or malformed file is non-fatal -- the exporter just falls back to each
+    sensor's firmware name and skips fill_percent."""
+    try:
+        with open(SENSORS_FILE) as fh:
+            raw = yaml.safe_load(fh) or {}
+    except FileNotFoundError:
+        log.warning("%s not found -- using firmware sensor names, no fill %%", SENSORS_FILE)
+        return {}
+    except (yaml.YAMLError, OSError):
+        log.exception("failed to read %s -- using firmware sensor names", SENSORS_FILE)
+        return {}
+    out = {}
+    for mac, cfg in (raw.get("sensors") or {}).items():
+        cfg = cfg or {}
+        out[str(mac).upper()] = {
+            "name": cfg.get("name"),
+            "full_mm": cfg.get("full_mm"),
+            "empty_mm": cfg.get("empty_mm", 0),
+        }
+    log.info("loaded %d named sensor(s) from %s", len(out), SENSORS_FILE)
+    return out
+
+
+def _fill_percent(level_mm: float, cfg: dict) -> float | None:
+    """Linear level->percent using the sensor's raw reading at full/empty
+    (correct for vertical cylinders -- RV and grill tanks). Returns None
+    unless full_mm is configured for this tank."""
+    full = cfg.get("full_mm")
+    if not full:
+        return None
+    empty = cfg.get("empty_mm") or 0
+    span = full - empty
+    if span <= 0:
+        return None
+    pct = 100.0 * (level_mm - empty) / span
+    return max(0.0, min(100.0, pct))
+
+
+SENSOR_MAP = _load_sensor_map()
 
 # The propane-tank Mopeka Pro Check sensors broadcast passively -- we never
 # connect to them. One or more ESP32s running ESPHome's bluetooth_proxy
@@ -62,15 +107,17 @@ g_battery_percent = Gauge(
 g_battery_volts = Gauge(
     "mopeka_sensor_battery_volts", "Sensor battery voltage", ["sensor", "mac"]
 )
-# Raw time-of-flight level reading: the distance from the sensor (bottom of
-# the tank, magnetically mounted) up to the propane liquid surface. Higher
-# = more propane. Converting to a fill percentage needs the tank's internal
-# height and profile, which is a per-tank physical measurement Bill will
-# supply once confirmed against a gauge check -- deliberately not guessed
-# here. See docs/roadmap.md Milestone 15.
+# Raw time-of-flight level reading: the height of the propane liquid column
+# above the (bottom-mounted) sensor. Higher = more propane. Always exported.
 g_tank_level_mm = Gauge(
     "mopeka_sensor_tank_level_mm",
-    "Raw ultrasonic level reading (distance from sensor to propane surface)",
+    "Raw ultrasonic level reading (height of propane above the sensor)",
+    ["sensor", "mac"],
+)
+# Only emitted for tanks with `full_mm` set in sensors.yaml (see that file).
+g_fill_percent = Gauge(
+    "mopeka_sensor_fill_percent",
+    "Estimated tank fill (linear from the raw reading at full/empty; vertical tanks)",
     ["sensor", "mac"],
 )
 g_reading_quality = Gauge(
@@ -121,7 +168,7 @@ def _mac(address: int) -> str:
     return ":".join(f"{(address >> (8 * i)) & 0xFF:02X}" for i in reversed(range(6)))
 
 
-def _sensor_name(update, fallback: str) -> str:
+def _firmware_name(update, fallback: str) -> str:
     for info in update.devices.values():
         if info and info.name:
             return info.name
@@ -157,11 +204,24 @@ def _handle_advertisement(proxy: str, address: int, rssi: int, raw: bytes) -> No
         log.info("[%s] discovered Mopeka sensor %s (%s)", proxy, mac, local_name or "?")
 
     update = sensor.update(service_info)
-    name = _sensor_name(update, mac)
+    cfg = SENSOR_MAP.get(mac, {})
+    name = cfg.get("name") or _firmware_name(update, mac)
+
+    level_mm = None
     for device_key, value in update.entity_values.items():
+        if not isinstance(value.native_value, (int, float)):
+            continue
+        if device_key.key == "tank_level":
+            level_mm = value.native_value
         gauge = _METRIC_BY_KEY.get(device_key.key)
-        if gauge is not None and isinstance(value.native_value, (int, float)):
+        if gauge is not None:
             gauge.labels(sensor=name, mac=mac).set(value.native_value)
+
+    if level_mm is not None:
+        pct = _fill_percent(level_mm, cfg)
+        if pct is not None:
+            g_fill_percent.labels(sensor=name, mac=mac).set(pct)
+
     g_signal_dbm.labels(sensor=name, mac=mac, proxy=proxy).set(rssi)
     g_last_seen.labels(sensor=name, mac=mac).set(time.time())
 

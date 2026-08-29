@@ -45,6 +45,7 @@
         mode: "0644"
       loop:
         - mopeka_exporter.py
+        - sensors.yaml
         - Dockerfile
         - requirements.txt
       notify: Restart mopeka-exporter

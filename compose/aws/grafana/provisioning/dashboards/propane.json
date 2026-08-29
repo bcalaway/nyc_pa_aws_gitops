@@ -6,24 +6,37 @@
   "schemaVersion": 39,
   "version": 1,
   "refresh": "1m",
-  "time": { "from": "now-7d", "to": "now" },
+  "time": { "from": "now-30d", "to": "now" },
   "panels": [
     {
       "id": 1,
-      "title": "Tank Level (raw mm — pending calibration)",
-      "type": "stat",
-      "gridPos": { "h": 5, "w": 7, "x": 0, "y": 0 },
+      "title": "Tank Fill",
+      "type": "gauge",
+      "gridPos": { "h": 7, "w": 14, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_tank_level_mm", "legendFormat": "{{sensor}}", "refId": "A" }
+        { "expr": "mopeka_sensor_fill_percent", "legendFormat": "{{sensor}}", "refId": "A" }
       ],
       "options": {
-        "graphMode": "area",
-        "colorMode": "value",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true }
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
       },
       "fieldConfig": {
-        "defaults": { "unit": "lengthmm", "decimals": 0 },
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 20 },
+              { "color": "green", "value": 40 }
+            ]
+          }
+        },
         "overrides": []
       }
     },
@@ -31,7 +44,7 @@
       "id": 2,
       "title": "Battery",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 5, "x": 7, "y": 0 },
+      "gridPos": { "h": 7, "w": 4, "x": 14, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "mopeka_sensor_battery_percent", "legendFormat": "{{sensor}}", "refId": "A" }
@@ -62,7 +75,7 @@
       "id": 3,
       "title": "Signal (best proxy)",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 0 },
+      "gridPos": { "h": 7, "w": 3, "x": 18, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "max by (sensor) (mopeka_sensor_signal_dbm)", "legendFormat": "{{sensor}}", "refId": "A" }
@@ -92,7 +105,7 @@
       "id": 4,
       "title": "Proxies",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 0 },
+      "gridPos": { "h": 7, "w": 3, "x": 21, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [{ "expr": "mopeka_proxy_up", "legendFormat": "{{proxy}}", "refId": "A" }],
       "options": {
@@ -119,34 +132,23 @@
     },
     {
       "id": 5,
-      "title": "Data Age",
-      "type": "stat",
-      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 0 },
+      "title": "Fill % History",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 7 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "time() - max(mopeka_exporter_last_success_timestamp_seconds)", "refId": "A" }
+        { "expr": "mopeka_sensor_fill_percent", "legendFormat": "{{sensor}}", "refId": "A" }
       ],
-      "options": { "graphMode": "none", "colorMode": "value" },
       "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 600 },
-              { "color": "red", "value": 3600 }
-            ]
-          }
-        },
+        "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "spanNulls": true } },
         "overrides": []
       }
     },
     {
-      "id": 10,
-      "title": "Tank Level History (raw mm)",
+      "id": 6,
+      "title": "Raw Level (mm above sensor)",
       "type": "timeseries",
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 5 },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 7 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "mopeka_sensor_tank_level_mm", "legendFormat": "{{sensor}}", "refId": "A" }
@@ -157,10 +159,10 @@
       }
     },
     {
-      "id": 11,
+      "id": 7,
       "title": "Battery Voltage",
       "type": "timeseries",
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 5 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "mopeka_sensor_battery_volts", "legendFormat": "{{sensor}}", "refId": "A" }
@@ -171,10 +173,10 @@
       }
     },
     {
-      "id": 12,
+      "id": 8,
       "title": "Sensor Temperature",
       "type": "timeseries",
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 14 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "mopeka_sensor_temperature_celsius", "legendFormat": "{{sensor}}", "refId": "A" }
@@ -185,10 +187,10 @@
       }
     },
     {
-      "id": 13,
+      "id": 9,
       "title": "Reading Quality",
       "type": "timeseries",
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 14 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "mopeka_sensor_reading_quality_percent", "legendFormat": "{{sensor}}", "refId": "A" }
@@ -199,10 +201,35 @@
       }
     },
     {
-      "id": 14,
+      "id": 10,
+      "title": "Data Age (last reading, any tank)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "time() - max(mopeka_sensor_last_seen_timestamp_seconds)", "refId": "A" }
+      ],
+      "options": { "graphMode": "none", "colorMode": "value" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 900 },
+              { "color": "red", "value": 3600 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
       "title": "BLE Signal per Sensor per Proxy",
       "type": "timeseries",
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 23 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "mopeka_sensor_signal_dbm", "legendFormat": "{{sensor}} via {{proxy}}", "refId": "A" }
