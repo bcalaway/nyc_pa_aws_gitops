@@ -7,6 +7,7 @@
   "version": 1,
   "refresh": "1m",
   "time": { "from": "now-7d", "to": "now" },
+  "__comment": "Tank order is fixed alphabetically via explicit A-F targets on the headline panels. Pair colors: Left = lighter, Right/2 = darker. Downstairs green, Grill orange, RV blue. A new tank needs a target line + a color override added here, plus its sensors.yaml entry.",
   "panels": [
     {
       "id": 1,
@@ -15,7 +16,12 @@
       "gridPos": { "h": 7, "w": 14, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_fill_percent", "legendFormat": "{{sensor}}", "refId": "A", "instant": true }
+        { "refId": "A", "instant": true, "expr": "mopeka_sensor_fill_percent{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
+        { "refId": "B", "instant": true, "expr": "mopeka_sensor_fill_percent{sensor=\"Downstairs Right\"}", "legendFormat": "Downstairs Right" },
+        { "refId": "C", "instant": true, "expr": "mopeka_sensor_fill_percent{sensor=\"Grill 1\"}",          "legendFormat": "Grill 1" },
+        { "refId": "D", "instant": true, "expr": "mopeka_sensor_fill_percent{sensor=\"Grill 2\"}",          "legendFormat": "Grill 2" },
+        { "refId": "E", "instant": true, "expr": "mopeka_sensor_fill_percent{sensor=\"RV Left\"}",           "legendFormat": "RV Left" },
+        { "refId": "F", "instant": true, "expr": "mopeka_sensor_fill_percent{sensor=\"RV Right\"}",          "legendFormat": "RV Right" }
       ],
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true },
@@ -25,20 +31,19 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "orange", "value": 20 },
-              { "color": "green", "value": 40 }
-            ]
-          }
+          "unit": "percent", "min": 0, "max": 100, "decimals": 0,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "orange", "value": 20 }, { "color": "green", "value": 40 }
+          ] }
         },
-        "overrides": []
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Downstairs Left" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } } ] },
+          { "matcher": { "id": "byName", "options": "Downstairs Right" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#37872D" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 1" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FFB357" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 2" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0752D" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Left" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8AB8FF" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Right" },         "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1F60C4" } } ] }
+        ]
       }
     },
     {
@@ -48,26 +53,23 @@
       "gridPos": { "h": 7, "w": 4, "x": 14, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_battery_percent", "legendFormat": "{{sensor}}", "refId": "A", "instant": true }
+        { "refId": "A", "instant": true, "expr": "mopeka_sensor_battery_percent{sensor=\"Downstairs Left\"}",  "legendFormat": "Downstairs Left" },
+        { "refId": "B", "instant": true, "expr": "mopeka_sensor_battery_percent{sensor=\"Downstairs Right\"}", "legendFormat": "Downstairs Right" },
+        { "refId": "C", "instant": true, "expr": "mopeka_sensor_battery_percent{sensor=\"Grill 1\"}",          "legendFormat": "Grill 1" },
+        { "refId": "D", "instant": true, "expr": "mopeka_sensor_battery_percent{sensor=\"Grill 2\"}",          "legendFormat": "Grill 2" },
+        { "refId": "E", "instant": true, "expr": "mopeka_sensor_battery_percent{sensor=\"RV Left\"}",           "legendFormat": "RV Left" },
+        { "refId": "F", "instant": true, "expr": "mopeka_sensor_battery_percent{sensor=\"RV Right\"}",          "legendFormat": "RV Right" }
       ],
       "options": {
-        "graphMode": "none",
-        "colorMode": "value",
+        "graphMode": "none", "colorMode": "value",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true }
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "orange", "value": 20 },
-              { "color": "green", "value": 40 }
-            ]
-          }
+          "unit": "percent", "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "orange", "value": 20 }, { "color": "green", "value": 40 }
+          ] }
         },
         "overrides": []
       }
@@ -79,25 +81,23 @@
       "gridPos": { "h": 7, "w": 3, "x": 18, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "max by (sensor) (mopeka_sensor_signal_dbm)", "legendFormat": "{{sensor}}", "refId": "A", "instant": true }
+        { "refId": "A", "instant": true, "expr": "max by (sensor) (mopeka_sensor_signal_dbm{sensor=\"Downstairs Left\"})",  "legendFormat": "Downstairs Left" },
+        { "refId": "B", "instant": true, "expr": "max by (sensor) (mopeka_sensor_signal_dbm{sensor=\"Downstairs Right\"})", "legendFormat": "Downstairs Right" },
+        { "refId": "C", "instant": true, "expr": "max by (sensor) (mopeka_sensor_signal_dbm{sensor=\"Grill 1\"})",          "legendFormat": "Grill 1" },
+        { "refId": "D", "instant": true, "expr": "max by (sensor) (mopeka_sensor_signal_dbm{sensor=\"Grill 2\"})",          "legendFormat": "Grill 2" },
+        { "refId": "E", "instant": true, "expr": "max by (sensor) (mopeka_sensor_signal_dbm{sensor=\"RV Left\"})",           "legendFormat": "RV Left" },
+        { "refId": "F", "instant": true, "expr": "max by (sensor) (mopeka_sensor_signal_dbm{sensor=\"RV Right\"})",          "legendFormat": "RV Right" }
       ],
       "options": {
-        "graphMode": "none",
-        "colorMode": "value",
+        "graphMode": "none", "colorMode": "value",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true }
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "dBm",
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "orange", "value": -95 },
-              { "color": "green", "value": -85 }
-            ]
-          }
+          "unit": "dBm", "decimals": 0,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "orange", "value": -95 }, { "color": "green", "value": -85 }
+          ] }
         },
         "overrides": []
       }
@@ -112,8 +112,7 @@
         { "expr": "mopeka_proxy_up", "legendFormat": "{{proxy}}", "refId": "A", "instant": true }
       ],
       "options": {
-        "graphMode": "none",
-        "colorMode": "background",
+        "graphMode": "none", "colorMode": "background",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true }
       },
       "fieldConfig": {
@@ -122,13 +121,9 @@
             { "type": "value", "options": { "0": { "text": "Down", "color": "red" } } },
             { "type": "value", "options": { "1": { "text": "Up", "color": "green" } } }
           ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
-            ]
-          }
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "green", "value": 1 }
+          ] }
         },
         "overrides": []
       }
@@ -142,9 +137,17 @@
       "targets": [
         { "expr": "mopeka_sensor_fill_percent", "legendFormat": "{{sensor}}", "refId": "A" }
       ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
       "fieldConfig": {
         "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "spanNulls": true } },
-        "overrides": []
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Downstairs Left" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } } ] },
+          { "matcher": { "id": "byName", "options": "Downstairs Right" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#37872D" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 1" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FFB357" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 2" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0752D" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Left" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8AB8FF" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Right" },         "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1F60C4" } } ] }
+        ]
       }
     },
     {
@@ -156,9 +159,17 @@
       "targets": [
         { "expr": "mopeka_sensor_tank_level_mm", "legendFormat": "{{sensor}}", "refId": "A" }
       ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
       "fieldConfig": {
         "defaults": { "unit": "lengthmm", "custom": { "spanNulls": true } },
-        "overrides": []
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Downstairs Left" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } } ] },
+          { "matcher": { "id": "byName", "options": "Downstairs Right" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#37872D" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 1" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FFB357" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 2" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0752D" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Left" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8AB8FF" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Right" },         "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1F60C4" } } ] }
+        ]
       }
     },
     {
@@ -170,9 +181,17 @@
       "targets": [
         { "expr": "mopeka_sensor_battery_volts", "legendFormat": "{{sensor}}", "refId": "A" }
       ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
       "fieldConfig": {
         "defaults": { "unit": "volt", "decimals": 2, "custom": { "spanNulls": true } },
-        "overrides": []
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Downstairs Left" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } } ] },
+          { "matcher": { "id": "byName", "options": "Downstairs Right" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#37872D" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 1" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FFB357" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 2" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0752D" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Left" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8AB8FF" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Right" },         "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1F60C4" } } ] }
+        ]
       }
     },
     {
@@ -182,11 +201,19 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_temperature_celsius", "legendFormat": "{{sensor}}", "refId": "A" }
+        { "expr": "mopeka_sensor_temperature_celsius * 9 / 5 + 32", "legendFormat": "{{sensor}}", "refId": "A" }
       ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
       "fieldConfig": {
-        "defaults": { "unit": "celsius", "decimals": 1, "custom": { "spanNulls": true } },
-        "overrides": []
+        "defaults": { "unit": "fahrenheit", "decimals": 1, "custom": { "spanNulls": true } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Downstairs Left" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } } ] },
+          { "matcher": { "id": "byName", "options": "Downstairs Right" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#37872D" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 1" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FFB357" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 2" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0752D" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Left" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8AB8FF" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Right" },         "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1F60C4" } } ] }
+        ]
       }
     },
     {
@@ -198,9 +225,17 @@
       "targets": [
         { "expr": "mopeka_sensor_reading_quality_percent", "legendFormat": "{{sensor}}", "refId": "A" }
       ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
       "fieldConfig": {
         "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "spanNulls": true } },
-        "overrides": []
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Downstairs Left" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } } ] },
+          { "matcher": { "id": "byName", "options": "Downstairs Right" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#37872D" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 1" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FFB357" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 2" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0752D" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Left" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8AB8FF" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Right" },         "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1F60C4" } } ] }
+        ]
       }
     },
     {
@@ -216,14 +251,9 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 900 },
-              { "color": "red", "value": 3600 }
-            ]
-          }
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "orange", "value": 900 }, { "color": "red", "value": 3600 }
+          ] }
         },
         "overrides": []
       }
