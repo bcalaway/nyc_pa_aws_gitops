@@ -171,6 +171,19 @@
     font-size: 0.8rem;
     text-align: center;
   }
+  .footer-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin-bottom: 0.9rem;
+  }
+  .footer-links a {
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-decoration: none;
+  }
+  .footer-links a:hover { color: var(--accent); }
 </style>
 <!-- Umami: anonymous page-view analytics (Milestone 16), no per-user tracking -->
 <script defer src="https://analytics.billandjessie.com/script.js" data-website-id="10c463cb-9ba2-4a0d-966c-777a79fd0b3c"></script>
@@ -186,9 +199,6 @@
     <a href="https://hue.billandjessie.com">Hue</a>
     <a href="https://todo-app.billandjessie.com">TODO</a>
     <a href="https://grafana.billandjessie.com">Grafana</a>
-    <a href="https://status.billandjessie.com">Status</a>
-    <a href="https://auth.billandjessie.com">Authentik</a>
-    <a href="/network.html">Network Diagram</a>
   </nav>
 
   <section>
@@ -215,7 +225,14 @@
     </div>
   </section>
 
-  <footer>billandjessie.com</footer>
+  <footer>
+    <nav class="footer-links">
+      <a href="https://status.billandjessie.com">Status</a>
+      <a href="https://auth.billandjessie.com">Authentik</a>
+      <a href="/network.html">Network Diagram</a>
+    </nav>
+    billandjessie.com
+  </footer>
 </main>
 
 <script>
