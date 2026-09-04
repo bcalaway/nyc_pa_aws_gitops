@@ -30,8 +30,16 @@ jobs:
           role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-actions
           aws-region: ${{ env.AWS_REGION }}
 
+      # --exclude woods-events.json: that file isn't part of this git-tracked
+      # directory at all -- it's written straight to this same bucket by the
+      # separate, independently-scheduled woods-calendar.yml workflow (see
+      # docs/roadmap.md Milestone 17). Without the exclude, --delete removes
+      # it on every single portal.yml deploy (confirmed live 2026-09-04: two
+      # unrelated portal pushes silently wiped it, leaving the site showing
+      # "Schedule unavailable" until the next 9am UTC cron run) since sync
+      # only knows about files present in the local portal/ source.
       - name: Sync portal to S3
-        run: aws s3 sync portal/ "s3://${{ env.PORTAL_BUCKET }}" --delete
+        run: aws s3 sync portal/ "s3://${{ env.PORTAL_BUCKET }}" --delete --exclude "woods-events.json"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
