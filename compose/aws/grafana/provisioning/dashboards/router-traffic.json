@@ -115,31 +115,49 @@
     },
     {
       "id": 11,
-      "title": "WAN Latency (ICMP, NYC)",
+      "title": "WAN Latency — ICMP (NYC, live, ~15s)",
       "type": "timeseries",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 30 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "probe_duration_seconds{job=\"blackbox-icmp\",site=\"nyc\"}", "legendFormat": "{{instance}}", "refId": "A" }
+        { "expr": "probe_duration_seconds{job=\"blackbox-icmp\",site=\"nyc\"} * 1000", "legendFormat": "{{instance}}", "refId": "A" }
       ],
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "thresholdsStyle": { "mode": "line" } },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "orange", "value": 50 }, { "color": "red", "value": 150 }
+          ] }
+        },
+        "overrides": []
+      }
     },
     {
       "id": 7,
-      "title": "WAN Latency (ICMP, Rambles)",
+      "title": "WAN Latency — ICMP (Rambles, live, ~15s)",
       "type": "timeseries",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 30 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "probe_duration_seconds{job=\"blackbox-icmp\",site=\"rambles\"}", "legendFormat": "{{instance}}", "refId": "A" }
+        { "expr": "probe_duration_seconds{job=\"blackbox-icmp\",site=\"rambles\"} * 1000", "legendFormat": "{{instance}}", "refId": "A" }
       ],
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "thresholdsStyle": { "mode": "line" } },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "orange", "value": 50 }, { "color": "red", "value": 150 }
+          ] }
+        },
+        "overrides": []
+      }
     },
     {
       "id": 12,
-      "title": "Speedtest Throughput (NYC)",
+      "title": "Speedtest Throughput (NYC, ~daily)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 38 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "speedtest_download_bits_per_second{instance=\"nuc4\"}", "legendFormat": "Download", "refId": "A" },
@@ -149,9 +167,9 @@
     },
     {
       "id": 8,
-      "title": "Speedtest Throughput (Rambles)",
+      "title": "Speedtest Throughput (Rambles, ~daily)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 38 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "speedtest_download_bits_per_second{instance=\"nuc5\"}", "legendFormat": "Download", "refId": "A" },
@@ -161,9 +179,9 @@
     },
     {
       "id": 13,
-      "title": "Speedtest Ping / Jitter (NYC)",
+      "title": "Speedtest Ping / Jitter (NYC, ~daily — see ICMP Latency above for live)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 46 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "speedtest_ping_latency_milliseconds{instance=\"nuc4\"}", "legendFormat": "Ping", "refId": "A" },
@@ -173,9 +191,9 @@
     },
     {
       "id": 9,
-      "title": "Speedtest Ping / Jitter (Rambles)",
+      "title": "Speedtest Ping / Jitter (Rambles, ~daily — see ICMP Latency above for live)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 46 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "speedtest_ping_latency_milliseconds{instance=\"nuc5\"}", "legendFormat": "Ping", "refId": "A" },
