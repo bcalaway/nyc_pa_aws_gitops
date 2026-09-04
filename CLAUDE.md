@@ -74,6 +74,9 @@ Always `git push` immediately after every `git commit` without asking.
 | `/home-platform/rachio/api-key` | Personal API key for Bill's Rachio account (get from the Rachio app/web account settings page) — used by `rachio-exporter` (`compose/aws/rachio-exporter/`) to poll per-valve watering history for the weather dashboard |
 | `/home-platform/mopeka-proxy/api-encryption-key` | ESPHome native-API noise-encryption key (44-char base64 PSK) for `mopeka-proxy-rambles` (M5Stack Atom Lite BLE→WiFi proxy, 10.0.2.127) — set by ESPHome's prebuilt "Bluetooth Proxy" firmware at flash time (2026-08-28). `mopeka-exporter` on nuc5 uses it as `noise_psk` to subscribe to forwarded BLE advertisements (Milestone 15). Fetched on the hub by `ansible/roles/mopeka-exporter` (SSM read granted to the hub role in `terraform/aws/tls.tf`) |
 | `/home-platform/mopeka-proxy/api-encryption-key-2` | Same, for the second BLE proxy `mopeka-proxy-2-rambles` (10.0.2.123, added 2026-08-29 for wider tank coverage). Each web.esphome.io flash generates its own key. `ansible/roles/mopeka-exporter` reads every proxy's key listed in `inventory/hosts.yml`'s `mopeka_proxies`; grant each one to the hub role in `tls.tf` |
+| `/home-platform/postgres/umami-password` | Password for the `umami` Postgres role/database (Milestone 16, usage analytics) |
+| `/home-platform/umami/app-secret` | Umami's `APP_SECRET` (session/auth token signing) |
+| `/home-platform/umami/two-factor-encryption-key` | Umami's `TWO_FACTOR_ENCRYPTION_KEY` — a required 64-char hex string in v3, even though 2FA itself isn't used here |
 
 ## Ansible NUC provisioning
 

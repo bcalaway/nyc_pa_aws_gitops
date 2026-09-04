@@ -38,6 +38,11 @@ AUTHENTIK_TODO_APP_CLIENT_SECRET=$(ssm "/home-platform/authentik/todo-app-client
 AUTHENTIK_HUE_CLIENT_ID=$(ssm "/home-platform/authentik/hue-client-id")
 AUTHENTIK_HUE_CLIENT_SECRET=$(ssm "/home-platform/authentik/hue-client-secret")
 
+echo "Fetching Umami secrets from SSM..."
+UMAMI_DB_PASSWORD=$(ssm "/home-platform/postgres/umami-password")
+UMAMI_APP_SECRET=$(ssm "/home-platform/umami/app-secret")
+UMAMI_TWO_FACTOR_KEY=$(ssm "/home-platform/umami/two-factor-encryption-key")
+
 cat > "$LOCAL_DIR/.env" <<EOF
 GRAFANA_SMTP_PASSWORD=$GRAFANA_SMTP_PASSWORD
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
@@ -52,6 +57,9 @@ AUTHENTIK_TODO_APP_CLIENT_ID=$AUTHENTIK_TODO_APP_CLIENT_ID
 AUTHENTIK_TODO_APP_CLIENT_SECRET=$AUTHENTIK_TODO_APP_CLIENT_SECRET
 AUTHENTIK_HUE_CLIENT_ID=$AUTHENTIK_HUE_CLIENT_ID
 AUTHENTIK_HUE_CLIENT_SECRET=$AUTHENTIK_HUE_CLIENT_SECRET
+UMAMI_DB_PASSWORD=$UMAMI_DB_PASSWORD
+UMAMI_APP_SECRET=$UMAMI_APP_SECRET
+UMAMI_TWO_FACTOR_KEY=$UMAMI_TWO_FACTOR_KEY
 EOF
 
 echo "Copying compose stack to EC2..."

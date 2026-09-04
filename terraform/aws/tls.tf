@@ -282,3 +282,15 @@ resource "aws_route53_record" "hue" {
   ttl     = 300
   records = [aws_eip.hub.public_ip]
 }
+
+# Umami (usage analytics, Milestone 16) -- not an app-platform.md onboarding
+# (no ECR/OIDC/GitHub Actions role: it's a prebuilt public image added
+# directly to compose/aws/docker-compose.yml, same category as
+# Grafana/Uptime Kuma/Authentik, not a Claude-authored app repo).
+resource "aws_route53_record" "analytics" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "analytics.billandjessie.com"
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.hub.public_ip]
+}

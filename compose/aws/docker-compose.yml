@@ -273,6 +273,52 @@ services:
       - "traefik.http.routers.status.middlewares=hsts@docker,authentik-forward-auth@docker"
       - "traefik.http.services.status.loadbalancer.server.port=3001"
 
+  # Usage analytics (Milestone 16). Prebuilt public image, not a Claude-
+  # authored app repo -- same category as Grafana/Uptime Kuma, deployed
+  # straight from this compose file, no ECR/OIDC/app-platform.md onboarding.
+  # Split routing is the interesting part: the tracker script and its
+  # collect endpoint MUST stay public (every visitor to the portal/todo-app/
+  # hue needs to reach them, unauthenticated, to record a pageview), while
+  # the dashboard and admin API are gated behind Authentik like every other
+  # internal tool. TRACKER_SCRIPT_NAME/COLLECT_API_ENDPOINT are pinned
+  # explicitly rather than trusted to Umami's own defaults, specifically so
+  # the Traefik PathPrefix rule below matches the real paths.
+  umami:
+    image: ghcr.io/umami-software/umami:3.2.0
+    container_name: umami
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://umami:${UMAMI_DB_PASSWORD}@postgres:5432/umami"
+      APP_SECRET: "${UMAMI_APP_SECRET}"
+      TWO_FACTOR_ENCRYPTION_KEY: "${UMAMI_TWO_FACTOR_KEY}"
+      TRACKER_SCRIPT_NAME: "script.js"
+      COLLECT_API_ENDPOINT: "/api/send"
+    ports:
+      - "3300:3000"
+    labels:
+      - "traefik.enable=true"
+      # Public: tracker script + collect endpoint, no auth. More specific
+      # than the bare-Host catch-all router below, so Traefik prefers this
+      # one for these two paths without needing an explicit priority (same
+      # rule Traefik uses for kuma-outpost/auth above).
+      - "traefik.http.routers.umami-track.rule=Host(`analytics.billandjessie.com`) && (PathPrefix(`/script.js`) || PathPrefix(`/api/send`))"
+      - "traefik.http.routers.umami-track.entrypoints=websecure"
+      - "traefik.http.routers.umami-track.tls.certresolver=route53"
+      - "traefik.http.routers.umami-track.middlewares=hsts@docker"
+      - "traefik.http.routers.umami-track.service=umami"
+      # Everything else (dashboard, admin API, login) -- gated.
+      - "traefik.http.routers.umami.rule=Host(`analytics.billandjessie.com`)"
+      - "traefik.http.routers.umami.entrypoints=websecure"
+      - "traefik.http.routers.umami.tls.certresolver=route53"
+      - "traefik.http.routers.umami.middlewares=hsts@docker,authentik-forward-auth@docker"
+      - "traefik.http.routers.umami.service=umami"
+      - "traefik.http.services.umami.loadbalancer.server.port=3000"
+      # Authentik's own outpost callback/logout endpoints on this domain.
+      - "traefik.http.routers.umami-outpost.rule=Host(`analytics.billandjessie.com`) && PathPrefix(`/outpost.goauthentik.io/`)"
+      - "traefik.http.routers.umami-outpost.entrypoints=websecure"
+      - "traefik.http.routers.umami-outpost.tls.certresolver=route53"
+      - "traefik.http.routers.umami-outpost.service=auth"
+
   postgres:
     image: postgres:16
     container_name: postgres

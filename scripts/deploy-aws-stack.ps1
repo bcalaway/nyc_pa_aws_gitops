@@ -32,7 +32,12 @@ $authentikTodoAppClientSecret = (& $aws ssm get-parameter --name "/home-platform
 $authentikHueClientId = (& $aws ssm get-parameter --name "/home-platform/authentik/hue-client-id" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 $authentikHueClientSecret = (& $aws ssm get-parameter --name "/home-platform/authentik/hue-client-secret" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
 
-"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nRACHIO_API_KEY=$rachioApiKey`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret`nAUTHENTIK_TODO_APP_CLIENT_ID=$authentikTodoAppClientId`nAUTHENTIK_TODO_APP_CLIENT_SECRET=$authentikTodoAppClientSecret`nAUTHENTIK_HUE_CLIENT_ID=$authentikHueClientId`nAUTHENTIK_HUE_CLIENT_SECRET=$authentikHueClientSecret" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
+Write-Host "Fetching Umami secrets from SSM..."
+$umamiDbPassword = (& $aws ssm get-parameter --name "/home-platform/postgres/umami-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+$umamiAppSecret = (& $aws ssm get-parameter --name "/home-platform/umami/app-secret" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+$umamiTwoFactorKey = (& $aws ssm get-parameter --name "/home-platform/umami/two-factor-encryption-key" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
+
+"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nRACHIO_API_KEY=$rachioApiKey`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret`nAUTHENTIK_TODO_APP_CLIENT_ID=$authentikTodoAppClientId`nAUTHENTIK_TODO_APP_CLIENT_SECRET=$authentikTodoAppClientSecret`nAUTHENTIK_HUE_CLIENT_ID=$authentikHueClientId`nAUTHENTIK_HUE_CLIENT_SECRET=$authentikHueClientSecret`nUMAMI_DB_PASSWORD=$umamiDbPassword`nUMAMI_APP_SECRET=$umamiAppSecret`nUMAMI_TWO_FACTOR_KEY=$umamiTwoFactorKey" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
 
 Write-Host "Copying compose stack to EC2..."
 ssh -i $sshKey $ec2Host "mkdir -p $remoteDir"

@@ -278,6 +278,23 @@ Tasks:
 
 **✅ Milestone complete as of 2026-08-29 — live end-to-end and deployed.** 6 propane tanks (2× RV 40 lb, 2× Downstairs 30 lb, 2× Grill 20 lb) monitored into Prometheus/Grafana via two ESPHome BLE proxies on the Rambles LAN (`mopeka-proxy-rambles` 10.0.2.127, `mopeka-proxy-2-rambles` 10.0.2.123) and `mopeka-exporter` on nuc5. `Propane (Rambles)` Grafana dashboard shows per-tank fill % (calibrated to the Mopeka app), raw mm (ground truth), battery, temperature (°F), signal, and reading quality. Deployed via `deploy-nucs.ps1` + direct `scp` of the two hub files (`deploy-aws-stack.ps1` is classifier-blocked for Claude); `tls.tf` grant applied via CI. Along the way this milestone also fixed nuc5's dead Bluetooth (persisted into `ansible/roles/base/`) and logged three CLAUDE.md gotchas: ESPHome prebuilt Bluetooth Proxy firmware forwards *raw* adverts only, its encryption key must be captured at flash time, and `EncryptionHelloAPIError` is usually a full connection pool (stray clients) rather than a bad key.
 
+### Milestone 16 — Usage Analytics
+
+**Goal:** Anonymous traffic/page-view stats for every app and the portal — how much each thing gets used, not who used it (explicitly scoped out per Bill's call 2026-09-04). Two independent pieces: (a) per-app request volume, already collected by Traefik, just needed a dashboard; (b) real page-view/visitor counts, which Traefik/Prometheus can't see at all, needing a browser-side tracker.
+
+Tasks:
+- [x] 🤖 Per-app traffic dashboard — `compose/aws/grafana/provisioning/dashboards/traefik.json` already had a live "Requests / sec by Service" panel (Traefik's own Prometheus metrics, `job=traefik`, already scraped); this need is effectively already met, no changes required
+- [x] 🤖 **Umami** chosen for page-view/visitor analytics — self-hosted, Postgres-backed (reuses the shared instance, same onboarding as every other app here), one small container, no per-visitor login/cookie tracking needed for basic counts. Not an `app-platform.md` onboarding (no ECR/OIDC/CI) — it's a prebuilt public image added straight to `compose/aws/docker-compose.yml`, same category as Grafana/Uptime Kuma/Authentik
+- [x] 🤖 `umami` service added (`ghcr.io/umami-software/umami:3.2.0`), Postgres database + role created directly on the hub (ownership set correctly per the Postgres 15+ gotcha, verified with a real `CREATE TABLE` probe as that role). Route53 `analytics.billandjessie.com` added to `terraform/aws/tls.tf`
+- [x] 🤖 **Split Traefik routing** — the genuinely new wrinkle vs. every other Authentik-gated app here: Umami's tracker script + collect endpoint (`/script.js`, `/api/send` — pinned explicitly via `TRACKER_SCRIPT_NAME`/`COLLECT_API_ENDPOINT` env vars rather than trusted to Umami's defaults) must stay public, since every anonymous visitor to the portal/todo-app/hue needs to reach them to record a pageview. Only the dashboard/admin API is gated behind `authentik-forward-auth`. Two Traefik routers on the same host, the public one matching the specific paths (more specific than the bare-`Host()` gated router, so Traefik prefers it automatically — same mechanism already used for the `kuma-outpost`/`auth` routing) — see `compose/aws/authentik/blueprints/umami-proxy.yaml` and the `umami` service's labels in `docker-compose.yml`
+- [x] 🤖 `scripts/deploy-aws-stack.ps1`/`.sh` updated to fetch the 3 new SSM secrets into `.env`
+- [ ] 🧑 Put the 3 generated secrets into SSM (Claude's `ssm put-parameter` is classifier-blocked) — exact commands handed over in-session
+- [ ] 🧑 Run `scripts/deploy-aws-stack.ps1` (also classifier-blocked for Claude as a whole script) to bring the `umami` container up
+- [ ] 🧑 One-time Umami first-run setup (admin account + password) — Claude won't submit credentials into a login form even for a first-run setup, so this step is Bill's; after that, add the outpost-provider assignment via `ak shell` (same manual step Uptime Kuma needed, no safe blueprint/API path) — Claude will do this part once the container is up
+- [ ] 🧑 Add 3 "websites" in Umami's UI (portal, todo-app, hue) and hand Claude the 3 resulting website IDs
+- [ ] 🤖 Add the tracking `<script>` snippet to `portal/index.html`/`network.html` (this repo), and to `todo-app`/`hue`'s frontends (separate repos, both cloned locally) once the website IDs exist
+- [ ] 🧑 Confirm real page-view data appears in Umami after a normal browsing session on each site
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*
