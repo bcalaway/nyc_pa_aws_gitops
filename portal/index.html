@@ -127,7 +127,18 @@
     gap: 0.75rem;
     margin-bottom: 0.9rem;
   }
-  .wx-current img { flex-shrink: 0; }
+  /* NWS icons for overcast/rain/storm conditions are dark, low-contrast
+     photos with no transparency -- they visually disappear against the
+     dark card background. A light chip behind each one keeps them
+     legible regardless of condition. box-sizing:border-box (set on *
+     above) means this padding eats into the width/height attributes
+     rather than growing the element, so layout is unaffected. */
+  .wx-current img, .wx-day img {
+    background: #e8eaed;
+    border-radius: 6px;
+  }
+  .wx-current img { flex-shrink: 0; padding: 4px; }
+  .wx-day img { padding: 3px; }
   .wx-temp { font-size: 1.5rem; font-weight: 600; line-height: 1.1; }
   .wx-desc { color: var(--muted); font-size: 0.85rem; }
   .wx-days {
