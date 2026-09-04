@@ -13,9 +13,11 @@ from prometheus_client import Gauge, start_http_server
 # One or more ESPHome BLE proxies, as parallel comma-separated lists (same
 # order, same length): MOPEKA_PROXIES=host1,host2 and
 # MOPEKA_API_KEYS=key1,key2. base64 noise PSKs never contain a comma, so a
-# plain split is safe.
+# plain split is safe. MOPEKA_PROXY_NAMES is an optional matching list of
+# friendly names used for the `proxy` metric label (defaults to the host).
 PROXY_HOSTS = [h.strip() for h in os.environ["MOPEKA_PROXIES"].split(",") if h.strip()]
 PROXY_KEYS = [k.strip() for k in os.environ["MOPEKA_API_KEYS"].split(",")]
+PROXY_NAMES = [n.strip() for n in os.environ.get("MOPEKA_PROXY_NAMES", "").split(",") if n.strip()]
 PROXY_PORT = int(os.environ.get("MOPEKA_PROXY_PORT", "6053"))
 METRICS_PORT = int(os.environ.get("METRICS_PORT", "9102"))
 RECONNECT_DELAY_SECONDS = int(os.environ.get("RECONNECT_DELAY_SECONDS", "10"))
@@ -25,6 +27,11 @@ if len(PROXY_HOSTS) != len(PROXY_KEYS):
     raise SystemExit(
         "MOPEKA_PROXIES and MOPEKA_API_KEYS must have the same number of comma-separated entries"
     )
+if len(PROXY_NAMES) != len(PROXY_HOSTS):
+    PROXY_NAMES = list(PROXY_HOSTS)
+
+# (host, key, name) per proxy.
+PROXIES = list(zip(PROXY_HOSTS, PROXY_KEYS, PROXY_NAMES))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("mopeka-exporter")
@@ -234,49 +241,49 @@ def _on_raw(proxy: str, response) -> None:
             log.exception("[%s] failed to handle advertisement from %s", proxy, _mac(adv.address))
 
 
-async def _run_once(host: str, key: str) -> None:
+async def _run_once(host: str, key: str, name: str) -> None:
     disconnected: asyncio.Event = asyncio.Event()
 
     async def on_stop(expected_disconnect: bool) -> None:
-        log.warning("[%s] proxy connection closed (expected=%s)", host, expected_disconnect)
+        log.warning("[%s] proxy connection closed (expected=%s)", name, expected_disconnect)
         disconnected.set()
 
     client = APIClient(host, PROXY_PORT, password="", noise_psk=key)
     try:
         await client.connect(on_stop=on_stop, login=True)
         info = await client.device_info()
-        log.info("[%s] connected (%s, esphome %s)", host, info.name, info.esphome_version)
-        g_proxy_up.labels(proxy=host).set(1)
-        g_last_success.labels(proxy=host).set(time.time())
-        client.subscribe_bluetooth_le_raw_advertisements(lambda resp: _on_raw(host, resp))
+        log.info("[%s] connected (%s @ %s, esphome %s)", name, info.name, host, info.esphome_version)
+        g_proxy_up.labels(proxy=name).set(1)
+        g_last_success.labels(proxy=name).set(time.time())
+        client.subscribe_bluetooth_le_raw_advertisements(lambda resp: _on_raw(name, resp))
         await disconnected.wait()
     finally:
-        g_proxy_up.labels(proxy=host).set(0)
+        g_proxy_up.labels(proxy=name).set(0)
         try:
             await client.disconnect()
         except Exception:
             pass
 
 
-async def _proxy_loop(host: str, key: str) -> None:
+async def _proxy_loop(host: str, key: str, name: str) -> None:
     while True:
         try:
-            await _run_once(host, key)
+            await _run_once(host, key, name)
         except Exception:
-            log.exception("[%s] connection error; retrying in %ds", host, RECONNECT_DELAY_SECONDS)
+            log.exception("[%s] connection error; retrying in %ds", name, RECONNECT_DELAY_SECONDS)
         else:
-            log.info("[%s] disconnected; reconnecting in %ds", host, RECONNECT_DELAY_SECONDS)
+            log.info("[%s] disconnected; reconnecting in %ds", name, RECONNECT_DELAY_SECONDS)
         await asyncio.sleep(RECONNECT_DELAY_SECONDS)
 
 
 async def _run_forever() -> None:
-    await asyncio.gather(*(_proxy_loop(host, key) for host, key in zip(PROXY_HOSTS, PROXY_KEYS)))
+    await asyncio.gather(*(_proxy_loop(host, key, name) for host, key, name in PROXIES))
 
 
 def main() -> None:
     start_http_server(METRICS_PORT)
-    for host in PROXY_HOSTS:
-        g_proxy_up.labels(proxy=host).set(0)
+    for _host, _key, name in PROXIES:
+        g_proxy_up.labels(proxy=name).set(0)
     log.info(
         "mopeka-exporter listening on :%d, proxies: %s",
         METRICS_PORT,

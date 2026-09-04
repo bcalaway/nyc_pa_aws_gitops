@@ -57,6 +57,7 @@
         mode: "0600"
       vars:
         mopeka_proxy_hosts: "{{ mopeka_proxies | map(attribute='host') | join(',') }}"
+        mopeka_proxy_names: "{{ mopeka_proxies | map(attribute='name') | join(',') }}"
         mopeka_api_keys: "{{ mopeka_key_results.results | map(attribute='stdout') | join(',') }}"
       no_log: true
       notify: Restart mopeka-exporter

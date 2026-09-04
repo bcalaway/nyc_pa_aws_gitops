@@ -119,8 +119,8 @@
       "gridPos": { "h": 7, "w": 3, "x": 21, "y": 3 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "refId": "A", "instant": true, "expr": "mopeka_proxy_up{proxy=\"10.0.2.123\"}", "legendFormat": "10.0.2.123" },
-        { "refId": "B", "instant": true, "expr": "mopeka_proxy_up{proxy=\"10.0.2.127\"}", "legendFormat": "10.0.2.127" }
+        { "refId": "A", "instant": true, "expr": "mopeka_proxy_up{proxy=\"mopeka-proxy-2\"}", "legendFormat": "mopeka-proxy-2" },
+        { "refId": "B", "instant": true, "expr": "mopeka_proxy_up{proxy=\"mopeka-proxy\"}",   "legendFormat": "mopeka-proxy" }
       ],
       "options": {
         "graphMode": "none", "colorMode": "background",
@@ -278,7 +278,7 @@
       "id": 10,
       "title": "Data Age (last reading, any tank)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 27 },
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 27 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "time() - max(mopeka_sensor_last_seen_timestamp_seconds)", "refId": "A", "instant": true }
@@ -296,16 +296,56 @@
     },
     {
       "id": 11,
-      "title": "BLE Signal per Sensor per Proxy",
+      "title": "BLE Signal — mopeka-proxy-2 (tank-side)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
-        { "expr": "mopeka_sensor_signal_dbm", "legendFormat": "{{sensor}} via {{proxy}}", "refId": "A" }
+        { "refId": "A", "expr": "mopeka_sensor_signal_dbm{sensor=\"Downstairs Left\",proxy=\"mopeka-proxy-2\"}",  "legendFormat": "Downstairs Left" },
+        { "refId": "B", "expr": "mopeka_sensor_signal_dbm{sensor=\"Downstairs Right\",proxy=\"mopeka-proxy-2\"}", "legendFormat": "Downstairs Right" },
+        { "refId": "C", "expr": "mopeka_sensor_signal_dbm{sensor=\"Grill 1\",proxy=\"mopeka-proxy-2\"}",          "legendFormat": "Grill 1" },
+        { "refId": "D", "expr": "mopeka_sensor_signal_dbm{sensor=\"Grill 2\",proxy=\"mopeka-proxy-2\"}",          "legendFormat": "Grill 2" },
+        { "refId": "E", "expr": "mopeka_sensor_signal_dbm{sensor=\"RV Left\",proxy=\"mopeka-proxy-2\"}",           "legendFormat": "RV Left" },
+        { "refId": "F", "expr": "mopeka_sensor_signal_dbm{sensor=\"RV Right\",proxy=\"mopeka-proxy-2\"}",          "legendFormat": "RV Right" }
       ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
       "fieldConfig": {
-        "defaults": { "unit": "dBm", "decimals": 0, "custom": { "spanNulls": true } },
-        "overrides": []
+        "defaults": { "unit": "dBm", "decimals": 0, "min": -110, "max": -60, "custom": { "spanNulls": true } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Downstairs Left" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } } ] },
+          { "matcher": { "id": "byName", "options": "Downstairs Right" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#37872D" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 1" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FFB357" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 2" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0752D" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Left" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8AB8FF" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Right" },         "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1F60C4" } } ] }
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "title": "BLE Signal — mopeka-proxy (backup)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "refId": "A", "expr": "mopeka_sensor_signal_dbm{sensor=\"Downstairs Left\",proxy=\"mopeka-proxy\"}",  "legendFormat": "Downstairs Left" },
+        { "refId": "B", "expr": "mopeka_sensor_signal_dbm{sensor=\"Downstairs Right\",proxy=\"mopeka-proxy\"}", "legendFormat": "Downstairs Right" },
+        { "refId": "C", "expr": "mopeka_sensor_signal_dbm{sensor=\"Grill 1\",proxy=\"mopeka-proxy\"}",          "legendFormat": "Grill 1" },
+        { "refId": "D", "expr": "mopeka_sensor_signal_dbm{sensor=\"Grill 2\",proxy=\"mopeka-proxy\"}",          "legendFormat": "Grill 2" },
+        { "refId": "E", "expr": "mopeka_sensor_signal_dbm{sensor=\"RV Left\",proxy=\"mopeka-proxy\"}",           "legendFormat": "RV Left" },
+        { "refId": "F", "expr": "mopeka_sensor_signal_dbm{sensor=\"RV Right\",proxy=\"mopeka-proxy\"}",          "legendFormat": "RV Right" }
+      ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
+      "fieldConfig": {
+        "defaults": { "unit": "dBm", "decimals": 0, "min": -110, "max": -60, "custom": { "spanNulls": true } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Downstairs Left" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } } ] },
+          { "matcher": { "id": "byName", "options": "Downstairs Right" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#37872D" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 1" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FFB357" } } ] },
+          { "matcher": { "id": "byName", "options": "Grill 2" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0752D" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Left" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8AB8FF" } } ] },
+          { "matcher": { "id": "byName", "options": "RV Right" },         "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1F60C4" } } ] }
+        ]
       }
     }
   ]

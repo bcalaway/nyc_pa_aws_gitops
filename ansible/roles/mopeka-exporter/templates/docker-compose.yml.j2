@@ -10,6 +10,7 @@ services:
     restart: unless-stopped
     environment:
       MOPEKA_PROXIES: "{{ mopeka_proxy_hosts }}"
+      MOPEKA_PROXY_NAMES: "{{ mopeka_proxy_names }}"
       MOPEKA_API_KEYS: "{{ mopeka_api_keys }}"
       METRICS_PORT: "9102"
     ports:
