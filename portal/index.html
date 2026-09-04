@@ -127,18 +127,12 @@
     gap: 0.75rem;
     margin-bottom: 0.9rem;
   }
-  /* NWS icons for overcast/rain/storm conditions are dark, low-contrast
-     photos with no transparency -- they visually disappear against the
-     dark card background. A light chip behind each one keeps them
-     legible regardless of condition. box-sizing:border-box (set on *
-     above) means this padding eats into the width/height attributes
-     rather than growing the element, so layout is unaffected. */
-  .wx-current img, .wx-day img {
-    background: #e8eaed;
-    border-radius: 6px;
-  }
-  .wx-current img { flex-shrink: 0; padding: 4px; }
-  .wx-day img { padding: 3px; }
+  /* NWS's own icon images are abstract stock photos that don't read
+     clearly at small sizes on any background -- a light backing chip
+     (tried first) fixed contrast but not legibility. Emoji mapped from
+     the forecast text are crisp and unambiguous at any size. */
+  .wx-current .wx-icon { flex-shrink: 0; font-size: 2.5rem; line-height: 1; }
+  .wx-day .wx-icon { font-size: 1.5rem; line-height: 1; }
   .wx-temp { font-size: 1.5rem; font-weight: 600; line-height: 1.1; }
   .wx-desc { color: var(--muted); font-size: 0.85rem; }
   .wx-days {
@@ -277,13 +271,34 @@
     return DAY_ABBR[new Date(period.startTime).getDay()];
   }
 
+  // NWS's icon images are abstract stock photos that stay unreadable at
+  // small sizes regardless of styling (confirmed: a rain-shower icon is
+  // just a dark gradient with a "20%" badge, near-impossible to parse as
+  // "rain" at a glance). Map the forecast's own shortForecast text to a
+  // small emoji set instead -- always crisp, no image request at all.
+  function weatherEmoji(shortForecast) {
+    const s = shortForecast.toLowerCase();
+    if (s.includes('thunderstorm')) return '⛈️';
+    if (s.includes('snow') || s.includes('flurr') || s.includes('sleet') || s.includes('ice')) return '❄️';
+    if (s.includes('rain') || s.includes('shower') || s.includes('drizzle')) return '🌧️';
+    if (s.includes('fog') || s.includes('haze') || s.includes('mist')) return '🌫️';
+    if (s.includes('wind')) return '💨';
+    if (s.includes('sunny') || s.includes('clear')) {
+      return (s.includes('mostly') || s.includes('partly')) ? '🌤️' : '☀️';
+    }
+    if (s.includes('cloud') || s.includes('overcast')) {
+      return (s.includes('mostly') || s.includes('partly')) ? '⛅' : '☁️';
+    }
+    return '🌡️';
+  }
+
   function renderForecast(targetId, periods) {
     const el = document.getElementById(targetId);
     const current = periods[0];
     const days = periods.filter((p) => p.isDaytime).slice(0, 7);
     el.innerHTML = `
       <div class="wx-current">
-        <img src="${current.icon}" alt="" width="50" height="50" loading="lazy">
+        <span class="wx-icon" role="img" aria-label="${escapeHtml(current.shortForecast)}">${weatherEmoji(current.shortForecast)}</span>
         <div>
           <div class="wx-temp">${current.temperature}&deg;${current.temperatureUnit}</div>
           <div class="wx-desc">${current.shortForecast}</div>
@@ -293,7 +308,7 @@
         ${days.map((d, i) => `
           <div class="wx-day">
             <div class="wx-day-name">${shortDayName(d, i === 0 && d === periods[0])}</div>
-            <img src="${d.icon}" alt="${d.shortForecast}" width="30" height="30" loading="lazy">
+            <span class="wx-icon" role="img" aria-label="${escapeHtml(d.shortForecast)}">${weatherEmoji(d.shortForecast)}</span>
             <div class="wx-day-temp">${d.temperature}&deg;</div>
           </div>`).join('')}
       </div>
