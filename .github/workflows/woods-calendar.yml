@@ -1,0 +1,66 @@
+name: Woods Calendar
+
+# Refreshes portal/woods-events.json daily from the Woods Campground's
+# public Google Calendar and pushes it straight to the portal's S3 bucket.
+# Not committed to git -- it's refreshed derived data (same category as a
+# build artifact), regenerated on this schedule rather than on every
+# portal.yml deploy. Google's ICS feed has no CORS headers, so this can't
+# just be fetched client-side from the static portal page directly -- see
+# scripts/fetch-woods-calendar.py's docstring and docs/roadmap.md
+# Milestone 17.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"  # daily, 9am UTC
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: "1.10.5"
+  PORTAL_BUCKET: home-platform-portal-147856894209
+
+jobs:
+  refresh:
+    name: Refresh Woods calendar JSON
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install icalendar
+        run: pip install icalendar==7.3.0
+
+      - name: Fetch and build woods-events.json
+        run: python scripts/fetch-woods-calendar.py > /tmp/woods-events.json
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload to S3
+        run: aws s3 cp /tmp/woods-events.json "s3://${{ env.PORTAL_BUCKET }}/woods-events.json" --cache-control "max-age=3600"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Get CloudFront distribution ID
+        id: cf
+        working-directory: terraform/aws
+        run: |
+          terraform init -input=false
+          echo "id=$(terraform output -raw portal_cloudfront_distribution_id)" >> "$GITHUB_OUTPUT"
+
+      - name: Invalidate CloudFront cache for the JSON file
+        run: aws cloudfront create-invalidation --distribution-id "${{ steps.cf.outputs.id }}" --paths "/woods-events.json"

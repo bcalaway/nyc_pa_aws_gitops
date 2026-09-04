@@ -299,6 +299,18 @@ Tasks:
 
 **✅ Milestone complete and verified with real traffic as of 2026-09-04.** Anonymous, per-app/per-page usage analytics live for the portal, todo-app, and hue via a self-hosted Umami instance (`analytics.billandjessie.com`, Authentik-gated dashboard, publicly reachable tracker). Per-app request-volume was already covered by the existing Traefik dashboard. Deliberately no per-user attribution — Bill's call, traffic counts only, no names.
 
+### Milestone 17 — Portal Weather & Woods Calendar
+
+**Goal:** Bring the portal (`billandjessie.com`) past a bare links list — 7-day weather for NYC and The Woods campground, plus the campground's next few upcoming weekend themes. First piece of a broader portal "overhaul" Bill wants; more widgets likely later.
+
+Tasks:
+- [x] 🤖 **Weather** — client-side only, no backend. National Weather Service (`api.weather.gov`) is free, needs no API key, and is CORS-enabled (confirmed live), so the page fetches both forecasts directly in the browser. Forecast grid URLs pre-resolved once (NWS's `/points` lookup is a stable "which office/grid covers this coordinate" step, no need to redo per page load): NYC from Central Park coordinates, The Woods from the campground's exact geocoded street address (US Census geocoder, not a guessed town center — off by ~9 miles when first estimated by hand, corrected before use). Renders current conditions + a 7-day icon/temp strip per site
+- [x] 🤖 **Bug caught in the browser-pane preview before shipping**: NWS period names aren't reliably weekdays — a holiday gets its own name (`"Labor Day"` for what's otherwise Monday), and a naive `name.slice(0,3)` mangled that into `"Lab"` on the actual rendered page. Fixed by deriving the day label from each period's `startTime` field instead of parsing its display name
+- [x] 🤖 **Woods weekend themes** — sourced from the campground's own public Google Calendar (Bill confirmed the share link; decoded + verified live that its ICS feed serves real data, no auth). Google's ICS feed has **no CORS headers**, so it can't be fetched client-side from the static portal directly. Rather than add a new always-on proxy container + subdomain for this, went with the lighter option that fits a purely-static site: `scripts/fetch-woods-calendar.py` (parses via the `icalendar` library, handles the RFC 5545 exclusive-DTEND-off-by-one so displayed ranges match the campground's own inclusive "24th - 27th" convention) runs on a new daily-scheduled GitHub Actions workflow (`.github/workflows/woods-calendar.yml`), writing `woods-events.json` straight to the portal's S3 bucket (not committed to git — refreshed derived data, same category as a build artifact) plus a scoped CloudFront invalidation. The portal then fetches it same-origin, no CORS involved at all
+- [x] 🤖 Verified the parser against the real calendar before wiring up the workflow: output matched the reference image's dates/themes (Labor Day, Leather/Country/Bears III, Time Travel, Festival of Lights, Fall Flannel, OktoBEAR, Halloween) despite slightly different naming between the two sources
+- [ ] 🧑 First scheduled run / manual `workflow_dispatch` trigger to populate `woods-events.json` for the first time, then confirm both the weather cards and the weekends list render correctly on the live page
+- [ ] 🧑 Rest of the "portal overhaul" — open-ended, revisit once Bill has more specific ideas for what else belongs on the page
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*

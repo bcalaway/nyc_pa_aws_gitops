@@ -7,22 +7,30 @@
 <style>
   :root {
     color-scheme: dark;
+    --bg: #0f1115;
+    --card: #1a1d24;
+    --border: #2a2e37;
+    --text: #e6e6e6;
+    --muted: #9aa0a6;
+    --accent: #4a90e2;
   }
+  * { box-sizing: border-box; }
   body {
     margin: 0;
     min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #0f1115;
-    color: #e6e6e6;
+    background: var(--bg);
+    color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 2.5rem 1rem 3rem;
   }
   main {
-    max-width: 420px;
+    max-width: 960px;
     width: 100%;
-    padding: 2rem;
+    margin: 0 auto;
+  }
+  header {
     text-align: center;
+    margin-bottom: 2.5rem;
   }
   h1 {
     font-weight: 600;
@@ -30,39 +38,118 @@
     margin-bottom: 0.25rem;
   }
   p.sub {
-    color: #9aa0a6;
+    color: var(--muted);
     margin-top: 0;
-    margin-bottom: 2rem;
   }
+  h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0 0 0.9rem;
+  }
+  section { margin-bottom: 2.75rem; }
+
+  /* Links */
   .links {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 0.75rem;
   }
   a.link {
     display: block;
     padding: 0.9rem 1rem;
     border-radius: 10px;
-    background: #1a1d24;
-    border: 1px solid #2a2e37;
-    color: #e6e6e6;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
     text-decoration: none;
     font-size: 1rem;
     transition: border-color 0.15s ease;
   }
-  a.link:hover {
-    border-color: #4a90e2;
-  }
+  a.link:hover { border-color: var(--accent); }
   a.link .desc {
     display: block;
-    color: #9aa0a6;
+    color: var(--muted);
     font-size: 0.85rem;
     margin-top: 0.15rem;
   }
+
+  /* Weather */
+  .wx-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+  .wx-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem;
+  }
+  .wx-card h3 {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .wx-current {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.9rem;
+  }
+  .wx-current img { flex-shrink: 0; }
+  .wx-temp { font-size: 1.5rem; font-weight: 600; line-height: 1.1; }
+  .wx-desc { color: var(--muted); font-size: 0.85rem; }
+  .wx-days {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.25rem;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem;
+  }
+  .wx-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .wx-day-name { font-size: 0.7rem; color: var(--muted); }
+  .wx-day-temp { font-size: 0.8rem; }
+  .wx-error { color: var(--muted); font-size: 0.85rem; margin: 0; }
+
+  /* Woods events */
+  .events {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .event-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.8rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .event-row:last-child { border-bottom: none; }
+  .event-date {
+    color: var(--accent);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .event-name { text-align: right; }
+
   footer {
     margin-top: 2.5rem;
     color: #5b6068;
     font-size: 0.8rem;
+    text-align: center;
   }
 </style>
 <!-- Umami: anonymous page-view analytics (Milestone 16), no per-user tracking -->
@@ -70,35 +157,159 @@
 </head>
 <body>
 <main>
-  <h1>Bill &amp; Jessie</h1>
-  <p class="sub">Home platform status and links</p>
-  <div class="links">
-    <a class="link" href="https://hue.billandjessie.com">
-      Hue
-      <span class="desc">Lighting control, both sites</span>
-    </a>
-    <a class="link" href="https://todo-app.billandjessie.com">
-      TODO
-      <span class="desc">Todo list</span>
-    </a>
-    <a class="link" href="https://grafana.billandjessie.com">
-      Grafana
-      <span class="desc">Metrics and dashboards</span>
-    </a>
-    <a class="link" href="https://status.billandjessie.com">
-      Status
-      <span class="desc">Service and WAN uptime</span>
-    </a>
-    <a class="link" href="https://auth.billandjessie.com">
-      Authentik
-      <span class="desc">Login and identity provider</span>
-    </a>
-    <a class="link" href="/network.html">
-      Network Diagram
-      <span class="desc">NYC + Rambles + AWS hub topology</span>
-    </a>
-  </div>
+  <header>
+    <h1>Bill &amp; Jessie</h1>
+    <p class="sub">Home platform status and links</p>
+  </header>
+
+  <section>
+    <div class="links">
+      <a class="link" href="https://hue.billandjessie.com">
+        Hue
+        <span class="desc">Lighting control, both sites</span>
+      </a>
+      <a class="link" href="https://todo-app.billandjessie.com">
+        TODO
+        <span class="desc">Todo list</span>
+      </a>
+      <a class="link" href="https://grafana.billandjessie.com">
+        Grafana
+        <span class="desc">Metrics and dashboards</span>
+      </a>
+      <a class="link" href="https://status.billandjessie.com">
+        Status
+        <span class="desc">Service and WAN uptime</span>
+      </a>
+      <a class="link" href="https://auth.billandjessie.com">
+        Authentik
+        <span class="desc">Login and identity provider</span>
+      </a>
+      <a class="link" href="/network.html">
+        Network Diagram
+        <span class="desc">NYC + Rambles + AWS hub topology</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Weather</h2>
+    <div class="wx-grid">
+      <div class="wx-card">
+        <h3>New York, NY</h3>
+        <div id="wx-nyc"><p class="wx-error">Loading…</p></div>
+      </div>
+      <div class="wx-card">
+        <h3>The Woods (Lehighton, PA)</h3>
+        <div id="wx-woods"><p class="wx-error">Loading…</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Upcoming Weekends — The Woods</h2>
+    <div class="events" id="woods-events">
+      <p class="wx-error" style="padding:0.9rem 1.2rem;">Loading…</p>
+    </div>
+  </section>
+
   <footer>billandjessie.com</footer>
 </main>
+
+<script>
+  // Weather: National Weather Service (api.weather.gov) -- free, no API
+  // key, CORS-enabled, so this runs entirely client-side with no backend.
+  // Forecast grid URLs are pre-resolved (NWS's /points lookup is a one-time
+  // "which office/grid covers this coordinate" step, stable per location,
+  // no need to redo it on every page load).
+  const FORECASTS = {
+    'wx-nyc': 'https://api.weather.gov/gridpoints/OKX/34,45/forecast',
+    'wx-woods': 'https://api.weather.gov/gridpoints/PHI/28,119/forecast',
+  };
+
+  // NWS period `name` is unreliable for deriving a weekday label -- it's
+  // sometimes a holiday name instead ("Labor Day" for what would otherwise
+  // be "Monday"), which a naive slice(0,3) mangles into "Lab". Derive the
+  // label from the period's own startTime instead; only the very first
+  // (current) period gets the "Today" special-case.
+  const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  function shortDayName(period, isFirst) {
+    if (isFirst) return 'Today';
+    return DAY_ABBR[new Date(period.startTime).getDay()];
+  }
+
+  function renderForecast(targetId, periods) {
+    const el = document.getElementById(targetId);
+    const current = periods[0];
+    const days = periods.filter((p) => p.isDaytime).slice(0, 7);
+    el.innerHTML = `
+      <div class="wx-current">
+        <img src="${current.icon}" alt="" width="50" height="50" loading="lazy">
+        <div>
+          <div class="wx-temp">${current.temperature}&deg;${current.temperatureUnit}</div>
+          <div class="wx-desc">${current.shortForecast}</div>
+        </div>
+      </div>
+      <div class="wx-days">
+        ${days.map((d, i) => `
+          <div class="wx-day">
+            <div class="wx-day-name">${shortDayName(d, i === 0 && d === periods[0])}</div>
+            <img src="${d.icon}" alt="${d.shortForecast}" width="30" height="30" loading="lazy">
+            <div class="wx-day-temp">${d.temperature}&deg;</div>
+          </div>`).join('')}
+      </div>
+    `;
+  }
+
+  Object.entries(FORECASTS).forEach(([targetId, url]) => {
+    fetch(url, { headers: { Accept: 'application/geo+json' } })
+      .then((res) => { if (!res.ok) throw new Error(res.status); return res.json(); })
+      .then((data) => renderForecast(targetId, data.properties.periods))
+      .catch(() => {
+        document.getElementById(targetId).innerHTML = '<p class="wx-error">Weather unavailable</p>';
+      });
+  });
+
+  // Woods weekend themes: refreshed daily from the campground's public
+  // Google Calendar by a scheduled GitHub Action (scripts/fetch-woods-
+  // calendar.py), which pushes woods-events.json straight to this same S3
+  // bucket -- same-origin fetch here, no CORS involved (Google's own ICS
+  // feed doesn't support CORS, which is why this isn't fetched directly).
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function formatRange(startIso, endIso) {
+    const start = new Date(startIso + 'T00:00:00Z');
+    const end = new Date(endIso + 'T00:00:00Z');
+    const opts = { month: 'short', day: 'numeric', timeZone: 'UTC' };
+    const startStr = start.toLocaleDateString('en-US', opts);
+    if (startIso === endIso) return startStr;
+    if (start.getUTCMonth() === end.getUTCMonth()) {
+      return `${startStr}–${end.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'UTC' })}`;
+    }
+    return `${startStr}–${end.toLocaleDateString('en-US', opts)}`;
+  }
+
+  fetch('/woods-events.json', { cache: 'no-store' })
+    .then((res) => { if (!res.ok) throw new Error(res.status); return res.json(); })
+    .then((data) => {
+      const el = document.getElementById('woods-events');
+      if (!data.events || !data.events.length) {
+        el.innerHTML = '<p class="wx-error" style="padding:0.9rem 1.2rem;">No upcoming weekends listed</p>';
+        return;
+      }
+      el.innerHTML = data.events.map((e) => `
+        <div class="event-row">
+          <div class="event-date">${formatRange(e.start, e.end)}</div>
+          <div class="event-name">${escapeHtml(e.summary)}</div>
+        </div>`).join('');
+    })
+    .catch(() => {
+      document.getElementById('woods-events').innerHTML =
+        '<p class="wx-error" style="padding:0.9rem 1.2rem;">Schedule unavailable</p>';
+    });
+</script>
 </body>
 </html>
