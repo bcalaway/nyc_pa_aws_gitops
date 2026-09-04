@@ -2,12 +2,17 @@ import logging
 import os
 import re
 import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import requests
 from prometheus_client import Gauge, start_http_server
 
 STATION_HOST = os.environ["STATION_HOST"]
 POLL_INTERVAL_SECONDS = int(os.environ.get("POLL_INTERVAL_SECONDS", "60"))
+# The station's own daily-reset metrics (e.g. daily max gust) roll over at
+# its local midnight; the daily temp high/low tracked below matches that.
+STATION_TZ = ZoneInfo(os.environ.get("STATION_TZ", "America/New_York"))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("weather-exporter")
@@ -31,6 +36,26 @@ _NUM_RE = re.compile(r"[-+]?\d*\.\d+|[-+]?\d+")
 def _num(val: str) -> float:
     m = _NUM_RE.search(val)
     return float(m.group()) if m else float("nan")
+
+
+# Per-key running min/max since station-local midnight. Rolls over on the
+# date change, matching the station's own daily-reset metrics. An exporter
+# restart mid-day resets the window -- the "daily high" then re-climbs from
+# the current reading, same caveat as the speedtest scheduling elsewhere.
+_daily_stats: dict[str, dict] = {}
+
+
+def _track_daily(key: str, value: float):
+    if value != value:  # NaN
+        return None
+    today = datetime.now(STATION_TZ).date()
+    rec = _daily_stats.get(key)
+    if rec is None or rec["day"] != today:
+        rec = _daily_stats[key] = {"day": today, "min": value, "max": value}
+    else:
+        rec["min"] = min(rec["min"], value)
+        rec["max"] = max(rec["max"], value)
+    return rec["min"], rec["max"]
 
 
 g_outdoor_temp = Gauge("weather_outdoor_temp_fahrenheit", "Outdoor temperature")
@@ -72,6 +97,18 @@ g_extra_humidity = Gauge(
     "weather_extra_sensor_humidity_percent", "Extra temp/humidity sensor channel", ["channel"]
 )
 
+# Daily high/low, reset at station-local midnight (see _track_daily).
+g_outdoor_temp_daily_max = Gauge("weather_outdoor_temp_daily_max_fahrenheit", "Outdoor temp daily high")
+g_outdoor_temp_daily_min = Gauge("weather_outdoor_temp_daily_min_fahrenheit", "Outdoor temp daily low")
+g_indoor_temp_daily_max = Gauge("weather_indoor_temp_daily_max_fahrenheit", "Console indoor temp daily high")
+g_indoor_temp_daily_min = Gauge("weather_indoor_temp_daily_min_fahrenheit", "Console indoor temp daily low")
+g_extra_temp_daily_max = Gauge(
+    "weather_extra_sensor_temp_daily_max_fahrenheit", "Extra temp sensor daily high", ["channel"]
+)
+g_extra_temp_daily_min = Gauge(
+    "weather_extra_sensor_temp_daily_min_fahrenheit", "Extra temp sensor daily low", ["channel"]
+)
+
 g_last_success = Gauge(
     "weather_exporter_last_success_timestamp_seconds", "Unix timestamp of the last successful poll"
 )
@@ -110,7 +147,11 @@ def poll():
 
     common = data.get("common_list", [])
     if e := _find(common, "0x02"):
-        g_outdoor_temp.set(_num(e["val"]))
+        outdoor_t = _num(e["val"])
+        g_outdoor_temp.set(outdoor_t)
+        if mm := _track_daily("outdoor", outdoor_t):
+            g_outdoor_temp_daily_min.set(mm[0])
+            g_outdoor_temp_daily_max.set(mm[1])
     if e := _find(common, "3"):
         g_apparent_temp.set(_num(e["val"]))
     if e := _find(common, "0x03"):
@@ -133,10 +174,14 @@ def poll():
     wh25 = data.get("wh25", [])
     if wh25:
         indoor = wh25[0]
-        g_indoor_temp.set(_num(indoor["intemp"]))
+        indoor_t = _num(indoor["intemp"])
+        g_indoor_temp.set(indoor_t)
         g_indoor_humidity.set(_num(indoor["inhumi"]))
         g_pressure_abs.set(_num(indoor["abs"]))
         g_pressure_rel.set(_num(indoor["rel"]))
+        if mm := _track_daily("indoor", indoor_t):
+            g_indoor_temp_daily_min.set(mm[0])
+            g_indoor_temp_daily_max.set(mm[1])
 
     _apply_rain(data.get("rain", []), sensor="bucket")
     _apply_rain(data.get("piezoRain", []), sensor="piezo")
@@ -145,8 +190,12 @@ def poll():
         channel = ch.get("channel")
         if channel is None:
             continue
-        g_extra_temp.labels(channel=channel).set(_num(ch["temp"]))
+        extra_t = _num(ch["temp"])
+        g_extra_temp.labels(channel=channel).set(extra_t)
         g_extra_humidity.labels(channel=channel).set(_num(ch["humidity"]))
+        if mm := _track_daily(f"extra{channel}", extra_t):
+            g_extra_temp_daily_min.labels(channel=channel).set(mm[0])
+            g_extra_temp_daily_max.labels(channel=channel).set(mm[1])
 
     g_last_success.set(time.time())
     log.info("poll ok")

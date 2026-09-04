@@ -306,11 +306,25 @@
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "weather_outdoor_temp_fahrenheit", "legendFormat": "outdoor", "refId": "A" },
+        { "expr": "weather_outdoor_temp_daily_max_fahrenheit", "legendFormat": "outdoor high (today)", "refId": "E" },
+        { "expr": "weather_outdoor_temp_daily_min_fahrenheit", "legendFormat": "outdoor low (today)", "refId": "F" },
         { "expr": "weather_apparent_temp_fahrenheit", "legendFormat": "feels like", "refId": "B" },
         { "expr": "weather_dew_point_fahrenheit", "legendFormat": "dew point", "refId": "C" },
-        { "expr": "weather_indoor_temp_fahrenheit", "legendFormat": "indoor", "refId": "D" }
+        { "expr": "weather_indoor_temp_fahrenheit", "legendFormat": "indoor", "refId": "D" },
+        { "expr": "weather_indoor_temp_daily_max_fahrenheit", "legendFormat": "indoor high (today)", "refId": "G" },
+        { "expr": "weather_indoor_temp_daily_min_fahrenheit", "legendFormat": "indoor low (today)", "refId": "H" }
       ],
-      "fieldConfig": { "defaults": { "unit": "fahrenheit" }, "overrides": [] }
+      "fieldConfig": {
+        "defaults": { "unit": "fahrenheit" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "outdoor" },      "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } } ] },
+          { "matcher": { "id": "byName", "options": "feels like" },    "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FADE2A" } } ] },
+          { "matcher": { "id": "byName", "options": "dew point" },     "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#5794F2" } } ] },
+          { "matcher": { "id": "byName", "options": "indoor" },        "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FF9830" } } ] },
+          { "matcher": { "id": "byRegexp", "options": "/outdoor (high|low)/" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } }, { "id": "custom.lineWidth", "value": 1 }, { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 6] } }, { "id": "custom.showPoints", "value": "never" } ] },
+          { "matcher": { "id": "byRegexp", "options": "/indoor (high|low)/" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FF9830" } }, { "id": "custom.lineWidth", "value": 1 }, { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 6] } }, { "id": "custom.showPoints", "value": "never" } ] }
+        ]
+      }
     },
     {
       "id": 20,
@@ -416,10 +430,26 @@
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "targets": [
         { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"1\"}", "legendFormat": "RV", "refId": "A" },
+        { "expr": "weather_extra_sensor_temp_daily_max_fahrenheit{channel=\"1\"}", "legendFormat": "RV high (today)", "refId": "D" },
+        { "expr": "weather_extra_sensor_temp_daily_min_fahrenheit{channel=\"1\"}", "legendFormat": "RV low (today)", "refId": "E" },
         { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"2\"}", "legendFormat": "Big Cabin", "refId": "B" },
-        { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"3\"}", "legendFormat": "Little Cabin", "refId": "C" }
+        { "expr": "weather_extra_sensor_temp_daily_max_fahrenheit{channel=\"2\"}", "legendFormat": "Big Cabin high (today)", "refId": "F" },
+        { "expr": "weather_extra_sensor_temp_daily_min_fahrenheit{channel=\"2\"}", "legendFormat": "Big Cabin low (today)", "refId": "G" },
+        { "expr": "weather_extra_sensor_temp_fahrenheit{channel=\"3\"}", "legendFormat": "Little Cabin", "refId": "C" },
+        { "expr": "weather_extra_sensor_temp_daily_max_fahrenheit{channel=\"3\"}", "legendFormat": "Little Cabin high (today)", "refId": "H" },
+        { "expr": "weather_extra_sensor_temp_daily_min_fahrenheit{channel=\"3\"}", "legendFormat": "Little Cabin low (today)", "refId": "I" }
       ],
-      "fieldConfig": { "defaults": { "unit": "fahrenheit" }, "overrides": [] }
+      "fieldConfig": {
+        "defaults": { "unit": "fahrenheit" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "RV" },           "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } } ] },
+          { "matcher": { "id": "byName", "options": "Big Cabin" },     "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FADE2A" } } ] },
+          { "matcher": { "id": "byName", "options": "Little Cabin" },  "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#5794F2" } } ] },
+          { "matcher": { "id": "byRegexp", "options": "/^RV (high|low)/" },          "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } }, { "id": "custom.lineWidth", "value": 1 }, { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 6] } }, { "id": "custom.showPoints", "value": "never" } ] },
+          { "matcher": { "id": "byRegexp", "options": "/^Big Cabin (high|low)/" },   "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FADE2A" } }, { "id": "custom.lineWidth", "value": 1 }, { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 6] } }, { "id": "custom.showPoints", "value": "never" } ] },
+          { "matcher": { "id": "byRegexp", "options": "/^Little Cabin (high|low)/" },"properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#5794F2" } }, { "id": "custom.lineWidth", "value": 1 }, { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 6] } }, { "id": "custom.showPoints", "value": "never" } ] }
+        ]
+      }
     },
     {
       "id": 31,
