@@ -291,10 +291,12 @@ Tasks:
 - [x] 🧑 3 SSM secrets stored (2026-09-04)
 - [x] 🧑 `scripts/deploy-aws-stack.ps1` run (2026-09-04) — `umami` container up, Postgres migrations applied clean, tracker endpoint confirmed `/api/send`
 - [x] 🤖 Outpost-provider assignment (2026-09-04, `ak shell`, same manual step Uptime Kuma needed — no safe blueprint/API path found for this either). Verified all four routes live: `/script.js` 200, `/api/send` 405 (reaches Umami, not a redirect), `/` 302 to `auth.billandjessie.com` (was a bare 404 before this step), outpost callback path reachable (400, not 404)
-- [ ] 🧑 One-time Umami first-run setup (admin account + password) — Claude won't submit credentials into a login form even for first-run setup
-- [ ] 🧑 Add 3 "websites" in Umami's UI (portal, todo-app, hue) and hand Claude the 3 resulting website IDs
-- [ ] 🤖 Add the tracking `<script>` snippet to `portal/index.html`/`network.html` (this repo), and to `todo-app`/`hue`'s frontends (separate repos, both cloned locally) once the website IDs exist
-- [ ] 🧑 Confirm real page-view data appears in Umami after a normal browsing session on each site
+- [x] 🧑 One-time Umami first-run setup (2026-09-04) — image ships a seeded default admin (`admin`/`umami`, publicly documented); Bill logged in and rotated it, new password saved to SSM (`/home-platform/umami/admin-password`)
+- [x] 🧑 3 "websites" added in Umami's UI — portal (`10c463cb-9ba2-4a0d-966c-777a79fd0b3c`, domain `billandjessie.com`), todo-app (`a4b994a8-582c-410a-b921-d2e20f007638`, `todo-app.billandjessie.com`), hue (`76b4836e-ef2f-4df4-92c5-23826a571893`, `hue.billandjessie.com`)
+- [x] 🤖 Tracking `<script>` snippet added to `portal/index.html` + `network.html` (this repo), `todo-app`'s `app/static/index.html` + `categories.html`, and `hue`'s `hub/frontend/index.html` (its Vite source template, not the gitignored build output) — all pushed, all three apps' CI/CD ran clean. Umami's default tracker auto-detects `pushState` navigation, so hue's React Router route changes get their own pageviews too, not just the initial load
+- [x] 🤖 Verified real end-to-end 2026-09-04: sent a live test pageview to `/api/send` for the portal's website id, confirmed it landed in Umami's own Postgres (`website_event` table) with the right website/URL/hostname. Also found and cleaned up 2 harmless artifact rows from the code editor's own file-preview tooling firing the tracker from a `data:` URL context right after the snippet was added (not real traffic) — `website_event`/`session` tables now clean for real visits
+
+**✅ Milestone complete as of 2026-09-04.** Anonymous, per-app/per-page usage analytics live for the portal, todo-app, and hue via a self-hosted Umami instance (`analytics.billandjessie.com`, Authentik-gated dashboard, publicly reachable tracker). Per-app request-volume was already covered by the existing Traefik dashboard. Deliberately no per-user attribution — Bill's call, traffic counts only, no names.
 
 ## Future / Deferred
 
