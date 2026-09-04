@@ -77,6 +77,7 @@ Always `git push` immediately after every `git commit` without asking.
 | `/home-platform/postgres/umami-password` | Password for the `umami` Postgres role/database (Milestone 16, usage analytics) |
 | `/home-platform/umami/app-secret` | Umami's `APP_SECRET` (session/auth token signing) |
 | `/home-platform/umami/two-factor-encryption-key` | Umami's `TWO_FACTOR_ENCRYPTION_KEY` — a required 64-char hex string in v3, even though 2FA itself isn't used here |
+| `/home-platform/umami/admin-password` | Umami dashboard admin password (`analytics.billandjessie.com`), rotated from the image's default `admin`/`umami` seed on first login 2026-09-04 |
 
 ## Ansible NUC provisioning
 
