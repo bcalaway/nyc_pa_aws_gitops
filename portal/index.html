@@ -21,25 +21,33 @@
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    padding: 2.5rem 1rem 3rem;
   }
   main {
     max-width: 960px;
     width: 100%;
     margin: 0 auto;
+    padding: 2.5rem 1rem 3rem;
+  }
+  .hero {
+    width: 100%;
+    height: min(48vh, 380px);
+    min-height: 220px;
+    background:
+      linear-gradient(to bottom, rgba(15, 17, 21, 0) 45%, rgba(15, 17, 21, 0.95) 100%),
+      url('hero.jpg') center 35% / cover no-repeat;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
   }
   header {
     text-align: center;
-    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
   }
   h1 {
     font-weight: 600;
-    font-size: 1.75rem;
-    margin-bottom: 0.25rem;
-  }
-  p.sub {
-    color: var(--muted);
-    margin-top: 0;
+    font-size: 2rem;
+    margin: 0;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
   }
   .section-head {
     display: flex;
@@ -168,12 +176,12 @@
 <script defer src="https://analytics.billandjessie.com/script.js" data-website-id="10c463cb-9ba2-4a0d-966c-777a79fd0b3c"></script>
 </head>
 <body>
-<main>
+<div class="hero">
   <header>
     <h1>Bill &amp; Jessie</h1>
-    <p class="sub">Home platform status and links</p>
   </header>
-
+</div>
+<main>
   <nav class="menu">
     <a href="https://hue.billandjessie.com">Hue</a>
     <a href="https://todo-app.billandjessie.com">TODO</a>
