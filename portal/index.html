@@ -41,14 +41,28 @@
     color: var(--muted);
     margin-top: 0;
   }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0 0 0.9rem;
+  }
   h2 {
     font-size: 1.05rem;
     font-weight: 600;
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    margin: 0 0 0.9rem;
+    margin: 0;
   }
+  .section-head a {
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .section-head a:hover { color: var(--accent); }
   section { margin-bottom: 2.75rem; }
 
   /* Menu */
@@ -170,7 +184,10 @@
   </nav>
 
   <section>
-    <h2>Weather</h2>
+    <div class="section-head">
+      <h2>Weather</h2>
+      <a href="https://grafana.billandjessie.com/public-dashboards/5b3ef81e8ee54ef7bcee5c02347b07ea">Full dashboard &amp; history →</a>
+    </div>
     <div class="wx-grid">
       <div class="wx-card">
         <h3>New York, NY</h3>
