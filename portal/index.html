@@ -51,29 +51,27 @@
   }
   section { margin-bottom: 2.75rem; }
 
-  /* Links */
-  .links {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 0.75rem;
+  /* Menu */
+  nav.menu {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 2.75rem;
   }
-  a.link {
-    display: block;
-    padding: 0.9rem 1rem;
-    border-radius: 10px;
+  nav.menu a {
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
     background: var(--card);
     border: 1px solid var(--border);
     color: var(--text);
     text-decoration: none;
-    font-size: 1rem;
-    transition: border-color 0.15s ease;
+    font-size: 0.9rem;
+    transition: border-color 0.15s ease, color 0.15s ease;
   }
-  a.link:hover { border-color: var(--accent); }
-  a.link .desc {
-    display: block;
-    color: var(--muted);
-    font-size: 0.85rem;
-    margin-top: 0.15rem;
+  nav.menu a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
   /* Weather */
@@ -162,34 +160,14 @@
     <p class="sub">Home platform status and links</p>
   </header>
 
-  <section>
-    <div class="links">
-      <a class="link" href="https://hue.billandjessie.com">
-        Hue
-        <span class="desc">Lighting control, both sites</span>
-      </a>
-      <a class="link" href="https://todo-app.billandjessie.com">
-        TODO
-        <span class="desc">Todo list</span>
-      </a>
-      <a class="link" href="https://grafana.billandjessie.com">
-        Grafana
-        <span class="desc">Metrics and dashboards</span>
-      </a>
-      <a class="link" href="https://status.billandjessie.com">
-        Status
-        <span class="desc">Service and WAN uptime</span>
-      </a>
-      <a class="link" href="https://auth.billandjessie.com">
-        Authentik
-        <span class="desc">Login and identity provider</span>
-      </a>
-      <a class="link" href="/network.html">
-        Network Diagram
-        <span class="desc">NYC + Rambles + AWS hub topology</span>
-      </a>
-    </div>
-  </section>
+  <nav class="menu">
+    <a href="https://hue.billandjessie.com">Hue</a>
+    <a href="https://todo-app.billandjessie.com">TODO</a>
+    <a href="https://grafana.billandjessie.com">Grafana</a>
+    <a href="https://status.billandjessie.com">Status</a>
+    <a href="https://auth.billandjessie.com">Authentik</a>
+    <a href="/network.html">Network Diagram</a>
+  </nav>
 
   <section>
     <h2>Weather</h2>
