@@ -22,9 +22,15 @@ sensors:
   # 40 lb (10 gal) -- fit: RV Right 485mm@100%, RV Left 156mm@25%
   "D4:32:71:CD:9F:A8": { name: "RV Right",         full_mm: 485, empty_mm: 46 }
   "FB:10:69:78:C5:8B": { name: "RV Left",          full_mm: 485, empty_mm: 46 }
-  # 30 lb (7.5 gal) -- fit: Downstairs Left 275mm@69%, Downstairs Right 41mm@2%
-  "E8:E2:7F:AC:71:D8": { name: "Downstairs Left",  full_mm: 384, empty_mm: 34 }
-  "C6:41:60:E7:C2:90": { name: "Downstairs Right", full_mm: 384, empty_mm: 34 }
+  # 30 lb (7.5 gal) -- re-fit 2026-09-20 from the first real fill cycle (was
+  #   384/34 from the app's 2-point fit): both sensors bottomed out at 42-43mm
+  #   when the tanks ran empty, and Downstairs Left read a steady ~393mm right
+  #   after being refilled (Right was filled to ~364mm, ~92%). Note a nearly
+  #   full tank makes the Left sensor intermittently lock onto the second echo
+  #   (exactly 2x, ~788mm, reading quality 0-33) -- fill_percent clamps that to
+  #   100%, which is correct while it's full.
+  "E8:E2:7F:AC:71:D8": { name: "Downstairs Left",  full_mm: 393, empty_mm: 43 }
+  "C6:41:60:E7:C2:90": { name: "Downstairs Right", full_mm: 393, empty_mm: 43 }
   # 20 lb (5 gal) -- fit: Grill 2 100mm@29%, Grill 1 58mm@9%
   "E8:96:9A:1A:94:A2": { name: "Grill 1",          full_mm: 249, empty_mm: 39 }
   "CA:5C:F8:2E:F5:30": { name: "Grill 2",          full_mm: 249, empty_mm: 39 }
