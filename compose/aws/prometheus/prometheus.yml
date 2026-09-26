@@ -90,6 +90,36 @@ scrape_configs:
         target_label: __address__
         replacement: 10.0.1.34:9115
 
+  # NYC HP M455dn via snmp_exporter's hand-written hp_printer module
+  # (compose/aws/snmp-exporter/printer.yml): toner, trays, page count,
+  # error bits, console text, uptime. Feeds the Printer dashboard + alerts.
+  - job_name: snmp-printer
+    static_configs:
+      - targets: ["10.0.1.5"]
+        labels:
+          device: printer
+          site: nyc
+    metrics_path: /snmp
+    params:
+      module: [hp_printer]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: snmp-exporter:9116
+    metric_relabel_configs:
+      # prtMarkerSuppliesDescription ends in a NUL byte on this printer.
+      - source_labels: [supply]
+        regex: '([^\x00]*)\x00*'
+        target_label: supply
+        replacement: "$1"
+      # Only line 1 of the console buffer is ever populated; drop blank lines.
+      - source_labels: [__name__, prtConsoleDisplayBufferText]
+        regex: "prtConsoleDisplayBufferText;"
+        action: drop
+
   # LAN device reachability, probed from the site's own NUC blackbox-exporter.
   # Kept out of blackbox-icmp above because the router-traffic dashboard
   # aggregates that job as WAN health. Feeds the printer-offline alert.

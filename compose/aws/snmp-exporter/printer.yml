@@ -1,0 +1,170 @@
+# Extra snmp_exporter module for the NYC HP M455dn (10.0.1.5), loaded as a
+# second --config.file alongside the image's built-in snmp.yml (which keeps
+# providing if_mib for the routers/switches). Hand-written rather than
+# generator-built: the built-in printer_mib module only covers toner, not
+# trays, page count, error bits, console text, or uptime.
+#
+# OIDs are standard Printer-MIB (RFC 3805, 1.3.6.1.2.1.43) and
+# HOST-RESOURCES-MIB (1.3.6.1.2.1.25) -- nothing HP-proprietary -- so this
+# should work unchanged for any other network printer added later.
+# Auth comes from the built-in file's default `public_v2`.
+modules:
+  hp_printer:
+    walk:
+      - 1.3.6.1.2.1.43.11.1.1.6   # prtMarkerSuppliesDescription (lookup)
+      - 1.3.6.1.2.1.43.11.1.1.8   # prtMarkerSuppliesMaxCapacity
+      - 1.3.6.1.2.1.43.11.1.1.9   # prtMarkerSuppliesLevel
+      - 1.3.6.1.2.1.43.10.2.1.4   # prtMarkerLifeCount
+      - 1.3.6.1.2.1.43.8.2.1.9    # prtInputMaxCapacity
+      - 1.3.6.1.2.1.43.8.2.1.10   # prtInputCurrentLevel
+      - 1.3.6.1.2.1.43.8.2.1.13   # prtInputName (lookup)
+      - 1.3.6.1.2.1.43.6.1.1.3    # prtCoverStatus
+      - 1.3.6.1.2.1.43.16.5.1.2   # prtConsoleDisplayBufferText
+      - 1.3.6.1.2.1.25.3.5.1.1    # hrPrinterStatus
+      - 1.3.6.1.2.1.25.3.5.1.2    # hrPrinterDetectedErrorState
+    get:
+      - 1.3.6.1.2.1.1.3.0         # sysUpTime
+    metrics:
+      - name: sysUpTime
+        oid: 1.3.6.1.2.1.1.3
+        type: gauge
+        help: Hundredths of a second since the printer's network stack started - 1.3.6.1.2.1.1.3
+
+      # Level/max are percent on this printer (max=100), but may be absolute
+      # units on others -- alert on level/max, not level alone. Negative
+      # levels are Printer-MIB sentinels: -2 unknown, -3 "some remaining".
+      - name: prtMarkerSuppliesLevel
+        oid: 1.3.6.1.2.1.43.11.1.1.9
+        type: gauge
+        help: Current level of a marker supply (toner) - 1.3.6.1.2.1.43.11.1.1.9
+        indexes:
+          - labelname: hrDeviceIndex
+            type: gauge
+          - labelname: prtMarkerSuppliesIndex
+            type: gauge
+        lookups:
+          - labels: [hrDeviceIndex, prtMarkerSuppliesIndex]
+            labelname: supply
+            oid: 1.3.6.1.2.1.43.11.1.1.6
+            type: DisplayString
+      - name: prtMarkerSuppliesMaxCapacity
+        oid: 1.3.6.1.2.1.43.11.1.1.8
+        type: gauge
+        help: Maximum capacity of a marker supply - 1.3.6.1.2.1.43.11.1.1.8
+        indexes:
+          - labelname: hrDeviceIndex
+            type: gauge
+          - labelname: prtMarkerSuppliesIndex
+            type: gauge
+        lookups:
+          - labels: [hrDeviceIndex, prtMarkerSuppliesIndex]
+            labelname: supply
+            oid: 1.3.6.1.2.1.43.11.1.1.6
+            type: DisplayString
+
+      - name: prtMarkerLifeCount
+        oid: 1.3.6.1.2.1.43.10.2.1.4
+        type: counter
+        help: Lifetime pages printed - 1.3.6.1.2.1.43.10.2.1.4
+        indexes:
+          - labelname: hrDeviceIndex
+            type: gauge
+          - labelname: prtMarkerIndex
+            type: gauge
+
+      # Current level: -3 = "at least one sheet, exact count unknown" (what
+      # this printer reports for a loaded Tray 2), 0 = empty, -2 = unknown.
+      - name: prtInputCurrentLevel
+        oid: 1.3.6.1.2.1.43.8.2.1.10
+        type: gauge
+        help: Sheets in a paper tray (-3 = some, 0 = empty, -2 = unknown) - 1.3.6.1.2.1.43.8.2.1.10
+        indexes:
+          - labelname: hrDeviceIndex
+            type: gauge
+          - labelname: prtInputIndex
+            type: gauge
+        lookups:
+          - labels: [hrDeviceIndex, prtInputIndex]
+            labelname: tray
+            oid: 1.3.6.1.2.1.43.8.2.1.13
+            type: DisplayString
+      - name: prtInputMaxCapacity
+        oid: 1.3.6.1.2.1.43.8.2.1.9
+        type: gauge
+        help: Sheet capacity of a paper tray - 1.3.6.1.2.1.43.8.2.1.9
+        indexes:
+          - labelname: hrDeviceIndex
+            type: gauge
+          - labelname: prtInputIndex
+            type: gauge
+        lookups:
+          - labels: [hrDeviceIndex, prtInputIndex]
+            labelname: tray
+            oid: 1.3.6.1.2.1.43.8.2.1.13
+            type: DisplayString
+
+      - name: prtCoverStatus
+        oid: 1.3.6.1.2.1.43.6.1.1.3
+        type: EnumAsStateSet
+        help: Cover/door state - 1.3.6.1.2.1.43.6.1.1.3
+        indexes:
+          - labelname: hrDeviceIndex
+            type: gauge
+          - labelname: prtCoverIndex
+            type: gauge
+        enum_values:
+          1: other
+          3: coverOpen
+          4: coverClosed
+          5: interlockOpen
+          6: interlockClosed
+
+      # Exposed as prtConsoleDisplayBufferText{prtConsoleDisplayBufferText="Ready"} 1
+      - name: prtConsoleDisplayBufferText
+        oid: 1.3.6.1.2.1.43.16.5.1.2
+        type: DisplayString
+        help: Text currently on the printer's control-panel display - 1.3.6.1.2.1.43.16.5.1.2
+        indexes:
+          - labelname: hrDeviceIndex
+            type: gauge
+          - labelname: prtConsoleDisplayBufferIndex
+            type: gauge
+
+      - name: hrPrinterStatus
+        oid: 1.3.6.1.2.1.25.3.5.1.1
+        type: EnumAsStateSet
+        help: Printer status - 1.3.6.1.2.1.25.3.5.1.1
+        indexes:
+          - labelname: hrDeviceIndex
+            type: gauge
+        enum_values:
+          1: other
+          2: unknown
+          3: idle
+          4: printing
+          5: warmup
+
+      # SNMP BITS: bit 0 is the MSB of the first octet. One series per bit.
+      - name: hrPrinterDetectedErrorState
+        oid: 1.3.6.1.2.1.25.3.5.1.2
+        type: Bits
+        help: Printer error conditions currently detected - 1.3.6.1.2.1.25.3.5.1.2
+        indexes:
+          - labelname: hrDeviceIndex
+            type: gauge
+        enum_values:
+          0: lowPaper
+          1: noPaper
+          2: lowToner
+          3: noToner
+          4: doorOpen
+          5: jammed
+          6: offline
+          7: serviceRequested
+          8: inputTrayMissing
+          9: outputTrayMissing
+          10: markerSupplyMissing
+          11: outputNearFull
+          12: outputFull
+          13: inputTrayEmpty
+          14: overduePreventMaint

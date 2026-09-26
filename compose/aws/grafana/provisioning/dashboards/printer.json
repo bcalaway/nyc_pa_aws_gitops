@@ -1,0 +1,614 @@
+{
+  "uid": "printer",
+  "title": "Printer",
+  "tags": [
+    "home-platform"
+  ],
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "refresh": "1m",
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Reachable",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-lan\",instance=\"printer\"}",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Online",
+                  "color": "green"
+                },
+                "0": {
+                  "text": "Offline",
+                  "color": "red"
+                }
+              }
+            }
+          ],
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Status",
+      "type": "stat",
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "expr": "hrPrinterStatus{job=\"snmp-printer\"} == 1",
+          "legendFormat": "{{hrPrinterStatus}}",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Front panel",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "expr": "prtConsoleDisplayBufferText{job=\"snmp-printer\",prtConsoleDisplayBufferIndex=\"1\"}",
+          "legendFormat": "{{prtConsoleDisplayBufferText}}",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Active errors",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "expr": "hrPrinterDetectedErrorState{job=\"snmp-printer\"} == 1",
+          "legendFormat": "{{hrPrinterDetectedErrorState}}",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "None",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Tray 2 paper",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "expr": "prtInputCurrentLevel{job=\"snmp-printer\",tray=\"Tray 2\"}",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-3": {
+                  "text": "Loaded",
+                  "color": "green"
+                },
+                "0": {
+                  "text": "Empty",
+                  "color": "red"
+                },
+                "-2": {
+                  "text": "Unknown",
+                  "color": "yellow"
+                }
+              }
+            }
+          ],
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Uptime",
+      "type": "stat",
+      "gridPos": {
+        "x": 20,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "expr": "sysUpTime{job=\"snmp-printer\"} / 100",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Toner",
+      "type": "bargauge",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "expr": "100 * prtMarkerSuppliesLevel{job=\"snmp-printer\"} / prtMarkerSuppliesMaxCapacity{job=\"snmp-printer\"}",
+          "legendFormat": "{{supply}}",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 10
+              },
+              {
+                "color": "green",
+                "value": 20
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Pages printed (lifetime)",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "expr": "prtMarkerLifeCount{job=\"snmp-printer\"}",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Pages per day",
+      "type": "barchart",
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "expr": "increase(prtMarkerLifeCount{job=\"snmp-printer\"}[1d])",
+          "legendFormat": "pages",
+          "interval": "1d",
+          "range": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "xTickLabelSpacing": 100,
+        "legend": {
+          "showLegend": false
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Toner over time",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "expr": "100 * prtMarkerSuppliesLevel{job=\"snmp-printer\"} / prtMarkerSuppliesMaxCapacity{job=\"snmp-printer\"}",
+          "legendFormat": "{{supply}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 11,
+      "title": "Online (ping from nuc4)",
+      "type": "state-timeline",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-lan\",instance=\"printer\"}",
+          "legendFormat": "printer",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Online",
+                  "color": "green"
+                },
+                "0": {
+                  "text": "Offline",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "showValue": "never",
+        "legend": {
+          "showLegend": false
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Printer syslog",
+      "type": "logs",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "targets": [
+        {
+          "expr": "{device=\"printer\"}",
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "description": "NYC HP M455dn: reachability (blackbox-lan), Printer-MIB via snmp-printer (compose/aws/snmp-exporter/printer.yml), and its syslog."
+}

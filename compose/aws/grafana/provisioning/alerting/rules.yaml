@@ -212,3 +212,141 @@ groups:
         annotations:
           summary: "NYC printer (10.0.1.5) has been unreachable for 30 minutes"
           description: "The HP M455dn at 10.0.1.5 hasn't answered ping from nuc4 for 30+ minutes, so AirPrint from phones/laptops will fail. Usually it's been switched off -- press its power button. If the screen is on but it still won't respond, power-cycle it. Its switch port is sw-desk gi5 (ifOperStatus in Prometheus shows whether the link is up)."
+
+      - uid: printer-toner-low
+        title: Printer toner low
+        # Printer-MIB via snmp-printer job (compose/aws/snmp-exporter/printer.yml).
+        # level/max rather than raw level so it stays right on a printer that
+        # reports absolute units; level >= 0 filters the -2/-3 sentinels.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: '100 * prtMarkerSuppliesLevel{job="snmp-printer"} / prtMarkerSuppliesMaxCapacity{job="snmp-printer"} and prtMarkerSuppliesLevel{job="snmp-printer"} >= 0'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [10]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        # No data = printer unreachable or asleep-and-unresponsive; the
+        # printer-offline rule above owns that case.
+        noDataState: OK
+        execErrState: Error
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Printer toner low: {{ $labels.supply }} at {{ humanize $values.A.Value }}%"
+          description: "{{ $labels.supply }} in the NYC HP M455dn is under 10%. Time to order a replacement (HP 414A / W202xA, standard yield)."
+      - uid: printer-out-of-paper
+        title: Printer out of paper
+        # Tray 2 is the main 250-sheet cassette. This printer reports -3
+        # ("some paper, count unknown") when loaded and 0 when empty. Tray 1
+        # (manual feed) is normally empty, so it is deliberately excluded.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: 'prtInputCurrentLevel{job="snmp-printer",tray="Tray 2"} == bool 0'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        # No data = printer unreachable or asleep-and-unresponsive; the
+        # printer-offline rule above owns that case.
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NYC printer is out of paper (Tray 2)"
+          description: "Tray 2 on the NYC HP M455dn reports empty. Load paper -- iPhone/iPad/Mac print jobs will stall until then."
+      - uid: printer-needs-attention
+        title: Printer needs attention
+        # hrPrinterDetectedErrorState bits (HOST-RESOURCES-MIB). One series
+        # per condition, so the alert names which one fired. "Device
+        # assessment with configuration server failed" in the printer's
+        # syslog is unrelated and harmless (boot-time lookup for an HP fleet
+        # management server that doesn't exist here).
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: 'hrPrinterDetectedErrorState{job="snmp-printer",hrPrinterDetectedErrorState=~"jammed|doorOpen|serviceRequested|noToner|markerSupplyMissing|offline"}'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        # No data = printer unreachable or asleep-and-unresponsive; the
+        # printer-offline rule above owns that case.
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NYC printer needs attention: {{ $labels.hrPrinterDetectedErrorState }}"
+          description: "The NYC HP M455dn is reporting {{ $labels.hrPrinterDetectedErrorState }}. Printing is blocked until it is cleared at the printer. The front-panel message is on the Printer dashboard in Grafana."

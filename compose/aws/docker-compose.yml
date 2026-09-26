@@ -25,6 +25,12 @@ services:
     image: prom/snmp-exporter:v0.26.0
     container_name: snmp-exporter
     restart: unless-stopped
+    # Built-in snmp.yml (if_mib etc.) plus our hand-written printer module.
+    command:
+      - --config.file=/etc/snmp_exporter/snmp.yml
+      - --config.file=/etc/snmp_exporter/printer.yml
+    volumes:
+      - ./snmp-exporter/printer.yml:/etc/snmp_exporter/printer.yml:ro
     ports:
       - "9116:9116"
 
