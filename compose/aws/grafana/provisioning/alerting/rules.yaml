@@ -160,3 +160,55 @@ groups:
         annotations:
           summary: "TLS cert for {{ $labels.cn }} expires in under 14 days"
           description: "traefik_tls_certs_not_after shows {{ $labels.cn }} has under 14 days of validity left, or the metric is missing entirely. Let's Encrypt certs renew automatically around 30 days out, so this means auto-renewal has already failed at least once -- check `docker logs traefik` for ACME errors (Route53 API/IMDS credential issues are the usual cause)."
+
+  - orgId: 1
+    name: printer
+    folder: Alerts
+    interval: 5m
+    rules:
+      - uid: printer-offline
+        title: Printer offline
+        # ICMP from nuc4's blackbox-exporter (prometheus.yml's blackbox-lan
+        # job). Added 2026-09-26 after the NYC printer sat powered off from
+        # Sep 10 to Sep 26 with nobody noticing -- AirPrint jobs from iOS just
+        # failed silently. Ping covers both "off / no link" and "hung".
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: probe_success{job="blackbox-lan",instance="printer"}
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        # No data means nuc4 or its blackbox-exporter is unreachable -- a
+        # different problem that shouldn't masquerade as the printer being off.
+        noDataState: NoData
+        execErrState: Error
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NYC printer (10.0.1.5) has been unreachable for 30 minutes"
+          description: "The HP M455dn at 10.0.1.5 hasn't answered ping from nuc4 for 30+ minutes, so AirPrint from phones/laptops will fail. Usually it's been switched off -- press its power button. If the screen is on but it still won't respond, power-cycle it. Its switch port is sw-desk gi5 (ifOperStatus in Prometheus shows whether the link is up)."

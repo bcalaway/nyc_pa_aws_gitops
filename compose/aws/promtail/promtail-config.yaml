@@ -83,6 +83,12 @@ scrape_configs:
           job: network-syslog
           device: nuc4
           __path__: /var/log/network-devices/10.0.1.34.log
+      # HP M455dn -- Jetdirect syslog (Networking > TCP/IP Settings > Misc).
+      - targets: [localhost]
+        labels:
+          job: network-syslog
+          device: printer
+          __path__: /var/log/network-devices/10.0.1.5.log
 
   # The hub's own system logs (auth, fail2ban, dnf-automatic, sshd, etc.)
   # were never shipped anywhere -- it only ever collected everyone else's.
