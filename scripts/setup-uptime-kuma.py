@@ -39,7 +39,19 @@ MONITORS = [
     # WiFi APs -- added 2026-09-28 after a Rambles WiFi outage that the
     # router/WAN-level monitoring above never caught (router and WAN uplink
     # both stayed healthy throughout; the mesh AP itself was never watched).
-    dict(type=MonitorType.PING, name="Nighthawk RS700 (NYC AP)", hostname="10.0.1.2", interval=60),
+    #
+    # NYC: the Nighthawk RS700's own management IP (10.0.1.2) doesn't answer
+    # ICMP *or* TCP when the request arrives via the hub's WireGuard-routed
+    # path -- confirmed 2026-09-28 from the hub itself (both curl and ping
+    # timed out completely), while every other NYC device monitored the same
+    # way (router, switches, nas2) responds fine over that same path. It
+    # only answers a device on its own local LAN segment. So a monitor on
+    # 10.0.1.2 directly would show "down" permanently regardless of real
+    # health. Proxied instead via hue-nyc (10.0.1.71), which is wired
+    # directly to the Nighthawk -- if that responds, the AP's basic
+    # LAN-side forwarding is alive, even though its own management IP won't
+    # answer remotely.
+    dict(type=MonitorType.PING, name="hue-nyc (NYC AP proxy)", hostname="10.0.1.71", interval=60),
     dict(type=MonitorType.PING, name="ZenWiFi AP (Rambles, main node)", hostname="10.0.2.251", interval=60),
     # Known 3rd mesh satellite (docs/network-inventory.md) -- dynamic lease,
     # not a static reservation, so this IP could drift.
