@@ -35,6 +35,15 @@ MONITORS = [
     dict(type=MonitorType.PING, name="sw-desk", hostname="10.0.1.11", interval=60),
     dict(type=MonitorType.PING, name="sw-10g", hostname="10.0.1.12", interval=60),
     dict(type=MonitorType.PING, name="nas2", hostname="10.0.1.7", interval=60),
+
+    # WiFi APs -- added 2026-09-28 after a Rambles WiFi outage that the
+    # router/WAN-level monitoring above never caught (router and WAN uplink
+    # both stayed healthy throughout; the mesh AP itself was never watched).
+    dict(type=MonitorType.PING, name="Nighthawk RS700 (NYC AP)", hostname="10.0.1.2", interval=60),
+    dict(type=MonitorType.PING, name="ZenWiFi AP (Rambles, main node)", hostname="10.0.2.251", interval=60),
+    # Known 3rd mesh satellite (docs/network-inventory.md) -- dynamic lease,
+    # not a static reservation, so this IP could drift.
+    dict(type=MonitorType.PING, name="ZenWiFi satellite (Rambles, .246)", hostname="10.0.2.246", interval=60),
 ]
 
 
