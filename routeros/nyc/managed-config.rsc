@@ -70,6 +70,7 @@
 /ip dhcp-server lease add mac-address=2C:58:B9:AF:E5:8A address=10.0.1.5  comment=HP-M455DN
 /ip dhcp-server lease add mac-address=00:17:88:A9:E9:0A address=10.0.1.71 comment=hue-nyc
 /ip dhcp-server lease add mac-address=30:52:53:05:F2:AA address=10.0.1.66 comment=kvm-nuc4
+/ip dhcp-server lease add mac-address=94:18:65:D5:57:44 address=10.0.1.2  comment=Nighthawk-RS700
 
 # ---------------------------------------------------------------------------
 # 4. DNS — static entries for known hosts at both sites (ADR-0009: router
