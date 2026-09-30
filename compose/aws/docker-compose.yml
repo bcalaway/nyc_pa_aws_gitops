@@ -88,7 +88,7 @@ services:
       # only works for nuc4's voiceworker forced command, from this hub's
       # WireGuard IP; the host key below pins nuc4 (ssh-keyscan, 2026-09-30).
       VOICE_TASKS_ENABLED: "true"
-      VOICE_ALLOWED_REPOS: "todo-app"
+      VOICE_ALLOWED_REPOS: "todo-app,hue"
       VOICE_WORKER_HOST: "voiceworker@10.0.1.34"
       VOICE_WORKER_HOST_KEY: "10.0.1.34 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILDVXkIip39pHoUg8bi3BJrKAIcPq7tQFeesoalyT3yv"
       VOICE_WORKER_SSH_KEY_B64: "${VOICE_WORKER_SSH_KEY_B64}"

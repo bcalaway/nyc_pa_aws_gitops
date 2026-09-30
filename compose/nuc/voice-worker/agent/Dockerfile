@@ -4,8 +4,11 @@
 # GitHub token in here at all. At runtime it has no network except the
 # allowlisting proxy (Anthropic + PyPI) -- see ../squid.conf.
 #
-# Python toolchain first because todo-app (the first allowed repo) is
-# Python; add Node/C++ toolchains here as more repos are allowed.
+# Python toolchain only: todo-app and hue's hub backend are Python. hue's
+# React frontend (npm) and C++ agent (vcpkg) are allowed repos' code but
+# can't be built here -- Node would also need registry.npmjs.org in
+# ../squid.conf, and vcpkg pulls sources from GitHub, which the proxy
+# deliberately blocks. PR CI is their only check until that's decided.
 FROM python:3.12-slim-bookworm
 
 RUN apt-get update \
