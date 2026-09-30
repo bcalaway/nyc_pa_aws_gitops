@@ -1,0 +1,21 @@
+# Voice-worker egress proxy (Milestone 18, ADR-0021). The agent containers
+# themselves are started per-task by runner.py with `docker run`, attached
+# to voice-agent-net -- which is internal-only, so this proxy (attached to
+# both networks) is their only way out.
+services:
+  voice-proxy:
+    image: ubuntu/squid:6.6-24.04_beta
+    container_name: voice-proxy
+    restart: unless-stopped
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro,Z
+    networks:
+      - voice-agent-net
+      - egress
+
+networks:
+  voice-agent-net:
+    name: voice-agent-net
+    internal: true
+  egress:
+    name: voice-proxy-egress

@@ -1,0 +1,161 @@
+---
+# Voice coding-task worker (Milestone 18 phase 3, ADR-0021). Gated per-host
+# by `voice_worker_enabled` -- nuc4 only (Rambles/nuc5 is closed Nov-Apr).
+#
+# Pieces, from the outside in:
+#   voiceworker user   SSH-only, key restricted to the hub (10.0.3.1) and to
+#                      one forced command (dispatch.py): queue a task, read
+#                      status. Can't run a shell, git, or Docker.
+#   runner (root)      systemd service: clone -> agent container -> patch ->
+#                      push voice/<id> -> open PR. Never merges.
+#   voice-proxy        squid allowlist; the agent's only network egress.
+#   voice-agent image  headless Claude Code, no GitHub credentials ever.
+#
+# Secrets come from SSM on the hub (delegate_to: localhost, same as
+# mopeka-exporter/hue-agent) -- the NUC has no AWS credentials.
+- name: voice-worker
+  when: voice_worker_enabled | default(false)
+  block:
+    - name: Fetch voice-worker secrets from SSM (on the hub)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command:
+        cmd: >-
+          aws ssm get-parameter --name {{ item }}
+          --with-decryption --region us-east-1 --query Parameter.Value --output text
+      loop:
+        - /home-platform/github/coding-agent-token
+        - /home-platform/claude/code-oauth-token
+        - /home-platform/voice-worker/ssh-public-key
+      register: voice_secrets
+      changed_when: false
+      no_log: true
+
+    - name: Create the voiceworker user (SSH forced-command only)
+      ansible.builtin.user:
+        name: voiceworker
+        system: true
+        shell: /bin/bash
+        create_home: true
+        password: "!"
+
+    - name: Create voice-worker directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: /opt/voice-worker, owner: root, group: root, mode: "0755" }
+        - { path: /opt/voice-worker/agent, owner: root, group: root, mode: "0755" }
+        - { path: /etc/voice-worker, owner: root, group: root, mode: "0755" }
+        - { path: /var/lib/voice-worker, owner: root, group: root, mode: "0755" }
+        # dispatch.py (as voiceworker) writes new tasks here; runner (root) consumes.
+        - { path: /var/lib/voice-worker/queue, owner: voiceworker, group: voiceworker, mode: "0700" }
+        - { path: /var/lib/voice-worker/status, owner: root, group: root, mode: "0755" }
+        - { path: /var/lib/voice-worker/tasks, owner: root, group: root, mode: "0700" }
+
+    - name: Copy voice-worker programs and configs
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../compose/nuc/voice-worker/{{ item.src }}"
+        dest: "/opt/voice-worker/{{ item.src }}"
+        mode: "{{ item.mode }}"
+        owner: root
+        group: root
+      loop:
+        - { src: dispatch.py, mode: "0755" }
+        - { src: runner.py, mode: "0755" }
+        - { src: squid.conf, mode: "0644" }
+        - { src: docker-compose.yml, mode: "0644" }
+        - { src: agent/Dockerfile, mode: "0644" }
+      notify:
+        - Rebuild voice-agent image
+        - Restart voice-proxy
+        - Restart voice-worker runner
+
+    - name: Worker config (allowed repos, limits)
+      ansible.builtin.copy:
+        dest: /etc/voice-worker/config.json
+        mode: "0644"
+        content: "{{ voice_worker_config | to_nice_json }}\n"
+      vars:
+        voice_worker_config:
+          owner: bcalaway
+          allowed_repos: "{{ voice_worker_allowed_repos }}"
+          max_active: 3
+          max_minutes: 45
+      notify: Restart voice-worker runner
+
+    - name: Worker secrets (root-only)
+      ansible.builtin.copy:
+        dest: "/etc/voice-worker/{{ item.name }}"
+        content: "{{ item.value }}\n"
+        mode: "0600"
+        owner: root
+        group: root
+      loop:
+        - { name: github-token, value: "{{ voice_secrets.results[0].stdout }}" }
+        - { name: claude-oauth-token, value: "{{ voice_secrets.results[1].stdout }}" }
+      loop_control:
+        label: "{{ item.name }}"
+      no_log: true
+
+    # Plain file, not ansible.posix.authorized_key: the hub runs bare
+    # ansible-core with no extra collections (docs/gotchas.md, NUCs and
+    # Ansible). Whole-file content = exclusive: this is the only key.
+    - name: voiceworker ~/.ssh directory
+      ansible.builtin.file:
+        path: /home/voiceworker/.ssh
+        state: directory
+        owner: voiceworker
+        group: voiceworker
+        mode: "0700"
+
+    - name: Authorize the hub's home-mcp key -- forced command, hub source IP only
+      ansible.builtin.copy:
+        dest: /home/voiceworker/.ssh/authorized_keys
+        owner: voiceworker
+        group: voiceworker
+        mode: "0600"
+        content: >-
+          restrict,from="10.0.3.1",command="/usr/bin/python3 /opt/voice-worker/dispatch.py"
+          {{ voice_secrets.results[2].stdout }}
+      no_log: true
+
+    - name: Install the runner systemd unit
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../compose/nuc/voice-worker/voice-worker-runner.service"
+        dest: /etc/systemd/system/voice-worker-runner.service
+        mode: "0644"
+      notify: Restart voice-worker runner
+
+    - name: Flush handlers so the image, proxy and unit are current before starting
+      ansible.builtin.meta: flush_handlers
+
+    - name: Ensure the voice-agent image exists
+      ansible.builtin.command:
+        cmd: docker image inspect voice-agent:latest
+      register: agent_image
+      changed_when: false
+      failed_when: false
+
+    - name: Build the voice-agent image (first run)
+      ansible.builtin.command:
+        cmd: docker build -t voice-agent:latest /opt/voice-worker/agent
+      when: agent_image.rc != 0
+      changed_when: true
+
+    - name: Start the egress proxy
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: /opt/voice-worker
+      register: proxy_up
+      changed_when: "'Started' in proxy_up.stdout or 'Created' in proxy_up.stdout"
+
+    - name: Enable and start the runner
+      ansible.builtin.systemd:
+        name: voice-worker-runner
+        state: started
+        enabled: true
+        daemon_reload: true

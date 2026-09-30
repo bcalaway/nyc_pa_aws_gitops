@@ -39,6 +39,8 @@ AUTHENTIK_HUE_CLIENT_ID=$(ssm "/home-platform/authentik/hue-client-id")
 AUTHENTIK_HUE_CLIENT_SECRET=$(ssm "/home-platform/authentik/hue-client-secret")
 AUTHENTIK_HOME_MCP_CLIENT_ID=$(ssm "/home-platform/authentik/home-mcp-client-id")
 AUTHENTIK_HOME_MCP_CLIENT_SECRET=$(ssm "/home-platform/authentik/home-mcp-client-secret")
+# Multi-line private key -> base64 so it survives the .env file as one line.
+VOICE_WORKER_SSH_KEY_B64=$(ssm "/home-platform/voice-worker/ssh-private-key" | base64 -w0)
 
 echo "Fetching Umami secrets from SSM..."
 UMAMI_DB_PASSWORD=$(ssm "/home-platform/postgres/umami-password")
@@ -61,6 +63,7 @@ AUTHENTIK_HUE_CLIENT_ID=$AUTHENTIK_HUE_CLIENT_ID
 AUTHENTIK_HUE_CLIENT_SECRET=$AUTHENTIK_HUE_CLIENT_SECRET
 AUTHENTIK_HOME_MCP_CLIENT_ID=$AUTHENTIK_HOME_MCP_CLIENT_ID
 AUTHENTIK_HOME_MCP_CLIENT_SECRET=$AUTHENTIK_HOME_MCP_CLIENT_SECRET
+VOICE_WORKER_SSH_KEY_B64=$VOICE_WORKER_SSH_KEY_B64
 UMAMI_DB_PASSWORD=$UMAMI_DB_PASSWORD
 UMAMI_APP_SECRET=$UMAMI_APP_SECRET
 UMAMI_TWO_FACTOR_KEY=$UMAMI_TWO_FACTOR_KEY

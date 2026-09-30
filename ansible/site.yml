@@ -10,3 +10,4 @@
     - hue-agent
     - weather-exporter
     - mopeka-exporter
+    - voice-worker

@@ -28,6 +28,7 @@ from starlette.responses import JSONResponse
 
 import context
 import status
+import tasks
 from auth import AuthentikTokenVerifier
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -113,6 +114,29 @@ async def get_context(doc: str = "", section: str = "") -> str:
     arguments to list docs. Long docs return their section list -- ask again with
     `section`. Use "roadmap" for "what's left?" / "what's next?"."""
     return await context.get_context(doc, section)
+
+
+@mcp.tool()
+@audited
+async def start_task(repo: str, instructions: str) -> str:
+    """Start a coding task: an AI agent on the home build server (nuc4) makes the
+    change in `repo`, runs its tests, and opens a pull request for Bill to review.
+    It NEVER merges or deploys. Allowed repos: todo-app. Takes 5-20 minutes.
+    This changes things: before calling, read the instructions back to Bill in one
+    sentence and get a clear yes. Write `instructions` as a complete, specific task
+    description (what to change and what "done" looks like)."""
+    token = get_access_token()
+    user = (token.claims or {}).get("preferred_username") if token else None
+    return await tasks.start_task(repo, instructions, user)
+
+
+@mcp.tool()
+@audited
+async def task_status(task_id: str = "") -> str:
+    """Status of a voice coding task: queued, running (and which step), done (with
+    the PR link and a short summary), or failed (with why). Read-only. Omit task_id
+    for the most recent task; pass "all" for the last five."""
+    return await tasks.task_status(task_id)
 
 
 @mcp.custom_route("/health", methods=["GET"])

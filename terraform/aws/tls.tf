@@ -198,6 +198,23 @@ data "aws_iam_policy_document" "hub_app_deploy" {
       "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/mopeka-proxy/api-encryption-key-2",
     ]
   }
+
+  # Milestone 18 phase 3 (ADR-0021): ansible/roles/voice-worker, run from
+  # this hub, installs the coding worker on nuc4. It reads the agent's
+  # scoped GitHub token and Claude Code OAuth token here (the NUC has no
+  # AWS creds) plus the public half of home-mcp's SSH key for the
+  # voiceworker forced command. The private half is read by
+  # scripts/deploy-aws-stack.* with the operator's own credentials, not
+  # by this role.
+  statement {
+    effect  = "Allow"
+    actions = ["ssm:GetParameter"]
+    resources = [
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/github/coding-agent-token",
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/claude/code-oauth-token",
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/voice-worker/ssh-public-key",
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "hub_app_deploy" {
