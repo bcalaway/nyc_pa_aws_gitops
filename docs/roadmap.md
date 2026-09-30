@@ -321,6 +321,20 @@ Tasks:
 
 **✅ Milestone complete and verified as of 2026-09-04.** The portal shows live 7-day weather (NYC + The Woods, NWS-sourced, emoji condition icons) and the campground's upcoming weekend themes (daily-refreshed from its public Google Calendar), plus a pill-style nav, a public Weather dashboard link, and a full-bleed hero photo. Verified live at both desktop and true mobile widths. The open-ended "rest of the overhaul" item is intentionally left for whenever Bill has more specific ideas — not a blocker on this milestone's own goal.
 
+### Milestone 18 — Voice Access & Remote Builds
+
+**Goal:** Build things by voice from the road, securely — voice Claude (Pro, custom connector) reaches a hub-hosted MCP server that reports platform status, reads project context, and dispatches coding tasks to nuc4 that end in a PR. See ADR-0021 for the design and security model. nuc4, not nuc5, is the worker: Rambles is closed Nov–Apr.
+
+Tasks:
+- [x] 🧑 Direction agreed 2026-09-30: MCP server on the hub, worker on nuc4, PR-only from voice (no voice merges yet), Pro subscription for the coding agent to start, MFA required for this app
+- [ ] 🤖 **Phase 1 — spike**: `home-mcp` in `compose/aws/`, `mcp.billandjessie.com` (Route53 + Traefik with Anthropic-egress `ipAllowList`), Authentik OAuth2 provider (Bill-only, MFA), bearer-token validation in the server, one read-only `platform_status` tool, tool-call audit log to Loki
+- [ ] 🧑 Add the custom connector in claude.ai (Customize → Connectors, client ID/secret under Advanced settings) and test `platform_status` from voice while parked
+- [ ] 🤖 **Phase 2 — context**: slim CLAUDE.md to rules + pointers, move gotchas to `docs/gotchas.md` by area, split roadmap into active + archive; `get_context`/`search_context` tools
+- [ ] 🧑 Connect the GitHub directory connector (CI/PR status by voice)
+- [ ] 🤖 **Phase 3 — coding tasks**: `start_task`/`task_status` → disposable headless-Claude-Code container on nuc4, fine-grained GitHub token scoped to app repos, branch protection on app repos' `main`, email on task start, kill switch
+- [ ] 🤖 **Phase 4 — jobs**: allowlisted named jobs (registry in Git), spoken-friendly results
+- [ ] 🤖 **Phase 5 — preview environments**: per-PR temporary deployments for testing a feature before merge, torn down on merge/close
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*
