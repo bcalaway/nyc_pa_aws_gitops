@@ -11,3 +11,11 @@
 # despite being written as LF, since it has no extension for the *.sh rule
 # above to match.
 compose/aws/postgres-backup/crontab text eol=lf
+
+# Everything deployed onto Linux hosts/containers from these trees: a
+# systemd unit, squid.conf, forced-command/runner scripts, Dockerfiles and
+# the home-mcp server (Milestone 18). Same CRLF risk as above, just more
+# file types than a *.sh rule catches.
+compose/nuc/voice-worker/** text eol=lf
+compose/aws/home-mcp/** text eol=lf
+ansible/** text eol=lf
