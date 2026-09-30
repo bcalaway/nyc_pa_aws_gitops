@@ -2,6 +2,9 @@
 # Deploys/updates the AWS monitoring stack (Prometheus, Grafana, Loki, Uptime Kuma) to EC2.
 # Requires: WireGuard tunnel active, AWS credentials configured, EC2 SSH key at ~/.ssh/home-platform.pem.
 # Linux counterpart of deploy-aws-stack.ps1 -- keep both in sync when changing deploy logic.
+# CI deploys use scripts/hub/deploy-hub-stack.sh instead (same SSM parameter
+# list, read on the hub) -- a new secret must be added there and to the
+# hub_platform_deploy policy in terraform/aws/tls.tf too.
 
 set -euo pipefail
 
