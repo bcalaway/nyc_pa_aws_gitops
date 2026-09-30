@@ -31,6 +31,19 @@
       changed_when: false
       no_log: true
 
+    # The Claude token's expiry can't be queried from Anthropic; it's one
+    # year from issue. The SSM parameter's LastModifiedDate is when it was
+    # stored (i.e. issued), so renewing it moves the date automatically.
+    - name: Read when the Claude token was last stored in SSM (on the hub)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command:
+        cmd: >-
+          aws ssm get-parameter --name /home-platform/claude/code-oauth-token
+          --region us-east-1 --query Parameter.LastModifiedDate --output text
+      register: claude_token_modified
+      changed_when: false
+
     - name: Create the voiceworker user (SSH forced-command only)
       ansible.builtin.user:
         name: voiceworker
@@ -85,6 +98,9 @@
           allowed_repos: "{{ voice_worker_allowed_repos }}"
           max_active: 3
           max_minutes: 45
+          # epoch seconds. aws cli prints e.g. 2026-09-30T16:36:24.289000+00:00,
+          # but drops the fraction on a whole second -- strip it before parsing.
+          claude_token_issued: "{{ (claude_token_modified.stdout | trim | regex_replace('\\.[0-9]+', '') | to_datetime('%Y-%m-%dT%H:%M:%S%z')).timestamp() | int }}"
       notify: Restart voice-worker runner
 
     - name: Worker secrets (root-only)

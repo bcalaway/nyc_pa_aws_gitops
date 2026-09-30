@@ -25,6 +25,7 @@ dispatch.py (the SSH forced command) reads back for home-mcp.
 """
 
 import base64
+import calendar
 import json
 import logging
 import os
@@ -233,11 +234,59 @@ def process(task):
                  branch=branch, minutes=round((time.time() - started) / 60, 1))
 
 
+HEALTH = BASE / "health.json"
+HEALTH_EVERY = 6 * 3600
+CLAUDE_TOKEN_LIFETIME_DAYS = 365  # `claude setup-token` tokens last one year
+
+
+def check_tokens():
+    """Record both tokens' expiry for platform_status (read via dispatch.py `health`).
+
+    GitHub: a fine-grained PAT's real expiry comes back in the
+    github-authentication-token-expiration header of any API call -- free,
+    and never a hand-maintained date that can drift. Claude: there is no
+    API for it, so it's the SSM parameter's last-modified date (written into
+    config.json by Ansible) plus one year; renewing the token resets it.
+    """
+    cfg = config()
+    health = {"checked_at": int(time.time())}
+    try:
+        req = urllib.request.Request(
+            f"https://api.github.com/repos/{cfg['owner']}/{cfg['allowed_repos'][0]}",
+            headers={"Authorization": f"Bearer {secret('github-token')}", "X-GitHub-Api-Version": "2022-11-28"},
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            exp = resp.headers.get("github-authentication-token-expiration")  # "2026-12-29 17:13:25 UTC"
+        health["github_token_ok"] = True
+        if exp:
+            health["github_token_expires"] = calendar.timegm(time.strptime(exp, "%Y-%m-%d %H:%M:%S UTC"))
+    except urllib.error.HTTPError as exc:
+        health["github_token_ok"] = False
+        health["github_token_error"] = f"GitHub API {exc.code}"
+    except Exception as exc:  # noqa: BLE001 -- a failed check is itself the health signal
+        health["github_token_error"] = str(exc)[:200]
+    issued = cfg.get("claude_token_issued")
+    if issued:
+        health["claude_token_expires"] = int(issued) + CLAUDE_TOKEN_LIFETIME_DAYS * 86400
+    tmp = BASE / ".health.tmp"
+    tmp.write_text(json.dumps(health))
+    tmp.chmod(0o644)
+    tmp.rename(HEALTH)
+    log.info("token check: %s", {k: v for k, v in health.items() if k != "checked_at"})
+
+
 def main():
     for d in (QUEUE, STATUS, TASKS):
         d.mkdir(parents=True, exist_ok=True)
     log.info("voice-worker runner started")
+    last_health = 0.0
     while True:
+        if time.time() - last_health > HEALTH_EVERY:
+            try:
+                check_tokens()
+            except Exception as exc:  # noqa: BLE001 -- never let the health check stop task processing
+                log.warning("token check failed: %s", exc)
+            last_health = time.time()
         queued = sorted(QUEUE.glob("*.json"))
         if not queued:
             time.sleep(3)

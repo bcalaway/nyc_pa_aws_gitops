@@ -42,7 +42,7 @@ def _prepare_ssh() -> bool:
     return True
 
 
-async def _ssh(command: str, stdin: bytes = b"") -> dict:
+async def _ssh(command: str, stdin: bytes = b"", timeout: float = 30) -> dict:
     if not _prepare_ssh():
         return {"error": "voice worker SSH credentials aren't configured on the hub"}
     argv = [
@@ -57,10 +57,10 @@ async def _ssh(command: str, stdin: bytes = b"") -> dict:
         env={**os.environ, "HOME": "/tmp"},
     )
     try:
-        out, err = await asyncio.wait_for(proc.communicate(stdin), timeout=30)
+        out, err = await asyncio.wait_for(proc.communicate(stdin), timeout=timeout)
     except asyncio.TimeoutError:
         proc.kill()
-        return {"error": "the worker on nuc4 didn't answer within 30 seconds"}
+        return {"error": f"the worker on nuc4 didn't answer within {timeout:.0f} seconds"}
     try:
         return json.loads(out.decode().strip().splitlines()[-1])
     except (json.JSONDecodeError, IndexError):
@@ -121,6 +121,37 @@ async def start_task(repo: str, instructions: str, user: str | None) -> str:
         "VOICE_TASKS_ENABLED=false for home-mcp or disable the home-mcp app in Authentik.",
     )
     return f"Started task {tid} on {repo}. It usually takes 5 to 20 minutes; ask me for its status any time."
+
+
+TOKEN_WARN_DAYS = 21
+
+
+async def token_warnings() -> list[str]:
+    """Problems with the voice worker's two tokens, for platform_status.
+
+    Empty list = both fine and more than TOKEN_WARN_DAYS from expiry. The
+    worker reports the dates itself (dispatch.py `health`) -- home-mcp
+    never holds either token.
+    """
+    if not _prepare_ssh():
+        return []
+    h = await _ssh("health", timeout=8)
+    if "error" in h:
+        return [f"the voice worker on nuc4 isn't answering ({h['error']})"]
+    warnings = []
+    if h.get("github_token_ok") is False or h.get("github_token_error"):
+        warnings.append(f"the voice agent's GitHub token is failing ({h.get('github_token_error', 'rejected')})")
+    now = time.time()
+    for key, label in (("github_token_expires", "GitHub token"), ("claude_token_expires", "Claude token")):
+        exp = h.get(key)
+        if not exp:
+            continue
+        days = int((exp - now) // 86400)
+        if days < 0:
+            warnings.append(f"the voice agent's {label} has expired")
+        elif days <= TOKEN_WARN_DAYS:
+            warnings.append(f"the voice agent's {label} expires in {days} day{'s' if days != 1 else ''}")
+    return warnings
 
 
 async def task_status(task_id: str = "") -> str:

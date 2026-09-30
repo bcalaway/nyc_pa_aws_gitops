@@ -10,6 +10,7 @@ touches git, Docker, or any credential -- the root-owned runner
   start           JSON on stdin: {"repo": "...", "instructions": "..."}
   status [<id>]   one task's status, or the most recent task's
   list            the 5 most recent tasks
+  health          token expiry dates, as last checked by the runner
 """
 
 import json
@@ -89,7 +90,11 @@ def main():
     if cmd == "list":
         out({"tasks": [s for s in recent(5) if s]})
 
-    out({"error": "usage: start | status [<id>] | list"}, 2)
+    if cmd == "health":
+        p = BASE / "health.json"
+        out(json.loads(p.read_text()) if p.exists() else {"error": "no token check yet"})
+
+    out({"error": "usage: start | status [<id>] | list | health"}, 2)
 
 
 if __name__ == "__main__":
