@@ -10,3 +10,14 @@
     modprobe -r btmtk
     modprobe btusb
   changed_when: true
+
+# Handlers run in definition order, so the initramfs is rebuilt (picking up
+# the nouveau blacklist) before the reboot that makes it take effect.
+- name: Rebuild initramfs
+  ansible.builtin.command: dracut -f --regenerate-all
+  changed_when: true
+
+- name: Reboot to unload nouveau
+  ansible.builtin.reboot:
+    msg: "Rebooting to unload nouveau (blacklisted by Ansible roles/base)"
+    reboot_timeout: 600

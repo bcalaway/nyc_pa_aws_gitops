@@ -28,10 +28,57 @@
     state: started
     enabled: true
 
-- name: Check for a MediaTek MT7922 combo WiFi/BT card
-  ansible.builtin.command: lspci
-  register: lspci_output
+# Hardware detection reads sysfs's cached vendor/device/class attributes, NOT
+# `lspci`. lspci reads each device's PCI config space, which forces a
+# runtime-suspended device to wake up first -- and on nuc4 (NUC11PHKi7C, RTX
+# 2060) waking the dGPU hung inside nouveau's resume path while it held the
+# kernel console lock (2026-09-20). Every later process that opened the
+# console (sshd sessions, each NetworkManager-dispatcher run) then blocked
+# forever in D state; load climbed ~4/hour to 900+ and SSH as bcalaway hung
+# until a hard power cycle. That's what "Ansible hangs on nuc4" actually was.
+- name: List PCI devices (vendor:device class) from sysfs
+  ansible.builtin.shell: |
+    for d in /sys/bus/pci/devices/*; do
+      echo "$(cat "$d/vendor"):$(cat "$d/device") $(cat "$d/class")"
+    done
+  register: pci_devices
   changed_when: false
+  check_mode: false
+
+- name: Derive hardware facts from the PCI device list
+  ansible.builtin.set_fact:
+    has_mt7922: "{{ '0x14c3:0x0616' in pci_devices.stdout }}"
+    has_nvidia_gpu: "{{ pci_devices.stdout_lines | select('match', '^0x10de:\\S+ 0x03') | list | length > 0 }}"
+
+# Headless servers never need nouveau, and its runtime-PM resume is what
+# wedged nuc4 (see above). Blacklisted in modprobe.d, the initramfs, and the
+# kernel cmdline so it can't load at any stage of boot.
+- name: Blacklist nouveau on hosts with an NVIDIA GPU
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/blacklist-nouveau.conf
+    content: |
+      # Managed by Ansible (roles/base) -- headless server, see tasks/main.yml
+      blacklist nouveau
+      options nouveau modeset=0
+    mode: "0644"
+  when: has_nvidia_gpu
+  notify:
+    - Rebuild initramfs
+    - Reboot to unload nouveau
+
+- name: Check the default kernel command line
+  ansible.builtin.command: grubby --info=DEFAULT
+  register: grubby_default
+  changed_when: false
+  check_mode: false
+  when: has_nvidia_gpu
+
+- name: Blacklist nouveau on the kernel command line
+  ansible.builtin.command: grubby --update-kernel=ALL --args="rd.driver.blacklist=nouveau modprobe.blacklist=nouveau"
+  when:
+    - has_nvidia_gpu
+    - "'modprobe.blacklist=nouveau' not in grubby_default.stdout"
+  notify: Reboot to unload nouveau
 
 # RHEL/Rocky's linux-firmware package excludes some MediaTek blobs for
 # licensing reasons (Ubuntu/Fedora ship them). Without this file, btmtk logs
@@ -43,7 +90,7 @@
   ansible.builtin.stat:
     path: /usr/lib/firmware/mediatek/BT_RAM_CODE_MT7922_1_1_hdr.bin
   register: mt7922_bt_firmware
-  when: "'MT7922' in lspci_output.stdout"
+  when: has_mt7922
 
 - name: Install MT7922 Bluetooth firmware blob
   ansible.builtin.get_url:
@@ -51,7 +98,7 @@
     dest: /usr/lib/firmware/mediatek/BT_RAM_CODE_MT7922_1_1_hdr.bin
     mode: "0644"
   when:
-    - "'MT7922' in lspci_output.stdout"
+    - has_mt7922
     - not mt7922_bt_firmware.stat.exists
   notify: Reload MT7922 Bluetooth kernel modules
 
@@ -59,6 +106,7 @@
   ansible.builtin.command: getenforce
   register: se_status
   changed_when: false
+  check_mode: false
 
 - name: Fail if SELinux is not enforcing
   ansible.builtin.assert:
