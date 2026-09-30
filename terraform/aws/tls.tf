@@ -294,3 +294,14 @@ resource "aws_route53_record" "analytics" {
   ttl     = 300
   records = [aws_eip.hub.public_ip]
 }
+
+# home-mcp (Milestone 18, ADR-0021) -- remote MCP server for voice Claude's
+# custom connector. Public on purpose (Claude connects from Anthropic's
+# cloud), but Traefik only admits Anthropic's egress range on this host.
+resource "aws_route53_record" "mcp" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "mcp.billandjessie.com"
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.hub.public_ip]
+}

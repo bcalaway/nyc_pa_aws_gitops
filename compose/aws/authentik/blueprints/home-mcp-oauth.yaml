@@ -1,0 +1,111 @@
+# home-mcp (ADR-0021, Milestone 18): OAuth2 provider for Claude's custom
+# connector. Differs from every other app blueprint here in two deliberate
+# ways, both because this app can drive builds on home hardware:
+#
+# 1. Its own authorization flow with an MFA step. Authentik runs an app's
+#    authorization flow on EVERY authorization, even with an existing SSO
+#    session -- so this is a step-up MFA prompt scoped to home-mcp alone.
+#    Grafana/hue/todo-app keep the default flow and are unaffected. (Checking
+#    MFA after the fact via the token's `amr` claim doesn't work: Authentik
+#    derives amr from the original *login*, so a password-only session would
+#    never carry it.) not_configured_action=configure offers passkey/TOTP
+#    enrollment inline the first time, instead of hard-failing.
+# 2. A user policy binding: only `bcalaway` can authorize at all. home-mcp's
+#    own token verifier re-checks the username too (defense in depth).
+version: 1
+metadata:
+  name: home-mcp-oauth
+entries:
+  - model: authentik_stages_authenticator_validate.authenticatorvalidatestage
+    id: home-mcp-mfa-stage
+    identifiers:
+      name: home-mcp-mfa
+    state: present
+    attrs:
+      name: home-mcp-mfa
+      device_classes: [webauthn, totp]
+      not_configured_action: configure
+      configuration_stages:
+        - !Find [authentik_stages_authenticator_webauthn.authenticatorwebauthnstage, [name, default-authenticator-webauthn-setup]]
+        - !Find [authentik_stages_authenticator_totp.authenticatortotpstage, [name, default-authenticator-totp-setup]]
+      # 0 = always prompt; never reuse a recent MFA from another flow.
+      last_auth_threshold: seconds=0
+      webauthn_user_verification: preferred
+
+  - model: authentik_flows.flow
+    id: home-mcp-authorization-flow
+    identifiers:
+      slug: home-mcp-authorization
+    state: present
+    attrs:
+      name: home-mcp authorization (MFA + consent)
+      title: Authorize Claude to access the home platform
+      slug: home-mcp-authorization
+      designation: authorization
+      authentication: require_authenticated
+
+  - model: authentik_flows.flowstagebinding
+    identifiers:
+      target: !KeyOf home-mcp-authorization-flow
+      stage: !KeyOf home-mcp-mfa-stage
+    attrs:
+      order: 10
+
+  - model: authentik_flows.flowstagebinding
+    identifiers:
+      target: !KeyOf home-mcp-authorization-flow
+      stage: !Find [authentik_stages_consent.consentstage, [name, default-provider-authorization-consent]]
+    attrs:
+      order: 20
+
+  - model: authentik_providers_oauth2.oauth2provider
+    id: home-mcp-provider
+    identifiers:
+      name: home-mcp
+    state: present
+    attrs:
+      name: home-mcp
+      authorization_flow: !KeyOf home-mcp-authorization-flow
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      client_type: confidential
+      client_id: !Env AUTHENTIK_HOME_MCP_CLIENT_ID
+      client_secret: !Env AUTHENTIK_HOME_MCP_CLIENT_SECRET
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
+      # Short-lived access tokens; Claude refreshes proactively. A 30-day
+      # refresh token means re-authorizing (MFA again) at least monthly.
+      access_token_validity: minutes=15
+      refresh_token_validity: days=30
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, offline_access]]
+      redirect_uris:
+        # Hosted Claude apps (web, desktop, mobile -- including voice).
+        - url: "https://claude.ai/api/mcp/auth_callback"
+          matching_mode: strict
+        # Claude Code's RFC 8252 loopback redirect (any port), for testing
+        # the connector from a desk session.
+        - url: "^http://(localhost|127\\.0\\.0\\.1):[0-9]+/callback$"
+          matching_mode: regex
+
+  - model: authentik_core.application
+    id: home-mcp-application
+    identifiers:
+      slug: home-mcp
+    state: present
+    attrs:
+      name: Home MCP (voice Claude)
+      slug: home-mcp
+      policy_engine_mode: any
+      provider: !KeyOf home-mcp-provider
+
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf home-mcp-application
+      order: 0
+    attrs:
+      user: !Find [authentik_core.user, [username, bcalaway]]
+      enabled: true
+      negate: false
+      timeout: 30

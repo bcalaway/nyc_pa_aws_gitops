@@ -64,6 +64,34 @@ services:
     ports:
       - "9200:9200"
 
+  # Remote MCP server for voice Claude (Milestone 18, ADR-0021). Claude's
+  # custom connector reaches it from Anthropic's cloud, so it's public --
+  # but its router only admits Anthropic's published egress range
+  # (160.79.104.0/21, per Claude's connector auth docs; update here if that
+  # reference ever changes). Bill signs in to Authentik from his own browser,
+  # which never touches this host, so the allowlist doesn't affect login.
+  # No published host port: Traefik is the only way in.
+  home-mcp:
+    build: ./home-mcp
+    container_name: home-mcp
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      PUBLIC_URL: "https://mcp.billandjessie.com"
+      OIDC_ISSUER: "https://auth.billandjessie.com/application/o/home-mcp/"
+      OIDC_JWKS_URL: "http://authentik-server:9000/application/o/home-mcp/jwks/"
+      OIDC_CLIENT_ID: "${AUTHENTIK_HOME_MCP_CLIENT_ID}"
+      ALLOWED_USERNAMES: "bcalaway"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mcp.rule=Host(`mcp.billandjessie.com`)"
+      - "traefik.http.routers.mcp.entrypoints=websecure"
+      - "traefik.http.routers.mcp.tls.certresolver=route53"
+      - "traefik.http.routers.mcp.middlewares=hsts@docker,anthropic-only@docker"
+      - "traefik.http.middlewares.anthropic-only.ipallowlist.sourcerange=160.79.104.0/21"
+      - "traefik.http.services.mcp.loadbalancer.server.port=8000"
+
   loki:
     image: grafana/loki:3.3.2
     container_name: loki
@@ -439,6 +467,9 @@ services:
       # hue OIDC client (blueprints/hue-oidc.yaml), same pattern.
       AUTHENTIK_HUE_CLIENT_ID: "${AUTHENTIK_HUE_CLIENT_ID}"
       AUTHENTIK_HUE_CLIENT_SECRET: "${AUTHENTIK_HUE_CLIENT_SECRET}"
+      # home-mcp OAuth client (blueprints/home-mcp-oauth.yaml), same pattern.
+      AUTHENTIK_HOME_MCP_CLIENT_ID: "${AUTHENTIK_HOME_MCP_CLIENT_ID}"
+      AUTHENTIK_HOME_MCP_CLIENT_SECRET: "${AUTHENTIK_HOME_MCP_CLIENT_SECRET}"
     volumes:
       - authentik-media:/media
       - authentik-templates:/templates
@@ -489,6 +520,8 @@ services:
       AUTHENTIK_TODO_APP_CLIENT_SECRET: "${AUTHENTIK_TODO_APP_CLIENT_SECRET}"
       AUTHENTIK_HUE_CLIENT_ID: "${AUTHENTIK_HUE_CLIENT_ID}"
       AUTHENTIK_HUE_CLIENT_SECRET: "${AUTHENTIK_HUE_CLIENT_SECRET}"
+      AUTHENTIK_HOME_MCP_CLIENT_ID: "${AUTHENTIK_HOME_MCP_CLIENT_ID}"
+      AUTHENTIK_HOME_MCP_CLIENT_SECRET: "${AUTHENTIK_HOME_MCP_CLIENT_SECRET}"
     # Deliberately NOT mounting /var/run/docker.sock (Authentik's official
     # compose does, root + full docker socket access) -- that's only needed
     # for auto-deployed Docker-based outposts, which we're not using; we
