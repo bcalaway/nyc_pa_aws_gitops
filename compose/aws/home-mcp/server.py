@@ -121,7 +121,10 @@ async def get_context(doc: str = "", section: str = "") -> str:
 async def start_task(repo: str, instructions: str) -> str:
     """Start a coding task: an AI agent on the home build server (nuc4) makes the
     change in `repo`, runs its tests, and opens a pull request for Bill to review.
-    It NEVER merges or deploys. Allowed repos: todo-app. Takes 5-20 minutes.
+    It NEVER merges or deploys. Allowed repos: todo-app, hue. Takes 5-20 minutes.
+    hue: the agent can build and test only hue's Python hub backend; its React
+    frontend (npm) and C++ agent can be edited but not built or tested by the
+    agent, so for those tell Bill that CI on the PR is the only check.
     This changes things: before calling, read the instructions back to Bill in one
     sentence and get a clear yes. Write `instructions` as a complete, specific task
     description (what to change and what "done" looks like)."""
