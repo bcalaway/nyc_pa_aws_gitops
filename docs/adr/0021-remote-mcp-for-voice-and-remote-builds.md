@@ -71,3 +71,13 @@ Git stays the source of truth for platform context (roadmap, ADRs, gotchas) — 
 - New Terraform: Route53 record for `mcp.`; later, SSM read grants for the GitHub token
 - nuc4 becomes the platform's build worker — its reliability matters more now (see the 2026-09-20 nouveau wedge in CLAUDE.md's Gotchas)
 - Anthropic's egress range is a dependency: if it changes, the allowlist must follow (documented in their IP address reference)
+
+## Implementation notes (phase 3, 2026-09-30)
+
+Details decided while building the coding worker, beyond the security table above:
+
+- **hub → nuc4 control channel is SSH with a forced command, not gRPC** (a deliberate exception to ADR-0020, which covers app-to-app data calls). `voiceworker`'s key is `restrict,from="10.0.3.1",command=".../dispatch.py"`: the only operations are queue-a-task and read-status, there is no shell, and that user can't run git or Docker. nuc4's host key is pinned in home-mcp's compose env
+- **The agent never holds a GitHub credential.** The root-owned runner clones twice: `pristine/` (never shown to the agent) and `work/` (the agent's). Because the agent controls everything in `work/` — including `.git/hooks` and `.git/config` — the runner never runs git there. The agent's changes are exported as a patch from inside a second, no-network container; applied to `pristine/`; changed paths re-read from the trusted index (`.github/`, git metadata rejected); then committed, pushed to `voice/<id>` and opened as a PR. The token reaches git through `GIT_CONFIG_*` env vars (not argv, which is visible in `ps`); the local clone uses `--no-hardlinks` so the agent's uid can't write pristine's objects through shared inodes
+- **Egress allowlist**: the agent network is `internal: true`; its only way out is a squid proxy allowing `.anthropic.com`, `.claude.ai`, `.claude.com`, `pypi.org`, `files.pythonhosted.org`. Verified: GitHub and arbitrary sites get `TCP_DENIED/403`, direct egress has no route
+- **Agent container**: uid 10001, all capabilities dropped, `no-new-privileges`, 2 CPU / 4 GB / 1024 PIDs, 45-minute cap; headless Claude Code with `--permission-mode acceptEdits --permission-prompts none` (not `--bare`, which ignores the subscription token)
+- **Branch protection can't require an approval** on agent PRs: the agent's token acts as Bill, and GitHub won't let an author approve their own PR. So `main` requires a PR plus green CI, and the "never merges" guarantee comes from the agent having no credential, not from GitHub settings
