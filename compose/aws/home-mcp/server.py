@@ -26,6 +26,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+import context
 import status
 from auth import AuthentikTokenVerifier
 
@@ -90,6 +91,28 @@ async def platform_status() -> str:
     and routers, the NUCs (nuc4 NYC, nuc5 Rambles), the hub's core services, the
     public apps, and AWS spend this month. Read-only. Use for "how's everything?"."""
     return await status.platform_status()
+
+
+@mcp.tool()
+@audited
+async def search_context(query: str, limit: int = 3) -> str:
+    """Search the home platform's own project docs (roadmap, gotchas, ADRs, network and
+    hardware inventory, SSM catalog, platform reference, CLAUDE.md rules) and return
+    the best-matching sections. Read-only. Use for questions like "what was the nuc4
+    problem?", "how do I add a DNS record to the router?", "what's the Authentik setup?".
+    Summarize the result aloud briefly; don't read it verbatim."""
+    return await context.search_context(query, limit)
+
+
+@mcp.tool()
+@audited
+async def get_context(doc: str = "", section: str = "") -> str:
+    """Read one project doc, or one section of it. Read-only. `doc` is a short name
+    ("roadmap", "gotchas", "archive", "ssm", "reference", "network", "hardware",
+    "app platform", "new machine", "claude") or an ADR like "adr 21". Call with no
+    arguments to list docs. Long docs return their section list -- ask again with
+    `section`. Use "roadmap" for "what's left?" / "what's next?"."""
+    return await context.get_context(doc, section)
 
 
 @mcp.custom_route("/health", methods=["GET"])
