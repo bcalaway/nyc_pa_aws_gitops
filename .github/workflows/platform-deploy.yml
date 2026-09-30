@@ -1,0 +1,198 @@
+name: Platform deploy
+
+# Deploys this repo's hub stack (compose/aws/) and NUC config (ansible/,
+# compose/nuc/) on merge to main -- the CI version of
+# scripts/deploy-aws-stack.* and scripts/deploy-nucs.*, which still work for
+# manual runs.
+#
+# Same mechanism as routeros.yml and app-deploy.yml: hosted runners can't
+# reach the hub (its security group only allows WireGuard subnets), so files
+# go to the ansible-deploy S3 bucket and the hub is told to act via
+# ssm:SendCommand. The hub reads its own secrets from SSM with its instance
+# role (scripts/hub/*.sh) -- no secret ever passes through this workflow.
+#
+# The deploy job uses the `production` environment, so it waits for Bill's
+# approval (one tap in the GitHub app) after the plan job shows what changed.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'compose/aws/**'
+      - 'compose/nuc/**'
+      - 'ansible/**'
+      - 'scripts/hub/**'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to deploy"
+        required: true
+        type: choice
+        options:
+          - hub
+          - nucs
+          - both
+
+permissions:
+  id-token: write
+  contents: read
+
+# Never run two deploys against the hub at once; queue instead of cancelling
+# (a cancelled SSM command can leave the stack half-updated).
+concurrency:
+  group: platform-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  DEPLOY_BUCKET: home-platform-ansible-deploy-147856894209
+
+jobs:
+  plan:
+    name: What changed
+    runs-on: ubuntu-latest
+    outputs:
+      hub: ${{ steps.scope.outputs.hub }}
+      nucs: ${{ steps.scope.outputs.nucs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide scope and summarize the diff
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          TARGET: ${{ inputs.target }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            HUB=false; NUCS=false
+            [[ "$TARGET" == hub || "$TARGET" == both ]] && HUB=true
+            [[ "$TARGET" == nucs || "$TARGET" == both ]] && NUCS=true
+            RANGE=""
+          else
+            if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+              BEFORE=$(git rev-parse HEAD~1)
+            fi
+            RANGE="$BEFORE..HEAD"
+            CHANGED=$(git diff --name-only "$RANGE")
+            HUB=false; NUCS=false
+            # scripts/hub/<script> only triggers the part that script deploys.
+            grep -qE '^(compose/aws/|scripts/hub/deploy-hub-stack\.sh$)' <<<"$CHANGED" && HUB=true
+            grep -qE '^(ansible/|compose/nuc/|scripts/hub/deploy-nucs-on-hub\.sh$)' <<<"$CHANGED" && NUCS=true
+          fi
+          echo "hub=$HUB" >> "$GITHUB_OUTPUT"
+          echo "nucs=$NUCS" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Platform deploy plan"
+            echo "- Hub stack (compose/aws): **$HUB**"
+            echo "- NUCs (ansible, compose/nuc): **$NUCS**"
+            if [ -n "$RANGE" ]; then
+              echo
+              echo '```'
+              git diff --stat "$RANGE" -- compose/aws compose/nuc ansible scripts/hub
+              echo '```'
+            fi
+          } | tee "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy (needs approval)
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.hub == 'true' || needs.plan.outputs.nucs == 'true'
+    environment: production
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Stage files in S3
+        env:
+          HUB: ${{ needs.plan.outputs.hub }}
+          NUCS: ${{ needs.plan.outputs.nucs }}
+        run: |
+          aws s3 sync scripts/hub/ "s3://${DEPLOY_BUCKET}/scripts-hub/" --delete
+          if [ "$HUB" = "true" ]; then
+            # .env is generated on the hub; never upload a stray local one.
+            aws s3 sync compose/aws/ "s3://${DEPLOY_BUCKET}/compose-aws/" --delete --exclude '.env'
+          fi
+          if [ "$NUCS" = "true" ]; then
+            aws s3 sync ansible/ "s3://${DEPLOY_BUCKET}/ansible/" --delete
+            aws s3 sync compose/nuc/ "s3://${DEPLOY_BUCKET}/compose-nuc/" --delete
+          fi
+
+      - name: Look up hub instance ID
+        id: hub
+        run: |
+          ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=home-platform-hub" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" --output text)
+          if [ -z "$ID" ] || [ "$ID" = "None" ]; then
+            echo "::error::Could not find a running home-platform-hub instance"
+            exit 1
+          fi
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+
+      - name: Write the SSM run helper
+        run: |
+          cat > "$RUNNER_TEMP/run-on-hub.sh" <<'EOF'
+          #!/usr/bin/env bash
+          # run-on-hub.sh <label> <script-name>: run scripts/hub/<script-name>
+          # on the hub via SSM, wait for it, print its output, fail on error.
+          set -euo pipefail
+          LABEL="$1"; SCRIPT="$2"
+          CMD=$(jq -n --arg b "$DEPLOY_BUCKET" --arg s "$SCRIPT" '{
+            commands: [
+              "set -e",
+              ("aws s3 cp s3://" + $b + "/scripts-hub/" + $s + " /tmp/" + $s + " --only-show-errors"),
+              ("bash /tmp/" + $s + " " + $b)
+            ],
+            executionTimeout: ["2400"]
+          }')
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$HUB_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "$LABEL, GitHub run $GITHUB_RUN_ID" \
+            --parameters "$CMD" \
+            --query "Command.CommandId" --output text)
+          echo "Sent $LABEL as SSM command $CMD_ID"
+          # Up to 40 minutes: image pulls and builds on the hub can be slow.
+          for i in $(seq 1 240); do
+            STATUS=$(aws ssm list-command-invocations --command-id "$CMD_ID" \
+              --query "CommandInvocations[0].Status" --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in Pending|InProgress|Delayed|None|"") sleep 10 ;; *) break ;; esac
+          done
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$HUB_ID" > "$RUNNER_TEMP/$SCRIPT.json"
+          echo "--- stdout ---"; jq -r '.StandardOutputContent' "$RUNNER_TEMP/$SCRIPT.json"
+          echo "--- stderr ---"; jq -r '.StandardErrorContent' "$RUNNER_TEMP/$SCRIPT.json"
+          # SSM truncates inline output at 24,000 characters; the full log
+          # is in the hub's /var/lib/amazon/ssm/.../stdout for this command id.
+          STATUS=$(jq -r '.Status' "$RUNNER_TEMP/$SCRIPT.json")
+          echo "- $LABEL: **$STATUS**" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$STATUS" != "Success" ]; then
+            echo "::error::$LABEL failed: $STATUS"
+            exit 1
+          fi
+          EOF
+          chmod +x "$RUNNER_TEMP/run-on-hub.sh"
+
+      # Hub first: a change like a new voice-worker repo spans both
+      # home-mcp (hub) and the nuc4 worker, and the hub side is the one
+      # that gates new requests.
+      - name: Deploy hub stack
+        if: needs.plan.outputs.hub == 'true'
+        env:
+          HUB_ID: ${{ steps.hub.outputs.id }}
+        run: $RUNNER_TEMP/run-on-hub.sh "Hub stack deploy" deploy-hub-stack.sh
+
+      - name: Deploy NUCs
+        if: needs.plan.outputs.nucs == 'true'
+        env:
+          HUB_ID: ${{ steps.hub.outputs.id }}
+        run: $RUNNER_TEMP/run-on-hub.sh "NUC deploy" deploy-nucs-on-hub.sh

@@ -203,9 +203,8 @@ data "aws_iam_policy_document" "hub_app_deploy" {
   # this hub, installs the coding worker on nuc4. It reads the agent's
   # scoped GitHub token and Claude Code OAuth token here (the NUC has no
   # AWS creds) plus the public half of home-mcp's SSH key for the
-  # voiceworker forced command. The private half is read by
-  # scripts/deploy-aws-stack.* with the operator's own credentials, not
-  # by this role.
+  # voiceworker forced command. The private half is granted separately in
+  # hub_platform_deploy below, for CI deploys of the hub stack.
   statement {
     effect  = "Allow"
     actions = ["ssm:GetParameter"]
@@ -221,6 +220,48 @@ resource "aws_iam_role_policy" "hub_app_deploy" {
   name   = "home-platform-hub-app-deploy"
   role   = aws_iam_role.hub.id
   policy = data.aws_iam_policy_document.hub_app_deploy.json
+}
+
+# Platform deploy from CI (.github/workflows/platform-deploy.yml): the
+# hub-side scripts in scripts/hub/ build the hub stack's .env and refresh
+# the Ansible NUC key here, with this role, so no secret passes through
+# GitHub Actions. Same list as scripts/deploy-aws-stack.sh (which reads
+# them with the operator's own credentials for manual deploys) -- keep the
+# two in sync. Every value below already sits in the hub's compose .env or
+# ~/.ssh, so this doesn't expose anything the hub doesn't already hold.
+data "aws_iam_policy_document" "hub_platform_deploy" {
+  statement {
+    effect  = "Allow"
+    actions = ["ssm:GetParameter"]
+    resources = [for p in [
+      "grafana/smtp-password",
+      "postgres/admin-password",
+      "authentik/redis-password",
+      "rachio/api-key",
+      "authentik/db-password",
+      "authentik/secret-key",
+      "authentik/bootstrap-password",
+      "authentik/grafana-client-id",
+      "authentik/grafana-client-secret",
+      "authentik/todo-app-client-id",
+      "authentik/todo-app-client-secret",
+      "authentik/hue-client-id",
+      "authentik/hue-client-secret",
+      "authentik/home-mcp-client-id",
+      "authentik/home-mcp-client-secret",
+      "voice-worker/ssh-private-key",
+      "postgres/umami-password",
+      "umami/app-secret",
+      "umami/two-factor-encryption-key",
+      "ansible/nuc-private-key",
+    ] : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${p}"]
+  }
+}
+
+resource "aws_iam_role_policy" "hub_platform_deploy" {
+  name   = "home-platform-hub-platform-deploy"
+  role   = aws_iam_role.hub.id
+  policy = data.aws_iam_policy_document.hub_platform_deploy.json
 }
 
 # Lets postgres-backup (compose/aws/postgres-backup) upload pg_dumpall
