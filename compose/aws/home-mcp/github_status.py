@@ -182,3 +182,22 @@ async def github_status(repo: str = "") -> str:
         else:
             lines.append(_summarize(r, res, now))
     return " ".join(lines)
+
+
+async def pending_approvals() -> list[str] | None:
+    """Runs waiting for Bill's approval, as short spoken phrases, for
+    platform_status. Shares github_status's cache, so asking both in a row
+    costs no extra GitHub calls. None means GitHub couldn't be checked (rate
+    limit or network): platform_status says so instead of failing."""
+    async with httpx.AsyncClient() as client:
+        results = await asyncio.gather(*(_fetch(client, r) for r in REPOS), return_exceptions=True)
+    if all(isinstance(res, Exception) for res in results):
+        return None
+    waiting = []
+    for repo, res in zip(REPOS, results):
+        if isinstance(res, Exception):
+            continue
+        for run in res["runs"]:
+            if run.get("status") == "waiting":
+                waiting.append(f"{SPOKEN.get(repo, repo)} {run['name']} for {_what(run)}")
+    return waiting
