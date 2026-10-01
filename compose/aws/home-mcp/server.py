@@ -27,6 +27,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 import context
+import github_status as github_status_mod
 import status
 import tasks
 from auth import AuthentikTokenVerifier
@@ -140,6 +141,17 @@ async def task_status(task_id: str = "") -> str:
     the PR link and a short summary), or failed (with why). Read-only. Omit task_id
     for the most recent task; pass "all" for the last five."""
     return await tasks.task_status(task_id)
+
+
+@mcp.tool()
+@audited
+async def github_status(repo: str = "") -> str:
+    """GitHub status for Bill's repos (todo-app, hue, and the platform repo
+    nyc_pa_aws_gitops): runs waiting for his approval, open pull requests with
+    their CI result, and the latest CI/deploy runs on main (e.g. "did my merge
+    deploy?"). Read-only. Omit `repo` for all three. Read the result aloud in
+    short form, leading with anything waiting for approval or failed."""
+    return await github_status_mod.github_status(repo)
 
 
 @mcp.custom_route("/health", methods=["GET"])
