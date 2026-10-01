@@ -52,7 +52,7 @@ env:
 jobs:
   deploy:
     name: Deploy to hub
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: production
     # Two deploys of the SAME app running concurrently both write and
     # execute /tmp/deploy.sh on the hub -- the same shared path every time,
@@ -67,10 +67,10 @@ jobs:
       group: app-deploy-${{ inputs.app_name }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::147856894209:role/${{ inputs.app_name }}-github-actions
           aws-region: ${{ env.AWS_REGION }}
