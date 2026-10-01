@@ -26,12 +26,12 @@ env:
 jobs:
   refresh:
     name: Refresh Woods calendar JSON
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -42,7 +42,7 @@ jobs:
         run: python scripts/fetch-woods-calendar.py > /tmp/woods-events.json
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-actions
           aws-region: ${{ env.AWS_REGION }}
@@ -51,7 +51,7 @@ jobs:
         run: aws s3 cp /tmp/woods-events.json "s3://${{ env.PORTAL_BUCKET }}/woods-events.json" --cache-control "max-age=3600"
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
