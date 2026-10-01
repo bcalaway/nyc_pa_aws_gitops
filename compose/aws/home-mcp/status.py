@@ -1,7 +1,8 @@
 """platform_status: the whole platform in one spoken-friendly sentence.
 
 Everything is read from sources that already exist (Prometheus, the apps'
-own health endpoints, cost-exporter's metrics) -- this module adds no new
+own health endpoints, cost-exporter's metrics, GitHub's public Actions API
+for deploys waiting on Bill's approval) -- this module adds no new
 collection, it only summarizes. Output leads with a single sentence meant
 to be read aloud, then one short line per problem.
 """
@@ -12,6 +13,7 @@ import os
 
 import httpx
 
+import github_status
 import tasks
 
 PROMETHEUS_URL = os.environ.get("PROMETHEUS_URL", "http://prometheus:9090")
@@ -54,7 +56,7 @@ def _rambles_off_season(today: datetime.date) -> bool:
 async def platform_status() -> str:
     problems: list[str] = []
     async with httpx.AsyncClient() as client:
-        (internet, routers, nodes, load, cores, hub, mtd, forecast), app_results, token_problems = await asyncio.gather(
+        (internet, routers, nodes, load, cores, hub, mtd, forecast), app_results, token_problems, approvals = await asyncio.gather(
             asyncio.gather(
                 _prom(client, 'max by (site) (probe_success{job="blackbox-icmp"})'),
                 _prom(client, 'up{job="snmp", device=~"rt-.*"}'),
@@ -67,6 +69,7 @@ async def platform_status() -> str:
             ),
             asyncio.gather(*(_app_ok(client, url) for url in APPS.values())),
             tasks.token_warnings(),
+            github_status.pending_approvals(),
         )
 
     # Sites: internet (pings from that site's NUC) + the router answering SNMP.
@@ -118,6 +121,16 @@ async def platform_status() -> str:
     else:
         head = f"All good: sites online, NUCs healthy, {apps_up} of {len(APPS)} apps up."
     lines = [head]
+    # Deploys paused at the production environment's approval gate
+    # (Terraform, Platform deploy, RouterOS, app CD). Not a "problem" --
+    # nothing is broken -- but it's the thing Bill most needs to act on.
+    if approvals:
+        n = len(approvals)
+        lines.append(
+            f"{n} deploy{'s are' if n > 1 else ' is'} waiting for your approval: " + "; ".join(approvals) + "."
+        )
+    elif approvals is None:
+        lines.append("I couldn't check GitHub for pending approvals.")
     if cost:
         lines.append(cost + ".")
     if rambles_expected_down:

@@ -91,7 +91,8 @@ def audited(fn):
 async def platform_status() -> str:
     """One-sentence health summary of the whole home platform: both sites' internet
     and routers, the NUCs (nuc4 NYC, nuc5 Rambles), the hub's core services, the
-    public apps, and AWS spend this month. Read-only. Use for "how's everything?"."""
+    public apps, AWS spend this month, and any deploys waiting for Bill's approval
+    on GitHub. Read-only. Use for "how's everything?"."""
     return await status.platform_status()
 
 
