@@ -49,6 +49,8 @@ echo "Fetching Umami secrets from SSM..."
 UMAMI_DB_PASSWORD=$(ssm "/home-platform/postgres/umami-password")
 UMAMI_APP_SECRET=$(ssm "/home-platform/umami/app-secret")
 UMAMI_TWO_FACTOR_KEY=$(ssm "/home-platform/umami/two-factor-encryption-key")
+# Optional (ADR-0022): "none" until the voice jobs token exists.
+VOICE_JOBS_GITHUB_TOKEN=$(ssm "/home-platform/github/voice-jobs-token" 2>/dev/null || echo none)
 
 cat > "$LOCAL_DIR/.env" <<EOF
 GRAFANA_SMTP_PASSWORD=$GRAFANA_SMTP_PASSWORD
@@ -70,6 +72,7 @@ VOICE_WORKER_SSH_KEY_B64=$VOICE_WORKER_SSH_KEY_B64
 UMAMI_DB_PASSWORD=$UMAMI_DB_PASSWORD
 UMAMI_APP_SECRET=$UMAMI_APP_SECRET
 UMAMI_TWO_FACTOR_KEY=$UMAMI_TWO_FACTOR_KEY
+VOICE_JOBS_GITHUB_TOKEN=$VOICE_JOBS_GITHUB_TOKEN
 EOF
 
 echo "Copying compose stack to EC2..."

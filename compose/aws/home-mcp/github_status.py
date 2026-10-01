@@ -94,6 +94,13 @@ def _run_state(run: dict) -> str:
 
 def _what(run: dict) -> str:
     """'PR #3' for a merge commit, else the commit's first line, shortened."""
+    title = run.get("display_title") or ""
+    if title.startswith("voice-job "):
+        # Voice jobs (ADR-0022) run on main's latest commit; what matters is
+        # the job itself, e.g. "restart-app hue".
+        import jobs  # local: jobs imports this module
+
+        return jobs._label_from_title(title)
     msg = ((run.get("head_commit") or {}).get("message") or "").splitlines()[0:1]
     first = msg[0] if msg else ""
     m = re.match(r"Merge pull request #(\d+)", first)

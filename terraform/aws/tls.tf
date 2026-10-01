@@ -254,6 +254,7 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
       "umami/app-secret",
       "umami/two-factor-encryption-key",
       "ansible/nuc-private-key",
+      "github/voice-jobs-token",
     ] : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${p}"]
   }
 }

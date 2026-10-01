@@ -1,0 +1,202 @@
+name: voice-job
+
+# Named jobs requested by voice through home-mcp's run_job tool (ADR-0022).
+# home-mcp dispatches this with an Actions-only token; nothing runs until
+# (1) the request matches jobs/registry.yml on main and (2) Bill approves
+# the `production` environment. The job then runs scripts/jobs/<script> on
+# the hub via SSM, the same mechanism as platform-deploy.yml, and publishes
+# the script's final `RESULT:` line as a `result` annotation that
+# home-mcp's job_status reads back.
+
+run-name: "voice-job ${{ inputs.job }} ${{ inputs.args }} [${{ inputs.request_id }}]"
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Job name from jobs/registry.yml"
+        required: true
+        type: string
+      args:
+        description: "Job arguments as a JSON object, e.g. {\"app\": \"hue\"}"
+        required: false
+        type: string
+        default: "{}"
+      request_id:
+        description: "Opaque id home-mcp uses to find this run again"
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+# Shares Platform deploy's group: a voice job and a platform deploy never
+# touch the hub at the same time; they queue.
+concurrency:
+  group: platform-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  DEPLOY_BUCKET: home-platform-ansible-deploy-147856894209
+
+jobs:
+  validate:
+    name: Check request against the registry
+    runs-on: ubuntu-24.04
+    outputs:
+      script: ${{ steps.check.outputs.script }}
+      argv: ${{ steps.check.outputs.argv }}
+      stage: ${{ steps.check.outputs.stage }}
+      timeout: ${{ steps.check.outputs.timeout }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate job and args
+        id: check
+        env:
+          JOB: ${{ inputs.job }}
+          ARGS: ${{ inputs.args }}
+          REQUEST_ID: ${{ inputs.request_id }}
+        run: |
+          # yq (preinstalled on GitHub's Ubuntu images) turns the registry
+          # into JSON, so the check needs nothing beyond the stdlib.
+          yq -o=json jobs/registry.yml > "$RUNNER_TEMP/registry.json"
+          python3 - <<'PY'
+          import json, os, re, sys
+          def fail(msg):
+              print(f"::error title=result::{msg}")
+              sys.exit(1)
+          reg = json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "registry.json")))
+          job, rid = os.environ["JOB"], os.environ["REQUEST_ID"]
+          if not re.fullmatch(r"[A-Za-z0-9-]{1,40}", rid):
+              fail("bad request id")
+          if job not in reg:
+              fail(f"there's no job called {job}")
+          spec = reg[job]
+          try:
+              args = json.loads(os.environ["ARGS"] or "{}")
+          except json.JSONDecodeError:
+              fail("arguments aren't valid JSON")
+          if not isinstance(args, dict):
+              fail("arguments must be an object")
+          allowed = spec.get("args") or {}
+          extra = set(args) - set(allowed)
+          if extra:
+              fail(f"{job} doesn't take {', '.join(sorted(extra))}")
+          argv = []
+          for name, values in allowed.items():
+              v = args.get(name)
+              if v not in values:
+                  fail(f"{job} needs {name} to be one of {', '.join(values)}")
+              argv.append(v)
+          script = spec["script"]
+          if not re.fullmatch(r"[a-z0-9-]+\.sh", script) or not os.path.isfile(f"scripts/jobs/{script}"):
+              fail(f"{job}'s script is missing")
+          stage = spec.get("stage") or []
+          if not set(stage) <= {"compose/aws", "ansible", "compose/nuc"}:
+              fail(f"{job} stages something it isn't allowed to")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"script={script}\n")
+              out.write(f"argv={' '.join(argv)}\n")
+              out.write(f"stage={' '.join(stage)}\n")
+              out.write(f"timeout={int(spec.get('timeout_minutes', 10)) * 60}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as s:
+              s.write(f"## voice-job: {job}\n- args: `{json.dumps(args)}`\n- script: `scripts/jobs/{script}`\n- request: `{rid}`\n")
+          PY
+
+  run:
+    name: Run on hub (needs approval)
+    needs: validate
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Stage scripts (and any files the job deploys) in S3
+        env:
+          STAGE: ${{ needs.validate.outputs.stage }}
+        run: |
+          aws s3 sync scripts/jobs/ "s3://${DEPLOY_BUCKET}/voice-jobs/jobs/" --delete --only-show-errors
+          aws s3 sync scripts/hub/ "s3://${DEPLOY_BUCKET}/voice-jobs/hub/" --delete --only-show-errors
+          # Same prefixes Platform deploy uses, so the hub scripts find them.
+          for d in $STAGE; do
+            case "$d" in
+              compose/aws) aws s3 sync compose/aws/ "s3://${DEPLOY_BUCKET}/compose-aws/" --delete --exclude '.env' --only-show-errors ;;
+              ansible)     aws s3 sync ansible/ "s3://${DEPLOY_BUCKET}/ansible/" --delete --only-show-errors ;;
+              compose/nuc) aws s3 sync compose/nuc/ "s3://${DEPLOY_BUCKET}/compose-nuc/" --delete --only-show-errors ;;
+            esac
+          done
+
+      - name: Look up hub instance ID
+        id: hub
+        run: |
+          ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=home-platform-hub" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" --output text)
+          if [ -z "$ID" ] || [ "$ID" = "None" ]; then
+            echo "::error title=result::I couldn't find the hub instance."
+            exit 1
+          fi
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+
+      - name: Run the job on the hub
+        env:
+          HUB_ID: ${{ steps.hub.outputs.id }}
+          SCRIPT: ${{ needs.validate.outputs.script }}
+          ARGV: ${{ needs.validate.outputs.argv }}
+          TIMEOUT: ${{ needs.validate.outputs.timeout }}
+          JOB: ${{ inputs.job }}
+        run: |
+          set -uo pipefail
+          DIR="/tmp/voice-job-${GITHUB_RUN_ID}"
+          # ARGV values are registry enums (validated above), so plain
+          # word-splitting into the command line is safe. SSM keeps only the
+          # first 24,000 characters of output, so the job's full log goes to
+          # a file and only its tail (which ends with the RESULT line) is
+          # printed.
+          CMD=$(jq -n --arg b "$DEPLOY_BUCKET" --arg d "$DIR" --arg s "$SCRIPT" --arg a "$ARGV" --arg t "$TIMEOUT" '{
+            commands: [
+              ("trap \"rm -rf " + $d + "\" EXIT"),
+              ("mkdir -p " + $d + " && aws s3 sync s3://" + $b + "/voice-jobs/ " + $d + "/ --only-show-errors || exit 1"),
+              ("bash " + $d + "/jobs/" + $s + " " + $b + " " + $a + " > " + $d + "/out.log 2>&1; rc=$?"),
+              ("tail -c 20000 " + $d + "/out.log"),
+              "exit $rc"
+            ],
+            executionTimeout: [$t]
+          }')
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$HUB_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "voice-job $JOB, GitHub run $GITHUB_RUN_ID" \
+            --parameters "$CMD" \
+            --query "Command.CommandId" --output text)
+          echo "Sent SSM command $CMD_ID"
+          for i in $(seq 1 270); do
+            STATUS=$(aws ssm list-command-invocations --command-id "$CMD_ID" \
+              --query "CommandInvocations[0].Status" --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in Pending|InProgress|Delayed|None|"") sleep 10 ;; *) break ;; esac
+          done
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$HUB_ID" > result.json
+          echo "--- stdout ---"; jq -r '.StandardOutputContent' result.json
+          echo "--- stderr ---"; jq -r '.StandardErrorContent' result.json
+          STATUS=$(jq -r '.Status' result.json)
+          RESULT=$(jq -r '.StandardOutputContent' result.json | sed -n 's/^RESULT: //p' | tail -1)
+          # Annotations are what job_status reads back (anonymous API), so
+          # keep them to the one spoken sentence.
+          if [ "$STATUS" = "Success" ]; then
+            echo "::notice title=result::${RESULT:-$JOB finished}"
+            echo "### Result: ${RESULT:-$JOB finished}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error title=result::${RESULT:-$JOB failed on the hub ($STATUS)}"
+            echo "### Failed: ${RESULT:-$STATUS}" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi

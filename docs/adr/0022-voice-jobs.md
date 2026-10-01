@@ -1,7 +1,7 @@
 # ADR-0022: Named Jobs by Voice (Milestone 18, Phase 4)
 
 Date: 2026-10-01
-Status: Proposed
+Status: Accepted (2026-10-01)
 
 ## Context
 
@@ -91,8 +91,16 @@ These change the tool list, so the claude.ai connector needs a disconnect and re
 - Every new job is a PR: registry entry plus script, reviewed like any other change
 - **Later, not in this phase:** compute jobs on nuc4 (e.g. curve-fit runs for the fixed-income work). They'd reuse the registry and tools with `target: nuc4`, dispatched from the hub to `voiceworker`'s forced command (ADR-0021), likely without the approval tap since they only compute
 
-## Open questions for Bill
+## Answers (Bill, 2026-10-01)
 
-1. Starter list above, or different?
-2. Should every job wait for approval, including harmless ones like the backup? Recommendation: yes for now, since one rule is easier to trust
-3. Compute jobs on nuc4: part of this phase, or after?
+1. Starter list: as above
+2. Every job waits for approval, including the backup
+3. Compute jobs on nuc4: hold off, not part of this phase
+
+## Implementation notes
+
+- `jobs/registry.yml`, `scripts/jobs/*.sh`, `.github/workflows/voice-job.yml`, `compose/aws/home-mcp/jobs.py`
+- `voice-job.yml` shares Platform deploy's concurrency group, so a job and a deploy never touch the hub at once. Its `validate` job re-checks the request (job name, enum args, request id format, script path, allowed `stage` dirs) before the `production` gate is even reached
+- `run-name` is `voice-job <job> <args JSON> [<request id>]`; `job_status` finds the run by the bracketed id, and `github_status`/`platform_status` name waiting jobs as e.g. "restart-app hue"
+- SSM keeps only the first 24,000 characters of output, so the job's full log goes to a file on the hub and only its tail (ending in the `RESULT:` line) comes back
+- The token parameter is optional at deploy time: until it exists, deploys write `none` and voice jobs say they aren't set up
