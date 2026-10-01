@@ -30,7 +30,9 @@ After setup, use `gh run list --repo bcalaway/nyc_pa_aws_gitops` to check Action
 
 ## Git
 
-Always `git push` immediately after every `git commit` without asking.
+`main` is protected (ruleset, 2026-09-30): no direct pushes, deletion or force-push — every change goes through a PR. Work on a branch, and always `git push` it immediately after every `git commit` without asking, then open a PR (or update the open one). Bill merges.
+
+Merging to `main` can deploy: Terraform (`terraform/**`), the hub stack and NUCs (`compose/aws/**`, `ansible/**`, `compose/nuc/**`, `scripts/hub/**`, via `platform-deploy.yml`) and RouterOS all run in the `production` environment, which waits for Bill's approval before applying.
 
 ## AWS
 
@@ -96,7 +98,7 @@ ssh -i "$HOME\.ssh\home-platform.pem" ec2-user@10.0.3.1
 
 ## Deploying the AWS stack
 
-**Normally automatic:** merging to `main` with changes under `compose/aws/`, `ansible/`, `compose/nuc/` or `scripts/hub/` runs `.github/workflows/platform-deploy.yml`, which waits for Bill's approval (the `production` environment) and then deploys the hub stack and/or NUCs through S3 + SSM, the same way `routeros.yml` does. It can also be run by hand from the Actions tab (`workflow_dispatch`: hub / nucs / both). The hub-side logic lives in `scripts/hub/`; unreachable NUCs (nuc5 when Rambles is closed) are skipped, not failed. The scripts below remain for manual deploys.
+**Normally automatic:** merging to `main` with changes under `compose/aws/`, `ansible/`, `compose/nuc/` or `scripts/hub/` runs `.github/workflows/platform-deploy.yml`, which waits for Bill's approval (the `production` environment's required reviewer, set 2026-10-01) and then deploys the hub stack and/or NUCs through S3 + SSM, the same way `routeros.yml` does. It can also be run by hand from the Actions tab (`workflow_dispatch`: hub / nucs / both). The hub-side logic lives in `scripts/hub/`; unreachable NUCs (nuc5 when Rambles is closed) are skipped, not failed. The scripts below remain for manual deploys.
 
 `scripts/deploy-aws-stack.ps1` (Windows) / `scripts/deploy-aws-stack.sh` (Linux) push `compose/aws/` to the EC2 hub and bring the stack up — Prometheus, Grafana, Loki, Uptime Kuma, Authentik, Traefik, Postgres, Redis. Both fetch the same secrets from SSM into a generated `.env`, delete remote files that no longer exist locally (see `docs/gotchas.md` on why this matters), `scp` the compose dir over, and run `docker compose pull && docker compose build && docker compose up -d`. Keep the two scripts' deploy logic in sync when changing one.
 
