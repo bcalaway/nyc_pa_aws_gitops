@@ -28,6 +28,7 @@ from starlette.responses import JSONResponse
 
 import context
 import github_status as github_status_mod
+import jobs
 import status
 import tasks
 from auth import AuthentikTokenVerifier
@@ -153,6 +154,37 @@ async def github_status(repo: str = "") -> str:
     deploy?"). Read-only. Omit `repo` for all three. Read the result aloud in
     short form, leading with anything waiting for approval or failed."""
     return await github_status_mod.github_status(repo)
+
+
+@mcp.tool()
+@audited
+async def list_jobs() -> str:
+    """List the named jobs Bill can run by voice (e.g. restart an app, deploy
+    the NUCs, back up Postgres now), with how to ask and allowed values.
+    Read-only."""
+    return await jobs.list_jobs()
+
+
+@mcp.tool()
+@audited
+async def run_job(job: str, args: dict | None = None) -> str:
+    """Start a named job from the job registry on the hub, e.g.
+    run_job("restart-app", {"app": "hue"}) or run_job("deploy-nucs").
+    Arguments must be one of the allowed values shown by list_jobs. The job
+    waits for Bill's approval in GitHub before it runs, then reports one
+    sentence that job_status reads back.
+    This changes things: before calling, say which job and arguments in one
+    sentence and get a clear yes."""
+    return await jobs.run_job(job, args)
+
+
+@mcp.tool()
+@audited
+async def job_status(request_id: str = "") -> str:
+    """Status of a voice job: waiting for approval, running, done (with its
+    one-sentence result), or failed (with why). Read-only. Omit request_id
+    for the most recent job."""
+    return await jobs.job_status(request_id)
 
 
 @mcp.custom_route("/health", methods=["GET"])

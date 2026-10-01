@@ -14,6 +14,7 @@ import os
 import httpx
 
 import github_status
+import jobs
 import tasks
 
 PROMETHEUS_URL = os.environ.get("PROMETHEUS_URL", "http://prometheus:9090")
@@ -56,7 +57,7 @@ def _rambles_off_season(today: datetime.date) -> bool:
 async def platform_status() -> str:
     problems: list[str] = []
     async with httpx.AsyncClient() as client:
-        (internet, routers, nodes, load, cores, hub, mtd, forecast), app_results, token_problems, approvals = await asyncio.gather(
+        (internet, routers, nodes, load, cores, hub, mtd, forecast), app_results, token_problems, approvals, job_token_problems = await asyncio.gather(
             asyncio.gather(
                 _prom(client, 'max by (site) (probe_success{job="blackbox-icmp"})'),
                 _prom(client, 'up{job="snmp", device=~"rt-.*"}'),
@@ -70,6 +71,7 @@ async def platform_status() -> str:
             asyncio.gather(*(_app_ok(client, url) for url in APPS.values())),
             tasks.token_warnings(),
             github_status.pending_approvals(),
+            jobs.token_warnings(),
         )
 
     # Sites: internet (pings from that site's NUC) + the router answering SNMP.
@@ -109,6 +111,7 @@ async def platform_status() -> str:
     # Voice worker tokens: flagged 21 days ahead so a renewal never lands on
     # the day the agent is needed from the car.
     problems.extend(token_problems)
+    problems.extend(job_token_problems)
 
     cost = ""
     if mtd:

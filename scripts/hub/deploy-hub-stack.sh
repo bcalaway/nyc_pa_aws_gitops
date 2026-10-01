@@ -63,6 +63,10 @@ chmod 600 "$ENV_TMP"
   echo "UMAMI_DB_PASSWORD=$(ssm /home-platform/postgres/umami-password)"
   echo "UMAMI_APP_SECRET=$(ssm /home-platform/umami/app-secret)"
   echo "UMAMI_TWO_FACTOR_KEY=$(ssm /home-platform/umami/two-factor-encryption-key)"
+  # Optional (ADR-0022): home-mcp's Actions-only token for voice jobs. Until
+  # it's created, voice jobs just report "not set up" -- so a missing
+  # parameter writes a placeholder instead of failing the deploy.
+  echo "VOICE_JOBS_GITHUB_TOKEN=$(ssm /home-platform/github/voice-jobs-token 2>/dev/null || echo none)"
 } > "$ENV_TMP"
 # A failed lookup inside $(...) doesn't trip set -e (echo's own status
 # wins), so check explicitly: an empty value would silently break a service.
