@@ -37,6 +37,9 @@ HOSTS = [
 
 def _cert_days(host: str) -> float:
     ctx = ssl.create_default_context()
+    # Explicit floor (CodeQL py/insecure-protocol): the default context
+    # already refuses TLS 1.0/1.1 on current OpenSSL, but say so in code.
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     with socket.create_connection((host, 443), timeout=8) as sock, ctx.wrap_socket(sock, server_hostname=host) as tls:
         cert = tls.getpeercert()
     expires = datetime.datetime.fromtimestamp(ssl.cert_time_to_seconds(cert["notAfter"]), datetime.timezone.utc)

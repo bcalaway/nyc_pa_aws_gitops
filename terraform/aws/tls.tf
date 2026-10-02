@@ -399,7 +399,7 @@ data "aws_iam_policy_document" "hub_security_read" {
       "guardduty:ListFindings",
       "guardduty:GetFindings",
       "access-analyzer:ListAnalyzers",
-      "access-analyzer:ListFindingsV2",
+      "access-analyzer:ListFindings", # also authorizes ListFindingsV2
       "ec2:DescribeSecurityGroups",
       "cloudtrail:LookupEvents",
       "iam:ListUsers",
