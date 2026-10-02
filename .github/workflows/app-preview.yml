@@ -3,9 +3,16 @@ name: App Preview (reusable)
 # Per-PR preview environments (ADR-0023). Called from an app repo's thin
 # `preview.yml` on pull_request (opened, synchronize, reopened, closed).
 #
-#   open PR   -> build the PR's image (<app>:pr-<n>-<sha>) and run
-#                scripts/hub/preview-up.sh on the hub via SSM, automatically
-#   closed PR -> scripts/hub/preview-down.sh
+#   open PR   -> build the PR's image (<app>-preview:pr-<n>-<sha>) and run
+#                the <app>-preview-up SSM document on the hub, automatically
+#   closed PR -> the <app>-preview-down document
+#
+# Everything here uses <app>-github-preview (terraform/aws/ci-roles.tf,
+# ADR-0025): it can push only to the <app>-preview ECR repository, stage only
+# under apps/<app>/previews/, and run only those two documents, whose
+# inputs are just the PR number and image tag. The hub re-checks the staged
+# Compose file itself (preview-compose.py --strict), so editing this
+# workflow in a PR can't start anything else.
 #
 # No approval gate (Bill's call, 2026-10-01: production keeps its gate,
 # previews deploy on every push). That means unreviewed code -- often the
@@ -84,7 +91,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::147856894209:role/${{ inputs.app_name }}-github-actions
+          role-to-assume: arn:aws:iam::147856894209:role/${{ inputs.app_name }}-github-preview
           aws-region: ${{ env.AWS_REGION }}
 
       - uses: aws-actions/amazon-ecr-login@v2
@@ -97,7 +104,7 @@ jobs:
           context: .
           file: ${{ inputs.dockerfile }}
           push: true
-          tags: ${{ env.REGISTRY }}/${{ inputs.app_name }}:${{ steps.tag.outputs.tag }}
+          tags: ${{ env.REGISTRY }}/${{ inputs.app_name }}-preview:${{ steps.tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -126,7 +133,7 @@ jobs:
         env:
           APP: ${{ inputs.app_name }}
           FRAGMENT: ${{ inputs.compose_file }}
-          IMAGE: ${{ env.REGISTRY }}/${{ inputs.app_name }}:${{ needs.build.outputs.tag }}
+          IMAGE: ${{ env.REGISTRY }}/${{ inputs.app_name }}-preview:${{ needs.build.outputs.tag }}
         run: |
           yq -o=json "$FRAGMENT" > "$RUNNER_TEMP/fragment.json"
           python3 .platform/scripts/hub/preview-compose.py "$RUNNER_TEMP/fragment.json" \
@@ -137,7 +144,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::147856894209:role/${{ inputs.app_name }}-github-actions
+          role-to-assume: arn:aws:iam::147856894209:role/${{ inputs.app_name }}-github-preview
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Stage the preview Compose file
@@ -149,12 +156,8 @@ jobs:
         id: up
         env:
           APP: ${{ inputs.app_name }}
-          REPO: ${{ github.event.repository.name }}
-          SERVICE: ${{ steps.compose.outputs.service }}
-          PORT: ${{ steps.compose.outputs.port }}
-        run: |
-          bash .platform/scripts/hub/run-on-hub.sh .platform/scripts/hub/preview-up.sh \
-            "$DEPLOY_BUCKET" "$APP" "$REPO" "$PR" "$SERVICE" "$PORT"
+          TAG: ${{ needs.build.outputs.tag }}
+        run: bash .platform/scripts/hub/run-document.sh "${APP}-preview-up" "pr=$PR" "tag=$TAG"
 
       - name: Comment on the PR
         if: always() && steps.up.outputs.result != ''
@@ -183,12 +186,14 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::147856894209:role/${{ inputs.app_name }}-github-actions
+          role-to-assume: arn:aws:iam::147856894209:role/${{ inputs.app_name }}-github-preview
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Tear down on the hub
         id: down
-        run: bash .platform/scripts/hub/run-on-hub.sh .platform/scripts/hub/preview-down.sh "${{ inputs.app_name }}" "$PR"
+        env:
+          APP: ${{ inputs.app_name }}
+        run: bash .platform/scripts/hub/run-document.sh "${APP}-preview-down" "pr=$PR"
 
       - name: Comment on the PR
         if: always() && steps.down.outputs.result != ''
