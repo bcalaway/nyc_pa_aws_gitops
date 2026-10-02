@@ -121,6 +121,11 @@ install -d -m 0755 /var/lib/home-platform/exposure
 
 echo "Starting stack..."
 cd "$REMOTE_DIR"
+# Promtail was replaced by Alloy (2026-10-02). `compose up` leaves a removed
+# service's container running, which would ship every log twice; stop it
+# first so Alloy also starts from Promtail's final read positions. No-op
+# once it's gone.
+docker rm -f promtail >/dev/null 2>&1 || true
 docker compose pull
 docker compose build
 docker compose up -d

@@ -34,7 +34,7 @@ Traefik replaced hand-edited nginx as ingress (Milestone 11, ADR-0018) — this 
 Also host-level, not tracked in Git (same caveat as nginx/certbot above).
 
 - `rsyslog` (native package, not containerized) listens on UDP 514, config at `/etc/rsyslog.d/network-devices.conf`
-- Writes one file per source IP to `/var/log/network-devices/<ip>.log` — Promtail (in the compose stack) bind-mounts that directory read-only and tails it, with one explicit `static_configs` entry per known device mapping IP → friendly device name (see `compose/aws/promtail/promtail-config.yaml`)
+- Writes one file per source IP to `/var/log/network-devices/<ip>.log` — the log shipper (Grafana Alloy since 2026-10-02, Promtail before that; `compose/aws/alloy/config.alloy`) bind-mounts that directory read-only and tails it, with one explicit `static_configs` entry per known device mapping IP → friendly device name (see `compose/aws/promtail/promtail-config.yaml`)
 - rsyslog owns port 514 natively; Promtail's container does **not** publish that port (it did originally, using Promtail's own built-in syslog receiver, but that only supports RFC5424 and choked on RouterOS/Cisco's legacy BSD syslog — see docs/gotchas.md)
 - Devices are pointed at `10.0.3.1:514` (the hub's WireGuard IP) via each device's own remote-syslog config — RouterOS `/system logging`, Cisco `logging host`, Synology DSM's Log Center
 

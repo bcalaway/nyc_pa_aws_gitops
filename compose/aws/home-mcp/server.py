@@ -8,7 +8,7 @@ re-validates every token itself (auth.py). Tools are named and fixed --
 there is no shell or arbitrary-command tool, by design.
 
 Every tool call is logged as one JSON line to stdout, which the hub's
-journald log driver + Promtail's journal job ship to Loki
+journald log driver + Alloy's journal source ship to Loki
 ({container="home-mcp"}), giving an audit trail for free.
 """
 

@@ -205,6 +205,6 @@ tracked individually here.
 | printer | Configured 2026-09-26 (Jetdirect syslog -> hub, Promtail `device=printer`) |
 | rt-nyc | Working — see note below |
 | rt-rambles | Working — see note below |
-| aws-hub (host journal) | Working — Promtail's `journal` scrape job reads `/var/log/journal` directly, no rsyslog hop needed |
+| aws-hub (host journal) | Working — Alloy's `loki.source.journal` (Promtail's `journal` job until 2026-10-02) reads `/var/log/journal` directly, no rsyslog hop needed |
 
 **rt-nyc/rt-rambles note (2026-07-11):** previously documented here as broken (RouterOS 7.19.6 bug, packets never leaving the router per tcpdump/`/tool sniffer` on the LAN address). That diagnosis was based on watching the wrong source interface — the routers' self-generated syslog is actually sourced from their **WireGuard address** (10.0.3.2/10.0.3.3), not their LAN address (10.0.1.1/10.0.2.1), which makes sense since that's the interface the route to the hub goes out. Confirmed via real log content (router config-change and login/logout entries) arriving in `/var/log/network-devices/10.0.3.2.log` and `10.0.3.3.log` on the hub. Promtail now watches both the LAN-address and WireGuard-address paths for each router (the LAN-address ones are dormant no-ops). CLAUDE.md's Gotchas entry about this should be treated as superseded by this note.

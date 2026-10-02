@@ -30,8 +30,6 @@ updates:
       # update_status reports the end-of-life date instead.
       - dependency-name: postgres
         update-types: [version-update:semver-major]
-      # Held at 3.3.2 (3.6.8 stopped log shipping); replaced by Alloy later.
-      - dependency-name: grafana/promtail
 
   # Base images of the images built on the hub and NUCs.
   - package-ecosystem: docker

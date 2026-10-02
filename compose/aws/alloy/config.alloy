@@ -1,0 +1,85 @@
+// Grafana Alloy: ships hub logs to Loki (Milestone 19 follow-up, replaces
+// Promtail, which is end of life upstream; its 3.6.8 image was also built
+// without journal support and silently stopped shipping, 2026-10-02).
+//
+// Same two sources and the same labels as the old promtail-config.yaml, so
+// every existing Loki query, dashboard and home-mcp tool keeps working:
+//   1. Network-device syslog files written by the hub's rsyslog receiver
+//      (ansible/roles/logging): job="network-syslog", device=<name>
+//   2. The hub's systemd journal, which also carries every container's
+//      output (Docker's journald log driver): job="systemd-journal",
+//      device="aws-hub", plus unit / level / container / container_id
+//
+// Handoff from Promtail: on first start, both sources import Promtail's
+// saved read positions (its old volume, mounted read-only at
+// /promtail-positions), so Alloy resumes exactly where Promtail stopped:
+// no gap, and no re-sending of old lines. Once Alloy has its own positions
+// the legacy file is ignored, and the volume can be removed later.
+
+loki.write "local" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}
+
+// 1. Network-device syslog. Routers log from their WireGuard address as
+// well as their LAN address, so each router has two files (the LAN-address
+// ones are normally empty; see docs/network-inventory.md).
+loki.source.file "network_devices" {
+	targets = [
+		{"__path__" = "/var/log/network-devices/10.0.1.1.log", "job" = "network-syslog", "device" = "rt-nyc"},
+		{"__path__" = "/var/log/network-devices/10.0.3.2.log", "job" = "network-syslog", "device" = "rt-nyc"},
+		{"__path__" = "/var/log/network-devices/10.0.2.1.log", "job" = "network-syslog", "device" = "rt-rambles"},
+		{"__path__" = "/var/log/network-devices/10.0.3.3.log", "job" = "network-syslog", "device" = "rt-rambles"},
+		{"__path__" = "/var/log/network-devices/10.0.1.10.log", "job" = "network-syslog", "device" = "sw-main"},
+		{"__path__" = "/var/log/network-devices/10.0.1.11.log", "job" = "network-syslog", "device" = "sw-desk"},
+		{"__path__" = "/var/log/network-devices/10.0.1.12.log", "job" = "network-syslog", "device" = "sw-10g"},
+		{"__path__" = "/var/log/network-devices/10.0.1.7.log", "job" = "network-syslog", "device" = "nas2"},
+		{"__path__" = "/var/log/network-devices/10.0.2.10.log", "job" = "network-syslog", "device" = "nuc5"},
+		{"__path__" = "/var/log/network-devices/10.0.1.34.log", "job" = "network-syslog", "device" = "nuc4"},
+		{"__path__" = "/var/log/network-devices/10.0.1.5.log", "job" = "network-syslog", "device" = "printer"},
+	]
+	forward_to            = [loki.write.local.receiver]
+	legacy_positions_file = "/promtail-positions/positions.yaml"
+	// A file Alloy has no position for (a device added later): start at its
+	// end rather than re-sending its whole history.
+	tail_from_end = true
+}
+
+// 2. The hub's journal, including every container's logs.
+loki.relabel "journal" {
+	forward_to = []
+
+	rule {
+		source_labels = ["__journal__systemd_unit"]
+		target_label  = "unit"
+	}
+
+	rule {
+		source_labels = ["__journal_priority_keyword"]
+		target_label  = "level"
+	}
+
+	rule {
+		source_labels = ["__journal_container_name"]
+		target_label  = "container"
+	}
+
+	rule {
+		source_labels = ["__journal_container_id_full"]
+		target_label  = "container_id"
+	}
+}
+
+loki.source.journal "hub" {
+	path          = "/var/log/journal"
+	max_age       = "24h"
+	labels        = {"job" = "systemd-journal", "device" = "aws-hub"}
+	relabel_rules = loki.relabel.journal.rules
+	forward_to    = [loki.write.local.receiver]
+
+	legacy_position {
+		file = "/promtail-positions/positions.yaml"
+		name = "journal"
+	}
+}

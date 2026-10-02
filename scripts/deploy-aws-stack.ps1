@@ -99,6 +99,8 @@ ssh -i $sshKey $ec2Host "docker network inspect preview >/dev/null 2>&1 || docke
 ssh -i $sshKey $ec2Host "sudo install -d -m 0755 /var/lib/home-platform/exposure"
 
 Write-Host "Starting stack..."
+# Promtail -> Alloy (2026-10-02): remove the old container first; see deploy-hub-stack.sh.
+ssh -i $sshKey $ec2Host "docker rm -f promtail >/dev/null 2>&1 || true"
 ssh -i $sshKey $ec2Host "cd $remoteDir && docker compose pull && docker compose build && docker compose up -d"
 
 Write-Host "Installing host units (ADR-0024)..."
