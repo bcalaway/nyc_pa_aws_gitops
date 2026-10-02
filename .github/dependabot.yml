@@ -74,6 +74,27 @@ updates:
       python-minor-patch:
         update-types: [minor, patch]
 
+  # App starter templates (ADR-0014). Nothing here runs on the platform, but
+  # every new app is copied from them, so stale or vulnerable pins would be
+  # inherited by each new repo. Monthly is enough.
+  - package-ecosystem: pip
+    directory: "/templates/python"
+    schedule:
+      interval: monthly
+    labels: [dependencies, templates]
+    groups:
+      template-python:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: "/templates/react"
+    schedule:
+      interval: monthly
+    labels: [dependencies, templates]
+    groups:
+      template-react:
+        patterns: ["*"]
+
   # Actions used by this repo's workflows.
   - package-ecosystem: github-actions
     directory: "/"
