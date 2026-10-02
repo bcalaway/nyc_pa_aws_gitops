@@ -45,6 +45,14 @@ echo "$PROBE"
 REACHABLE=$(echo "$PROBE" | awk '/ \| SUCCESS/ {print $1}' | paste -sd, -)
 SKIPPED=$(echo "$PROBE" | awk '/ \| (UNREACHABLE|FAILED)/ {print $1}' | paste -sd, -)
 
+# A host-key mismatch also shows as UNREACHABLE; that's not "site closed",
+# it's a NUC that was reinstalled or something else on its IP. Fail loudly.
+if grep -qiE 'host key verification failed|REMOTE HOST IDENTIFICATION HAS CHANGED|No [a-z0-9-]+ host key is known' <<<"$PROBE"; then
+  echo "ERROR: a NUC's SSH host key doesn't match ansible/known_hosts -- nothing deployed." >&2
+  echo "If a NUC was reinstalled, update its line in ansible/known_hosts (see docs/gotchas.md)." >&2
+  exit 1
+fi
+
 if [ -z "$REACHABLE" ]; then
   echo "ERROR: no NUCs reachable -- nothing deployed." >&2
   exit 1

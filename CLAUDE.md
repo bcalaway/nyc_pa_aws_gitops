@@ -118,8 +118,10 @@ Script: `routeros/apply-config.py`. Requires `pip install paramiko boto3`.
 python routeros/apply-config.py 10.0.1.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password --wg-key-ssm /home-platform/wireguard/nyc-private-key
 
 # First-time apply to factory-default router (provide factory password)
-python routeros/apply-config.py 192.168.88.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password --ssh-password <factory-password> --wg-key-ssm /home-platform/wireguard/nyc-private-key
+python routeros/apply-config.py 192.168.88.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password --ssh-password <factory-password> --wg-key-ssm /home-platform/wireguard/nyc-private-key --accept-new-host-key
 ```
+
+**SSH host keys are pinned** in `ansible/known_hosts` (routers and NUCs). `apply-config.py` and Ansible refuse a host that isn't listed or whose key changed. After a factory reset or reinstall, run once with `--accept-new-host-key` (routers only, first contact), check the printed fingerprint on the device, and update its line in `ansible/known_hosts` — see `docs/gotchas.md` (NUCs and Ansible).
 
 The script replaces `PLACEHOLDER` in the .rsc file with the real admin password from SSM, and (if `--wg-key-ssm` is given) `WG_PRIVATE_KEY_PLACEHOLDER` with the real WireGuard key. **It refuses to run at all if `WG_PRIVATE_KEY_PLACEHOLDER` is still present and `--wg-key-ssm` wasn't given** — see `docs/gotchas.md` (RouterOS) for why.
 
