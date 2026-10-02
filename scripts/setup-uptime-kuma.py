@@ -25,7 +25,13 @@ MONITORS = [
 
     # Public-facing endpoints -- exercise the real path (DNS, TLS, nginx, backend).
     dict(type=MonitorType.HTTP, name="Grafana (public)", url="https://grafana.billandjessie.com/api/health", interval=60),
-    dict(type=MonitorType.HTTP, name="Status page (public)", url="https://status.billandjessie.com", interval=60),
+    # Behind Authentik forward-auth, so an anonymous check gets a 302 to the
+    # login. Following it started a full Authentik login every minute (1,440
+    # junk authorize requests a day, found 2026-10-01). Stop at the first
+    # redirect instead: a 302 still proves DNS, TLS, Traefik and the auth
+    # gate are answering.
+    dict(type=MonitorType.HTTP, name="Status page (public)", url="https://status.billandjessie.com", interval=60,
+         maxredirects=0, accepted_statuscodes=["200-399"]),
     dict(type=MonitorType.HTTP, name="Portal (public)", url="https://billandjessie.com", interval=60),
 
     # Network devices, pinged from the hub over the WireGuard tunnel.
@@ -59,6 +65,11 @@ MONITORS = [
 ]
 
 
+# Monitors whose settings changed after they were first created; re-running
+# the script brings the live monitor in line instead of skipping it.
+UPDATE_EXISTING = {"Status page (public)"}
+
+
 def get_ssm_param(name, decrypt=False):
     cmd = [AWS_CLI, "ssm", "get-parameter", "--name", name, "--region", "us-east-1", "--output", "json"]
     if decrypt:
@@ -76,10 +87,14 @@ def main():
             api.setup("admin", password)
         api.login("admin", password)
 
-        existing = {m["name"] for m in api.get_monitors()}
+        existing = {m["name"]: m["id"] for m in api.get_monitors()}
         for m in MONITORS:
             if m["name"] in existing:
-                print(f"Skipping (already exists): {m['name']}")
+                if m["name"] in UPDATE_EXISTING:
+                    print(f"Updating: {m['name']}")
+                    api.edit_monitor(existing[m["name"]], **{k: v for k, v in m.items() if k != "type"})
+                else:
+                    print(f"Skipping (already exists): {m['name']}")
                 continue
             print(f"Adding monitor: {m['name']}")
             api.add_monitor(**m)
