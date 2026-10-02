@@ -51,3 +51,11 @@ Also host-level, not tracked in Git (same caveat as nginx/certbot and rsyslog ab
 - **auditd**: already installed, active and enabled by default on this AMI. Not modified.
 - **journald**: persistent logging already enabled (`/var/log/journal` exists and is populated). Not modified.
 - No unexpected local logins found in `last`/`wtmp` — only the instance's own boot record.
+
+## Hub host units (Milestone 19, ADR-0024)
+
+Unlike the rest of this section's hand-made host config, these are installed from Git: `compose/aws/host/install.sh` runs on every hub deploy (`scripts/hub/deploy-hub-stack.sh`, and the manual `scripts/deploy-aws-stack.*`). It installs `nmap` and `dnf-plugins-core`, copies the scripts to root-owned `/usr/local/lib/home-platform/`, and enables:
+
+- `host-update-metrics.timer` (every 6 h): pending updates, reboot needed and AL2023 release → `host_updates.prom` in the stack's `backup-metrics` volume (node-exporter's textfile dir). The NUCs get the same timer from `ansible/roles/exporters`, writing to `/var/lib/node_exporter/textfile`
+- `exposure-check.timer` (Sundays ~06:00 UTC): nmap of the hub's public IP and both sites' WAN IPs → `/var/lib/home-platform/exposure/latest.json` (read-only into home-mcp) + `exposure.prom`. Run on demand with `systemctl start exposure-check` or the `exposure-check-now` voice job
+

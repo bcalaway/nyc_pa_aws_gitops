@@ -25,12 +25,15 @@ services:
     image: prom/snmp-exporter:v0.26.0
     container_name: snmp-exporter
     restart: unless-stopped
-    # Built-in snmp.yml (if_mib etc.) plus our hand-written printer module.
+    # Built-in snmp.yml (if_mib etc.) plus our hand-written printer and
+    # version modules (versions.yml: RouterOS, DSM, SG300 firmware -- ADR-0024).
     command:
       - --config.file=/etc/snmp_exporter/snmp.yml
       - --config.file=/etc/snmp_exporter/printer.yml
+      - --config.file=/etc/snmp_exporter/versions.yml
     volumes:
       - ./snmp-exporter/printer.yml:/etc/snmp_exporter/printer.yml:ro
+      - ./snmp-exporter/versions.yml:/etc/snmp_exporter/versions.yml:ro
     ports:
       - "9116:9116"
 
@@ -98,6 +101,19 @@ services:
       # token is Actions-only on nyc_pa_aws_gitops ("none" until created).
       VOICE_JOBS_ENABLED: "true"
       VOICE_JOBS_GITHUB_TOKEN: "${VOICE_JOBS_GITHUB_TOKEN}"
+      # Security and update visibility (Milestone 19, ADR-0024), all
+      # read-only. GITHUB_SECURITY_TOKEN: alerts-read-only fine-grained
+      # token ("none" until created). The Authentik audit token belongs to
+      # the view-only home-mcp-audit service account. AWS checks use the
+      # hub instance role (home-platform-hub-security-read policy).
+      GITHUB_SECURITY_TOKEN: "${GITHUB_SECURITY_TOKEN}"
+      AUTHENTIK_HOME_MCP_AUDIT_TOKEN: "${AUTHENTIK_HOME_MCP_AUDIT_TOKEN}"
+      AWS_REGION: us-east-1
+      LOKI_URL: "http://loki:3100"
+    volumes:
+      # Weekly exposure-check results, written by a root host unit
+      # (compose/aws/host/exposure-check.py).
+      - /var/lib/home-platform/exposure:/exposure:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.mcp.rule=Host(`mcp.billandjessie.com`)"
@@ -168,6 +184,16 @@ services:
       - --entrypoints.metrics.address=:8082
       - --metrics.prometheus=true
       - --metrics.prometheus.entrypoint=metrics
+      # Access log for failed/refused requests only (Milestone 19, ADR-0024):
+      # JSON to stdout, so it reaches Loki like every other container log
+      # and home-mcp's security_events can count 401/403/404s per app and
+      # source. 4xx/5xx only keeps volume tiny; request headers (cookies,
+      # Authorization) are dropped by Traefik's default and listed again
+      # here so that can't silently change.
+      - --accesslog=true
+      - --accesslog.format=json
+      - --accesslog.filters.statuscodes=400-599
+      - --accesslog.fields.headers.defaultmode=drop
       - --certificatesresolvers.route53.acme.dnschallenge=true
       - --certificatesresolvers.route53.acme.dnschallenge.provider=route53
       - --certificatesresolvers.route53.acme.email=bcalaway@gmail.com
@@ -491,6 +517,8 @@ services:
       # home-mcp OAuth client (blueprints/home-mcp-oauth.yaml), same pattern.
       AUTHENTIK_HOME_MCP_CLIENT_ID: "${AUTHENTIK_HOME_MCP_CLIENT_ID}"
       AUTHENTIK_HOME_MCP_CLIENT_SECRET: "${AUTHENTIK_HOME_MCP_CLIENT_SECRET}"
+      # home-mcp-audit service account token (blueprints/home-mcp-audit.yaml).
+      AUTHENTIK_HOME_MCP_AUDIT_TOKEN: "${AUTHENTIK_HOME_MCP_AUDIT_TOKEN}"
     volumes:
       - authentik-media:/media
       - authentik-templates:/templates
@@ -554,6 +582,7 @@ services:
       AUTHENTIK_HUE_CLIENT_SECRET: "${AUTHENTIK_HUE_CLIENT_SECRET}"
       AUTHENTIK_HOME_MCP_CLIENT_ID: "${AUTHENTIK_HOME_MCP_CLIENT_ID}"
       AUTHENTIK_HOME_MCP_CLIENT_SECRET: "${AUTHENTIK_HOME_MCP_CLIENT_SECRET}"
+      AUTHENTIK_HOME_MCP_AUDIT_TOKEN: "${AUTHENTIK_HOME_MCP_AUDIT_TOKEN}"
     # Deliberately NOT mounting /var/run/docker.sock (Authentik's official
     # compose does, root + full docker socket access) -- that's only needed
     # for auto-deployed Docker-based outposts, which we're not using; we

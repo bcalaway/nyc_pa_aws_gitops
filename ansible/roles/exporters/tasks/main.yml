@@ -29,6 +29,71 @@
     mode: "0644"
   notify: Restart exporter stack
 
+# Pending OS update metrics (Milestone 19, ADR-0024): a host-level timer
+# writes node-exporter textfile metrics; the node-exporter container reads
+# them through a read-only bind mount (compose/nuc/docker-compose.yml).
+# Must exist before compose starts, or Docker creates it as an empty dir.
+- name: Create node-exporter textfile and script directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  loop:
+    - /var/lib/node_exporter/textfile
+    - /usr/local/lib/home-platform
+
+- name: Install dnf-plugins-core (provides dnf needs-restarting)
+  ansible.builtin.dnf:
+    name: dnf-plugins-core
+    state: present
+
+- name: Install update-metrics script
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../compose/nuc/host/update-metrics.sh"
+    dest: /usr/local/lib/home-platform/update-metrics.sh
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Install host-update-metrics service unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/host-update-metrics.service
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      [Unit]
+      Description=Pending OS update metrics for node-exporter (ADR-0024)
+      After=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/lib/home-platform/update-metrics.sh /var/lib/node_exporter/textfile
+      Nice=10
+  notify: Reload systemd
+
+- name: Install host-update-metrics timer unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/host-update-metrics.timer
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      [Unit]
+      Description=Check for pending OS updates every 6 hours
+
+      [Timer]
+      OnBootSec=10min
+      OnUnitActiveSec=6h
+      RandomizedDelaySec=15min
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  notify: Reload systemd
+
 - name: Open firewalld ports for exporter scraping from the WireGuard subnet
   ansible.builtin.command:
     argv:
@@ -100,5 +165,11 @@
 - name: Enable and start the speedtest off-peak trigger timer
   ansible.builtin.systemd:
     name: speedtest-trigger.timer
+    state: started
+    enabled: true
+
+- name: Enable and start the pending-update metrics timer
+  ansible.builtin.systemd:
+    name: host-update-metrics.timer
     state: started
     enabled: true

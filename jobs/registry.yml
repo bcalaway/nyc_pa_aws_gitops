@@ -61,3 +61,10 @@ preview-cleanup:
   args: {}
   script: preview-cleanup.sh
   timeout_minutes: 10
+
+exposure-check-now:
+  say: "run the exposure check now"
+  description: Rescan the hub and both sites from the internet for open ports (normally weekly); results go to the exposure_check tool, not the job log
+  args: {}
+  script: exposure-check-now.sh
+  timeout_minutes: 60

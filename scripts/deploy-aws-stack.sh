@@ -51,6 +51,16 @@ UMAMI_APP_SECRET=$(ssm "/home-platform/umami/app-secret")
 UMAMI_TWO_FACTOR_KEY=$(ssm "/home-platform/umami/two-factor-encryption-key")
 # Optional (ADR-0022): "none" until the voice jobs token exists.
 VOICE_JOBS_GITHUB_TOKEN=$(ssm "/home-platform/github/voice-jobs-token" 2>/dev/null || echo none)
+# Optional (ADR-0024): "none" until the GitHub security-read token exists.
+GITHUB_SECURITY_TOKEN=$(ssm "/home-platform/github/security-read-token" 2>/dev/null || echo none)
+# ADR-0024: home-mcp's Authentik audit token, generated once if missing
+# (same as scripts/hub/deploy-hub-stack.sh's audit_token).
+if ! AUTHENTIK_HOME_MCP_AUDIT_TOKEN=$(ssm "/home-platform/authentik/home-mcp-audit-token" 2>&1); then
+  grep -q ParameterNotFound <<<"$AUTHENTIK_HOME_MCP_AUDIT_TOKEN" || { echo "ERROR: can't read the Authentik audit token from SSM" >&2; exit 1; }
+  AUTHENTIK_HOME_MCP_AUDIT_TOKEN=$(openssl rand -hex 32)
+  aws ssm put-parameter --name "/home-platform/authentik/home-mcp-audit-token" --type SecureString \
+    --value "$AUTHENTIK_HOME_MCP_AUDIT_TOKEN" --region us-east-1 >/dev/null
+fi
 
 cat > "$LOCAL_DIR/.env" <<EOF
 GRAFANA_SMTP_PASSWORD=$GRAFANA_SMTP_PASSWORD
@@ -73,6 +83,8 @@ UMAMI_DB_PASSWORD=$UMAMI_DB_PASSWORD
 UMAMI_APP_SECRET=$UMAMI_APP_SECRET
 UMAMI_TWO_FACTOR_KEY=$UMAMI_TWO_FACTOR_KEY
 VOICE_JOBS_GITHUB_TOKEN=$VOICE_JOBS_GITHUB_TOKEN
+GITHUB_SECURITY_TOKEN=$GITHUB_SECURITY_TOKEN
+AUTHENTIK_HOME_MCP_AUDIT_TOKEN=$AUTHENTIK_HOME_MCP_AUDIT_TOKEN
 EOF
 
 echo "Copying compose stack to EC2..."
@@ -107,9 +119,14 @@ scp -i "$SSH_KEY" "$LOCAL_DIR/.env" "$EC2_HOST:$REMOTE_DIR/.env"
 
 # Per-PR previews' network (ADR-0023), created once; see deploy-hub-stack.sh.
 ssh -i "$SSH_KEY" "$EC2_HOST" "docker network inspect preview >/dev/null 2>&1 || docker network create --internal preview"
+# Exposure-check results dir (ADR-0024), bind-mounted into home-mcp.
+ssh -i "$SSH_KEY" "$EC2_HOST" "sudo install -d -m 0755 /var/lib/home-platform/exposure"
 
 echo "Starting stack..."
 ssh -i "$SSH_KEY" "$EC2_HOST" "cd $REMOTE_DIR && docker compose pull && docker compose build && docker compose up -d"
+
+echo "Installing host units (ADR-0024)..."
+ssh -i "$SSH_KEY" "$EC2_HOST" "sudo bash $REMOTE_DIR/host/install.sh $REMOTE_DIR"
 
 echo "Done. Services on EC2 (reachable via WireGuard):"
 echo "  Grafana:      http://10.0.3.1:3000"

@@ -39,6 +39,26 @@ ssm() {
   aws ssm get-parameter --name "$1" --with-decryption --region "$REGION" --query "Parameter.Value" --output text
 }
 
+# Authentik API token for home-mcp's read-only audit service account
+# (ADR-0024, blueprints/home-mcp-audit.yaml). Generated here on the first
+# deploy that needs it and kept in SSM, so the blueprint and home-mcp
+# always agree and nobody has to create it by hand. The hub role can write
+# only this one parameter (terraform/aws/tls.tf, hub_platform_deploy).
+audit_token() {
+  local p=/home-platform/authentik/home-mcp-audit-token v err
+  if v=$(ssm "$p" 2>/tmp/audit-token.err) && [ -n "$v" ]; then
+    echo "$v"
+    return
+  fi
+  err=$(cat /tmp/audit-token.err); rm -f /tmp/audit-token.err
+  # Only create it when it genuinely doesn't exist -- never replace an
+  # existing token because of a transient read error. An empty result
+  # trips the empty-value check below and stops the deploy.
+  grep -q ParameterNotFound <<<"$err" || return 0
+  v=$(openssl rand -hex 32)
+  aws ssm put-parameter --name "$p" --type SecureString --value "$v" --region "$REGION" >/dev/null && echo "$v"
+}
+
 echo "Building .env from SSM..."
 ENV_TMP=$(mktemp "${REMOTE_DIR}/.env.XXXXXX")
 chmod 600 "$ENV_TMP"
@@ -67,6 +87,10 @@ chmod 600 "$ENV_TMP"
   # it's created, voice jobs just report "not set up" -- so a missing
   # parameter writes a placeholder instead of failing the deploy.
   echo "VOICE_JOBS_GITHUB_TOKEN=$(ssm /home-platform/github/voice-jobs-token 2>/dev/null || echo none)"
+  # Optional (ADR-0024): home-mcp's read-only token for GitHub security
+  # alerts. Until Bill creates it, github_security reports "not set up".
+  echo "GITHUB_SECURITY_TOKEN=$(ssm /home-platform/github/security-read-token 2>/dev/null || echo none)"
+  echo "AUTHENTIK_HOME_MCP_AUDIT_TOKEN=$(audit_token)"
 } > "$ENV_TMP"
 # A failed lookup inside $(...) doesn't trip set -e (echo's own status
 # wins), so check explicitly: an empty value would silently break a service.
@@ -90,9 +114,19 @@ chown -R ec2-user:ec2-user "$REMOTE_DIR"
 # this stack so preview projects can join it too. Created once.
 docker network inspect preview >/dev/null 2>&1 || docker network create --internal preview
 
+# Exposure-check results (ADR-0024): written by a root host unit, read by
+# home-mcp through a read-only bind mount. Must exist before compose
+# creates the mount, or Docker would create it as an empty root dir anyway.
+install -d -m 0755 /var/lib/home-platform/exposure
+
 echo "Starting stack..."
 cd "$REMOTE_DIR"
 docker compose pull
 docker compose build
 docker compose up -d
 docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Status}}'
+
+# Host-level units (ADR-0024): pending-update metrics + weekly exposure
+# check. After `up` so the backup-metrics volume they write into exists.
+echo "Installing host units..."
+bash "$STAGING/host/install.sh" "$STAGING"

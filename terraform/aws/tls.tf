@@ -255,7 +255,17 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
       "umami/two-factor-encryption-key",
       "ansible/nuc-private-key",
       "github/voice-jobs-token",
+      "github/security-read-token",
+      "authentik/home-mcp-audit-token",
     ] : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${p}"]
+  }
+
+  # ADR-0024: deploy-hub-stack.sh generates the Authentik audit token on
+  # the first deploy that needs it. Write access to this one parameter only.
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:PutParameter"]
+    resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/home-mcp-audit-token"]
   }
 }
 
@@ -375,4 +385,34 @@ resource "aws_route53_record" "mcp" {
   type    = "A"
   ttl     = 300
   records = [aws_eip.hub.public_ip]
+}
+
+# Security visibility for home-mcp (Milestone 19, ADR-0024): read-only
+# List/Describe/Get calls for its aws_posture tool. None of these APIs
+# support resource-level scoping for reads, hence "*". Nothing here can
+# change a resource, read data out of S3, or read a secret.
+data "aws_iam_policy_document" "hub_security_read" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "guardduty:ListDetectors",
+      "guardduty:ListFindings",
+      "guardduty:GetFindings",
+      "access-analyzer:ListAnalyzers",
+      "access-analyzer:ListFindingsV2",
+      "ec2:DescribeSecurityGroups",
+      "cloudtrail:LookupEvents",
+      "iam:ListUsers",
+      "iam:ListAccessKeys",
+      "iam:ListMFADevices",
+      "iam:GetLoginProfile",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "hub_security_read" {
+  name   = "home-platform-hub-security-read"
+  role   = aws_iam_role.hub.id
+  policy = data.aws_iam_policy_document.hub_security_read.json
 }

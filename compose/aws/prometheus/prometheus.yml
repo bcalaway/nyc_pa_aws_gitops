@@ -203,5 +203,59 @@ scrape_configs:
       - target_label: __address__
         replacement: snmp-exporter:9116
 
+  # Software/firmware versions (Milestone 19, ADR-0024) for home-mcp's
+  # update_status: snmp_exporter's hand-written versions.yml modules, one
+  # job per module since each device family speaks a different MIB. 60s is
+  # plenty often but keeps the series fresh for instant queries (a longer
+  # interval than Prometheus's 5m lookback would make them vanish between
+  # scrapes). The Rambles CRS310 joins snmp-versions-mikrotik once it has an IP.
+  - job_name: snmp-versions-mikrotik
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["10.0.1.1"]
+        labels:
+          device: rt-nyc
+      - targets: ["10.0.2.1"]
+        labels:
+          device: rt-rambles
+      - targets: ["10.0.1.12"]
+        labels:
+          device: sw-10g
+    metrics_path: /snmp
+    params:
+      module: [mikrotik_version]
+    relabel_configs: &snmp_relabel
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: snmp-exporter:9116
+
+  - job_name: snmp-versions-synology
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["10.0.1.7"]
+        labels:
+          device: nas2
+    metrics_path: /snmp
+    params:
+      module: [synology_version]
+    relabel_configs: *snmp_relabel
+
+  - job_name: snmp-versions-cisco
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["10.0.1.10"]
+        labels:
+          device: sw-main
+      - targets: ["10.0.1.11"]
+        labels:
+          device: sw-desk
+    metrics_path: /snmp
+    params:
+      module: [cisco_sb_version]
+    relabel_configs: *snmp_relabel
+
 # Future scrape jobs:
 #   - blackbox split per-WAN-interface once Milestones 6/7 land dual-WAN policy routing
