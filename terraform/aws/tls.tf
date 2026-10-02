@@ -128,7 +128,7 @@ data "aws_iam_policy_document" "hub_app_deploy" {
   statement {
     effect    = "Allow"
     actions   = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]
-    resources = [aws_ecr_repository.todo_app.arn]
+    resources = [aws_ecr_repository.todo_app.arn, aws_ecr_repository.todo_app_preview.arn]
   }
 
   # Secret injection at deploy time (see app-deploy.yml's header comment

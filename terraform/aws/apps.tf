@@ -179,6 +179,12 @@ data "aws_iam_policy_document" "todo_app_github_actions_permissions" {
   }
 }
 
+resource "aws_iam_role_policy" "todo_app_github_actions_documents" {
+  name   = "todo-app-github-actions-documents"
+  role   = aws_iam_role.todo_app_github_actions.id
+  policy = data.aws_iam_policy_document.app_deploy_document["todo-app"].json
+}
+
 resource "aws_iam_role_policy" "todo_app_github_actions" {
   name   = "todo-app-github-actions"
   role   = aws_iam_role.todo_app_github_actions.id
@@ -316,6 +322,12 @@ data "aws_iam_policy_document" "hue_github_actions_permissions" {
     actions   = ["ssm:GetCommandInvocation", "ssm:ListCommandInvocations", "ssm:ListCommands"]
     resources = ["*"]
   }
+}
+
+resource "aws_iam_role_policy" "hue_github_actions_documents" {
+  name   = "hue-github-actions-documents"
+  role   = aws_iam_role.hue_github_actions.id
+  policy = data.aws_iam_policy_document.app_deploy_document["hue"].json
 }
 
 resource "aws_iam_role_policy" "hue_github_actions" {

@@ -15,6 +15,14 @@ The one Traefik-routed service (the one with traefik.enable=true) gets
 preview router labels: Host <app>-pr<n>.preview.billandjessie.com, the
 shared wildcard certificate, HSTS and Authentik forward-auth.
 The service whose image is the app's own ECR image gets the PR's image.
+
+Allowlist, not blocklist (Milestone 20, ADR-0025): a service keeps only the
+settings in ALLOWED_KEYS; everything else (volumes_from, pid, ipc,
+network_mode, sysctls, devices, build, ...) is dropped and reported. The
+same script runs twice: on the runner to produce the file, and again ON THE
+HUB (from the <app>-preview-up SSM document) over whatever was staged in
+S3, so a tampered file can't bring anything else up. Running it on its own
+output changes nothing.
 """
 
 import argparse
@@ -29,6 +37,8 @@ ap.add_argument("--pr", required=True)
 ap.add_argument("--image", required=True)
 ap.add_argument("--out", required=True)
 ap.add_argument("--outputs", help="GITHUB_OUTPUT file for service/port/host")
+ap.add_argument("--strict", action="store_true",
+                help="hub mode: the routed service must run exactly --image")
 a = ap.parse_args()
 
 if not re.fullmatch(r"[a-z0-9-]+", a.app) or not re.fullmatch(r"[0-9]+", a.pr):
@@ -42,6 +52,20 @@ if not services:
     sys.exit("fragment has no services")
 
 repo_prefix = a.image.rsplit(":", 1)[0]
+# The app's own image may be named after the production repository (in the
+# fragment) or the preview one (<app>-preview, Milestone 20); either way it
+# becomes the PR's image.
+own_repos = {repo_prefix, repo_prefix.removesuffix("-preview")}
+# Everything a preview service may carry. Values for the platform-owned keys
+# (environment additions, env_file, networks, limits, security, labels) are
+# set below regardless of what the fragment said.
+ALLOWED_KEYS = {
+    "image", "command", "entrypoint", "environment", "env_file", "healthcheck",
+    "working_dir", "user", "restart", "depends_on", "labels", "networks",
+    "stop_grace_period", "stop_signal", "init", "read_only", "tmpfs", "expose",
+    "mem_limit", "cpus", "pids_limit", "security_opt", "cap_drop",
+}
+dropped = {}
 routed = None
 out_services = {}
 for name, svc in services.items():
@@ -66,7 +90,7 @@ for name, svc in services.items():
 
     svc.pop("container_name", None)
     svc.pop("ports", None)  # never publish host ports from a preview
-    if str(svc.get("image", "")).split(":")[0] == repo_prefix:
+    if str(svc.get("image", "")).rsplit(":", 1)[0] in own_repos:
         svc["image"] = a.image
     env = svc.get("environment") or {}
     if isinstance(env, list):
@@ -86,11 +110,23 @@ for name, svc in services.items():
     svc.pop("devices", None)
     svc.pop("cap_add", None)
     svc["labels"] = []
+    extra = sorted(k for k in svc if k not in ALLOWED_KEYS)
+    for k in extra:
+        svc.pop(k)
+    if extra:
+        dropped[name] = extra
+    if isinstance(svc.get("depends_on"), dict):
+        # long form may carry conditions; keep only names of services in this file
+        svc["depends_on"] = {k: v for k, v in svc["depends_on"].items() if k in services}
+    elif isinstance(svc.get("depends_on"), list):
+        svc["depends_on"] = [d for d in svc["depends_on"] if d in services]
     out_services[name] = svc
 
 if not routed:
     sys.exit("no service has traefik.enable=true; nothing to preview")
 name, port = routed
+if a.strict and out_services[name].get("image") != a.image:
+    sys.exit(f"routed service {name} doesn't run the PR's image")
 r = proj
 out_services[name]["labels"] = [
     "traefik.enable=true",
@@ -109,4 +145,6 @@ with open(a.out, "w") as f:
 if a.outputs:
     with open(a.outputs, "a") as f:
         f.write(f"service={name}\nport={port}\nhost={host}\n")
+for svc_name, keys in dropped.items():
+    print(f"dropped from {svc_name}: {', '.join(keys)} (not allowed in previews)", file=sys.stderr)
 print(f"preview {proj}: service {name} on port {port} at https://{host}")

@@ -9,14 +9,21 @@
 #     network only, no production secrets, preview Traefik labels); this
 #     adds a .env with only the preview DB password and a session secret
 #   - at most MAX_PREVIEWS running at once
-# Usage: preview-up.sh <bucket> <app> <repo> <pr> <service> <port>
+# Runs from the <app>-preview-up SSM document (Milestone 20, ADR-0025): the
+# workflow can only pass these arguments, not commands. The Compose file it
+# staged is NOT trusted: preview-compose.py (shipped alongside this script
+# in the same document) re-sanitizes it here with --strict, against the
+# image built for this PR, before anything runs.
+# Usage: preview-up.sh <bucket> <app> <repo> <pr> <tag>
 # Ends with one `RESULT:` line; exit 3 means "no capacity", not an error.
 set -euo pipefail
 
-BUCKET="$1" APP="$2" REPO="$3" PR="$4" SERVICE="$5" PORT="$6"
+BUCKET="$1" APP="$2" REPO="$3" PR="$4" TAG="$5"
+HERE="$(cd "$(dirname "$0")" && pwd)"
 MAX_PREVIEWS=2
 [[ "$APP" =~ ^[a-z0-9-]+$ && "$REPO" =~ ^[A-Za-z0-9_.-]+$ && "$PR" =~ ^[0-9]+$ \
-   && "$SERVICE" =~ ^[a-z0-9_-]+$ && "$PORT" =~ ^[0-9]+$ ]] || { echo "RESULT: bad preview arguments."; exit 1; }
+   && "$TAG" =~ ^pr-[0-9]+-[0-9a-f]{12}$ ]] || { echo "RESULT: bad preview arguments."; exit 1; }
+IMAGE="147856894209.dkr.ecr.us-east-1.amazonaws.com/${APP}-preview:${TAG}"
 
 PROJ="${APP}-pr${PR}"
 HOST="${PROJ}.preview.billandjessie.com"
@@ -43,7 +50,17 @@ done
 
 mkdir -p "$DIR"
 chmod 700 "$DIR"
-aws s3 cp "s3://${BUCKET}/apps/${APP}/previews/pr-${PR}/docker-compose.yml" "$DIR/docker-compose.yml" --only-show-errors
+STAGED=$(mktemp)
+aws s3 cp "s3://${BUCKET}/apps/${APP}/previews/pr-${PR}/docker-compose.yml" "$STAGED" --only-show-errors
+OUTS=$(mktemp)
+if ! python3 "$HERE/preview-compose.py" "$STAGED" --app "$APP" --pr "$PR" --image "$IMAGE" \
+       --out "$DIR/docker-compose.yml" --outputs "$OUTS" --strict; then
+  rm -f "$STAGED" "$OUTS"
+  echo "RESULT: the staged Compose file for $PROJ failed the hub-side check; nothing was started."
+  exit 1
+fi
+SERVICE=$(sed -n 's/^service=//p' "$OUTS") PORT=$(sed -n 's/^port=//p' "$OUTS")
+rm -f "$STAGED" "$OUTS"
 
 # First deploy of this PR: role, database, copy of production data.
 if [ ! -f "$DIR/.env" ]; then
