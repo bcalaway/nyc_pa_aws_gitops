@@ -17,6 +17,13 @@ Options:
                            REQUIRED if the .rsc still contains that token —
                            the script refuses to run otherwise (see Safety
                            check below).
+    --known-hosts <file>   Pinned SSH host keys (default ansible/known_hosts).
+                           The router's key must be there or the script
+                           refuses to connect; a CHANGED key is always refused.
+    --accept-new-host-key  First contact only (factory-reset router at
+                           192.168.88.1, or a new router): accept a host with
+                           no known_hosts entry for this one session and print
+                           the line to add. Never saves anything.
 
 If neither --ssm nor a positional password is given, you are prompted.
 The prompted/positional value is used for both SSH auth and substitution.
@@ -41,8 +48,11 @@ Safety check:
     live private key to Git.
 
 Examples:
-    # First-time bring-up from factory reset — two calls, in order:
-    python apply-config.py 192.168.88.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password --ssh-password <factory-password>
+    # First-time bring-up from factory reset — two calls, in order. A reset
+    # router has a NEW host key: the first call accepts it once and prints
+    # it; replace the router's line in ansible/known_hosts with it (checked
+    # against /ip ssh print on the console) before the second call.
+    python apply-config.py 192.168.88.1 routeros/nyc/initial-config.rsc --ssm /home-platform/router/nyc-admin-password --ssh-password <factory-password> --accept-new-host-key
     python apply-config.py 10.0.1.1 routeros/nyc/managed-config.rsc --ssm /home-platform/router/nyc-admin-password --wg-key-ssm /home-platform/wireguard/nyc-private-key
 
     # Re-apply managed-config.rsc to an already-live router (safe — the
@@ -69,10 +79,33 @@ Requirements:
 import sys
 import os
 import argparse
+import base64
+import hashlib
 import getpass
 import json
 import subprocess
 import paramiko
+
+
+DEFAULT_KNOWN_HOSTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ansible", "known_hosts")
+
+
+def _fingerprint(key):
+    return "SHA256:" + base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip("=")
+
+
+class _AcceptOnceAndReport(paramiko.MissingHostKeyPolicy):
+    """--accept-new-host-key: for a router whose key isn't known yet (a
+    factory-reset RB5009 at 192.168.88.1, or a new site). Accepts it for
+    this one session only and prints the line to add to ansible/known_hosts;
+    nothing is saved. A key that is known but DIFFERENT is still refused
+    (paramiko raises BadHostKeyException before any policy is consulted)."""
+
+    def missing_host_key(self, client, hostname, key):
+        print(f"WARNING: {hostname} isn't in known_hosts; accepting its {key.get_name()} key "
+              f"{_fingerprint(key)} for this session only (--accept-new-host-key).")
+        print("Check that fingerprint on the router (/ip ssh print), then add this line to ansible/known_hosts:")
+        print(f"  {hostname} {key.get_name()} {key.get_base64()}")
 
 
 def get_ssm_password(param_name):
@@ -94,6 +127,12 @@ def main():
     parser.add_argument("--ssm", metavar="PARAM", help="SSM parameter name for the admin password")
     parser.add_argument("--ssh-password", metavar="PASS", help="SSH auth password (factory reset only; requires --ssm)")
     parser.add_argument("--wg-key-ssm", metavar="PARAM", help="SSM parameter name for the WireGuard private key (substituted for WG_PRIVATE_KEY_PLACEHOLDER)")
+    parser.add_argument("--known-hosts", metavar="FILE", default=DEFAULT_KNOWN_HOSTS,
+                        help="Pinned host keys (default: ansible/known_hosts in this repo)")
+    parser.add_argument("--accept-new-host-key", action="store_true",
+                        help="First contact only (factory reset / new router): accept a host that has no "
+                             "entry in --known-hosts for this session and print its key to add there. "
+                             "A changed key is still refused.")
     args = parser.parse_args()
 
     if args.ssh_password and not args.ssm:
@@ -144,11 +183,34 @@ def main():
 
     print(f"Connecting to {args.host}...")
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # Host keys are pinned in ansible/known_hosts (CodeQL
+    # py/paramiko-missing-host-key-validation): this session sends the admin
+    # password and the WireGuard private key, so it must not trust whatever
+    # answers on the router's IP.
+    if os.path.exists(args.known_hosts):
+        client.load_host_keys(args.known_hosts)
+    elif not args.accept_new_host_key:
+        print(f"Known-hosts file not found: {args.known_hosts}")
+        sys.exit(1)
+    client.set_missing_host_key_policy(
+        _AcceptOnceAndReport() if args.accept_new_host_key else paramiko.RejectPolicy())
     try:
         client.connect(args.host, username="admin", password=ssh_password,
                        look_for_keys=False, allow_agent=False, timeout=10)
         print("Connected.")
+    except paramiko.BadHostKeyException as e:
+        print(f"REFUSING: {args.host}'s SSH host key has CHANGED (now {_fingerprint(e.key)}).")
+        print("Either the router was reset/replaced, or something else is answering on its IP.")
+        print("If it was reset, check the fingerprint on the router (/ip ssh print) and update ansible/known_hosts.")
+        sys.exit(1)
+    except paramiko.SSHException as e:
+        if "not found in known_hosts" in str(e):
+            print(f"REFUSING: {args.host} has no entry in {args.known_hosts}.")
+            print("Add its key there (ssh-keyscan from a trusted network, checked against /ip ssh print),")
+            print("or for a first connection to a factory-reset router use --accept-new-host-key.")
+            sys.exit(1)
+        print(f"SSH failed: {e}")
+        sys.exit(1)
     except Exception as e:
         print(f"SSH failed: {e}")
         sys.exit(1)

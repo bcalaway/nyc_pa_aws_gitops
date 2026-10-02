@@ -1,0 +1,24 @@
+# SSH host keys for everything the platform's automation SSHes into
+# (ADR-0025 follow-up; CodeQL py/paramiko-missing-host-key-validation).
+# Used by Ansible (inventory/hosts.yml: StrictHostKeyChecking=yes against
+# this file) and routeros/apply-config.py (paramiko RejectPolicy). A host
+# whose key changes (reinstall, factory reset) fails closed until its new
+# key is added here -- see docs/gotchas.md (SSH host keys).
+#
+# Collected 2026-10-02 with `ssh-keyscan` from Bill's desktop on the NYC LAN.
+# nuc4's ed25519 key matches the one home-mcp already pins for the voice
+# worker (compose/aws/docker-compose.yml, VOICE_WORKER_HOST_KEY).
+
+# rt-nyc (RB5009, RouterOS 7)
+10.0.1.1 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCpXzHbbpewASeA0O8qz8hwVslP7pPgcDpmIow+mZqE7mz7uZEuPAm1v0IcfvXj/B2gLxij/Rjn8sAvcZrh0pA7O/EYqKGmQQZpYBHlZLUZBBr1FaYoQRZ48CHpdWfUcffs1Uq5WceEVCwEiOWRZQoylaRi9OzL9MTAI2r9X2eIwz39fTnE/1ERwZ5fHqHb7yLKZ/URTUsNByhvQWS77w+ROCrUwICoRvqvRLTYQ0TnHsHjJZXgGmVm15CzHeXEP886x4LTsrX8Plx9RQ2+f6vyomNZBe/1jqcwDCSmol1IUR/hiJ0xCkvGvEQ4yHL0EuuqMs0vO52BYC9Y+UaHLeMn
+
+# nuc4 (NYC)
+10.0.1.34 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCR7TRiHOiKoj3DidOABdiOUDZ8S2tzH6OiMLW33GgcEJi25ttxij6XvtM+4LRjWZ7sccvJ4uHV2O3mADY0k02iq5dDsxYGy9rsifFzENczo1H9U7Y8ZyjORBV4zK3XY29mUEMWdY4b+T3Syp40RU1y81DHzd3dGztvYouu7NfAauyyuCXO7hMdC4GIJ8TpJyl990udbRO1xnFbyY2tcZ9dJgsXyGNSw9RR+88CBRXCkNf627as+LvjyqVlvw4bOY3CHxMCRF6DYEOJ4YUhJhQ0jDP5tvoKiNZTOIvcCuu5P2I1ThYpJmGV+3HaqbTSzEgpcBPKoFNkS/yZSf2wc+2JX6XUJrJD1Orrp5JWPhkq3TpZaGYx+RiYa4pYZvyb5B7ttsA2oExpK3Lfxgfx3kQJz0n3FfGV4ZTbfuCHo/XFle3iyNjaonM38jYodPSTxDZlvFslCXJwmDlBrjtbSL6XlVWnjzJJVNClwxal8yeWAELKQEawTkoSdNFGZlVZ7Hs=
+10.0.1.34 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILDVXkIip39pHoUg8bi3BJrKAIcPq7tQFeesoalyT3yv
+
+# nuc5 (Rambles)
+10.0.2.10 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQChRiB6yX88C9I4qZADM8CVKzZp06DBm7CMmecJ4Wx2oKNpgF7EcQm+WrR1a6Jp4N1BTvsjTS2mBSIoRzNTSyDSQOXLbXHTvw4yMQiBKVGbTZXwMZvLbExzEWIRUujlToDHFWkWAzqiVOernxTcatjjmiaXVWfFl9q5EiWPiCP+htUz37swuWhmXbb4VVzLNYHlyXcYr0nEuWW3Vi1hpYPDtYoY8LLRLr5G3v9hwzUxTJcMSj048ssK2Cmoq7ENnzdwfTu9yk9RG4a694IcA5lANqrlo04S0+kl6WARRNl8tGrat+a1M41r5VBQNAP3LTyqxeSxQS+lChaiFBxPEO9Oc7+19LWLpHZtWEEFZpiq074Ct5fN3BwY/KrkUCzv4Am2d2qzarl91UYg27u7F53TQRhN49iM1rPMonPb6vTLAp7/kb8h18f/OJG2lPJ9kEslT1fa50nEEA4SnlnUyL37Enj2rxZPKxT7BVGfOkMk/XmNirtzk2S+rPi6YnUfFB8=
+10.0.2.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII51G1Kl0u7ZM4OWiVZB5Dc+y7KI9H+8EhjnnDS31MI5
+
+# rt-rambles (10.0.2.1): not collected yet -- the scan didn't return it.
+# Until it's added, RouterOS applies to Rambles refuse to connect.
