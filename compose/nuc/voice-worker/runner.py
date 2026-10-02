@@ -102,6 +102,11 @@ Rules:
 - Never modify anything under .github/ -- changes there are rejected.
 - Don't try to push, open pull requests, or reach GitHub: the harness does that.
 - You may commit locally or leave changes uncommitted; either works.
+- For Node projects, install with `npm ci` and don't change package-lock.json
+  unless the task is about dependencies.
+- Network access is limited to Anthropic, PyPI and the npm registry. If a
+  build needs anything else (e.g. a C++ toolchain fetching from GitHub), skip
+  it and say so in your summary; CI on the pull request will build it.
 
 Finish with a summary of at most 5 short sentences: what you changed and the
 test/lint result. It will be read aloud, so no code blocks or file listings.
