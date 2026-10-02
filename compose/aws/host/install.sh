@@ -80,14 +80,14 @@ TimeoutStartSec=90min
 Nice=10
 EOF
 
-# Early Sunday morning Eastern, a few hours before the weekly security
-# review reads the results.
+# Friday ~5:30pm Eastern (21:30 UTC; 4:30pm in winter), finished well
+# before the weekly security review at 9:52pm Eastern reads the results.
 cat > /etc/systemd/system/exposure-check.timer <<'EOF'
 [Unit]
 Description=Weekly external exposure check
 
 [Timer]
-OnCalendar=Sun *-*-* 06:00:00 UTC
+OnCalendar=Fri *-*-* 21:30:00 UTC
 RandomizedDelaySec=30min
 Persistent=true
 

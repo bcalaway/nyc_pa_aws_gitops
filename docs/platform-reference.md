@@ -58,5 +58,5 @@ Unlike the rest of this section's hand-made host config, these are installed fro
 
 - `host-update-metrics.timer` (every 6 h): pending updates, reboot needed and AL2023 release → `host_updates.prom` in the stack's `backup-metrics` volume (node-exporter's textfile dir). The NUCs get the same timer from `ansible/roles/exporters`, writing to `/var/lib/node_exporter/textfile`
 - `imds-guard.timer` (boot + hourly, and on every deploy): only the hub stack's own Docker network may reach the EC2 metadata service (the hub role's credentials); app containers on `home-platform` are dropped by the `IMDS-GUARD` iptables chain. Self-verifying with automatic rollback; result in `hub_imds_guard_active`. Details in `compose/aws/host/imds-guard.sh` and ADR-0024
-- `exposure-check.timer` (Sundays ~06:00 UTC): nmap of the hub's public IP and both sites' WAN IPs → `/var/lib/home-platform/exposure/latest.json` (read-only into home-mcp) + `exposure.prom`. Run on demand with `systemctl start exposure-check` or the `exposure-check-now` voice job
+- `exposure-check.timer` (Fridays 21:30 UTC, ahead of the Friday-night security review): nmap of the hub's public IP and both sites' WAN IPs → `/var/lib/home-platform/exposure/latest.json` (read-only into home-mcp) + `exposure.prom`. Run on demand with `systemctl start exposure-check` or the `exposure-check-now` voice job
 

@@ -5,7 +5,7 @@ Status: Proposed (2026-10-02)
 
 ## Context
 
-Bill set up a weekly scheduled security review (a Claude agent, every Sunday morning, emailed). Its first design could only read this repo's code and one day of container logs through `recent_logs`. It couldn't see the things that most often turn into real problems on a small platform:
+Bill set up a weekly scheduled security review (a Claude agent, originally Sunday mornings, moved to Friday nights on 2026-10-02 so findings land before the weekend; emailed). Its first design could only read this repo's code and one day of container logs through `recent_logs`. It couldn't see the things that most often turn into real problems on a small platform:
 
 - **Software that's out of date.** `dnf-automatic` applies security updates daily on the hub and NUCs, but nothing reported what it *didn't* apply, whether a reboot is pending, or that Amazon Linux 2023 never moves to a new release on its own. RouterOS, RouterBOOT, DSM and the switch firmware were only ever checked by hand. Image tags in the compose files only move when someone edits them.
 - **What happened this week.** Loki keeps 30 days, but the only window into it was 24 hours of raw lines.
@@ -62,4 +62,4 @@ The hub's deployed compose dir is owned by `ec2-user`. `compose/aws/host/install
 1. Create the fine-grained token: repositories `nyc_pa_aws_gitops`, `todo-app`, `hue`; permissions Dependabot alerts: Read, Secret scanning alerts: Read, Code scanning alerts: Read (Metadata: Read is automatic); one-year expiry. Store it: `aws ssm put-parameter --name /home-platform/github/security-read-token --type SecureString --value <token>`.
 2. In each repo's Settings → Security: turn on Dependabot alerts, and Code scanning → CodeQL default setup (free on public repos). Secret scanning and push protection are already on for the platform repo; check the two app repos.
 3. Approve the Terraform run, then the Platform deploy (hub and NUCs). Traefik restarts once for the access-log flags.
-4. The first weekly exposure scan runs Sunday ~2am Eastern; "run the exposure check now" by voice gets one sooner.
+4. The weekly exposure scan runs Friday ~5:30pm Eastern, ahead of the 9:52pm review; "run the exposure check now" by voice gets one sooner.
