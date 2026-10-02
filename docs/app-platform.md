@@ -106,7 +106,7 @@ Until that network exists, an app's own Compose fragment should declare it as `e
 
 An app repo composes these itself to pick its mode: call `app-build-push.yml` then immediately `app-deploy.yml` for **auto-deploy**, or call `app-build-push.yml` on merge and leave `app-deploy.yml` behind a separate `workflow_dispatch` trigger for **manual-promote**.
 
-**Environment**: production only — no staging/preview tier, per Bill's explicit call in ADR-0019.
+**Environment**: production only — no staging tier, per Bill's explicit call in ADR-0019. Since 2026-10-01, opted-in apps also get **per-PR previews** (ADR-0023): a thin `preview.yml` (workflow name `Preview`) calling `app-preview.yml` on `pull_request`, which deploys each same-repo PR automatically to `<app>-pr<n>.preview.billandjessie.com` behind forward-auth, with a copy of the app's database and no production secrets, and removes it on close. Opting in needs: the app runs (open) without its Authentik secrets, a `pr-*` ECR lifecycle rule in `terraform/aws/apps.tf`, and the caller granting `id-token: write`, `contents: read`, `pull-requests: write`.
 
 ## Starter templates
 

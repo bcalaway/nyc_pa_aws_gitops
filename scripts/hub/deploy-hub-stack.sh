@@ -86,6 +86,10 @@ chmod 600 "${REMOTE_DIR}/.env"
 # deploy leaves it (chown doesn't change inodes).
 chown -R ec2-user:ec2-user "$REMOTE_DIR"
 
+# Per-PR previews' network (ADR-0023): internal (no internet), external to
+# this stack so preview projects can join it too. Created once.
+docker network inspect preview >/dev/null 2>&1 || docker network create --internal preview
+
 echo "Starting stack..."
 cd "$REMOTE_DIR"
 docker compose pull

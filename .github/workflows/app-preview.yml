@@ -1,0 +1,200 @@
+name: App Preview (reusable)
+
+# Per-PR preview environments (ADR-0023). Called from an app repo's thin
+# `preview.yml` on pull_request (opened, synchronize, reopened, closed).
+#
+#   open PR   -> build the PR's image (<app>:pr-<n>-<sha>) and run
+#                scripts/hub/preview-up.sh on the hub via SSM, automatically
+#   closed PR -> scripts/hub/preview-down.sh
+#
+# No approval gate (Bill's call, 2026-10-01: production keeps its gate,
+# previews deploy on every push). That means unreviewed code -- often the
+# voice agent's -- runs on the hub, so the containment is what matters: the
+# internal `preview` network (no internet; reaches only Traefik and
+# Postgres), no production secrets, a Postgres role that owns only its own
+# database, CPU and memory caps, and Authentik forward-auth in front. Fork
+# PRs never get here (the caller checks head.repo, and forks get no OIDC
+# token anyway).
+#
+# The caller must grant: id-token: write, contents: read, pull-requests: write.
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: "App name -- ECR repo, IAM role and production database name"
+        type: string
+        required: true
+      dockerfile:
+        type: string
+        default: "Dockerfile"
+      compose_file:
+        description: "The app's production Compose fragment; rewritten here for the preview"
+        type: string
+        default: "deploy/docker-compose.yml"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  AWS_REGION: us-east-1
+  DEPLOY_BUCKET: home-platform-ansible-deploy-147856894209
+  REGISTRY: 147856894209.dkr.ecr.us-east-1.amazonaws.com
+  PR: ${{ github.event.pull_request.number }}
+
+jobs:
+  plan:
+    name: Decide
+    runs-on: ubuntu-24.04
+    outputs:
+      action: ${{ steps.decide.outputs.action }}
+    steps:
+      - name: Up, down or skip
+        id: decide
+        env:
+          EVENT_ACTION: ${{ github.event.action }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          NO_PREVIEW: ${{ contains(github.event.pull_request.labels.*.name, 'no-preview') }}
+        run: |
+          if [ "$SAME_REPO" != "true" ]; then action=skip
+          elif [ "$EVENT_ACTION" = "closed" ]; then action=down
+          elif [ "$NO_PREVIEW" = "true" ]; then action=skip
+          else action=up
+          fi
+          echo "action=$action" | tee -a "$GITHUB_OUTPUT"
+
+  build:
+    name: Build preview image
+    needs: plan
+    if: needs.plan.outputs.action == 'up'
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Image tag
+        id: tag
+        env:
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: echo "tag=pr-${PR}-${SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::147856894209:role/${{ inputs.app_name }}-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build and push (never tagged latest)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ inputs.app_name }}:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy preview
+    needs: [plan, build]
+    runs-on: ubuntu-24.04
+    # An unprotected environment: no approval, it just puts the preview's
+    # URL on the PR's deployments list.
+    environment:
+      name: preview
+      url: https://${{ inputs.app_name }}-pr${{ github.event.pull_request.number }}.preview.billandjessie.com
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Get the platform's preview scripts
+        uses: actions/checkout@v7
+        with:
+          repository: bcalaway/nyc_pa_aws_gitops
+          path: .platform
+          sparse-checkout: scripts/hub
+
+      - name: Rewrite the Compose fragment for the preview
+        id: compose
+        env:
+          APP: ${{ inputs.app_name }}
+          FRAGMENT: ${{ inputs.compose_file }}
+          IMAGE: ${{ env.REGISTRY }}/${{ inputs.app_name }}:${{ needs.build.outputs.tag }}
+        run: |
+          yq -o=json "$FRAGMENT" > "$RUNNER_TEMP/fragment.json"
+          python3 .platform/scripts/hub/preview-compose.py "$RUNNER_TEMP/fragment.json" \
+            --app "$APP" --pr "$PR" --image "$IMAGE" \
+            --out "$RUNNER_TEMP/docker-compose.yml" --outputs "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/docker-compose.yml"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::147856894209:role/${{ inputs.app_name }}-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Stage the preview Compose file
+        run: |
+          aws s3 cp "$RUNNER_TEMP/docker-compose.yml" \
+            "s3://${DEPLOY_BUCKET}/apps/${{ inputs.app_name }}/previews/pr-${PR}/docker-compose.yml" --only-show-errors
+
+      - name: Bring the preview up on the hub
+        id: up
+        env:
+          APP: ${{ inputs.app_name }}
+          REPO: ${{ github.event.repository.name }}
+          SERVICE: ${{ steps.compose.outputs.service }}
+          PORT: ${{ steps.compose.outputs.port }}
+        run: |
+          bash .platform/scripts/hub/run-on-hub.sh .platform/scripts/hub/preview-up.sh \
+            "$DEPLOY_BUCKET" "$APP" "$REPO" "$PR" "$SERVICE" "$PORT"
+
+      - name: Comment on the PR
+        if: always() && steps.up.outputs.result != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ steps.up.outputs.result }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          body="**Preview** (${SHA::7}): ${RESULT}"
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$body" --edit-last --create-if-none \
+            || gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  down:
+    name: Remove preview
+    needs: plan
+    if: needs.plan.outputs.action == 'down'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Get the platform's preview scripts
+        uses: actions/checkout@v7
+        with:
+          repository: bcalaway/nyc_pa_aws_gitops
+          path: .platform
+          sparse-checkout: scripts/hub
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::147856894209:role/${{ inputs.app_name }}-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Tear down on the hub
+        id: down
+        run: bash .platform/scripts/hub/run-on-hub.sh .platform/scripts/hub/preview-down.sh "${{ inputs.app_name }}" "$PR"
+
+      - name: Comment on the PR
+        if: always() && steps.down.outputs.result != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ steps.down.outputs.result }}
+        run: |
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "**Preview**: ${RESULT}" --edit-last --create-if-none \
+            || gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "**Preview**: ${RESULT}"

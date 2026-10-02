@@ -54,3 +54,10 @@ hub-docker-prune:
   args: {}
   script: hub-docker-prune.sh
   timeout_minutes: 10
+
+preview-cleanup:
+  say: "clean up previews"
+  description: Remove PR previews whose PR is closed, that are over 7 days old, or that were left behind (same as the nightly sweep)
+  args: {}
+  script: preview-cleanup.sh
+  timeout_minutes: 10
