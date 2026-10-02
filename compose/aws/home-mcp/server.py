@@ -29,6 +29,7 @@ from starlette.responses import JSONResponse
 import context
 import github_status as github_status_mod
 import jobs
+import logs
 import status
 import tasks
 from auth import AuthentikTokenVerifier
@@ -185,6 +186,18 @@ async def job_status(request_id: str = "") -> str:
     one-sentence result), or failed (with why). Read-only. Omit request_id
     for the most recent job."""
     return await jobs.job_status(request_id)
+
+
+@mcp.tool()
+@audited
+async def recent_logs(container: str, minutes: int = 30, contains: str = "") -> str:
+    """Recent log lines from one hub container, for debugging (e.g. "authentik"
+    for login problems, "traefik", "todo-app", "home-mcp", or a preview
+    container like "todo-app-pr7-app-1"). Optional `contains` filters to lines
+    with that text (case-insensitive); `minutes` looks back up to 24 hours.
+    Read-only; secrets are redacted and at most 40 lines come back. Summarize
+    what the lines show rather than reading them out verbatim."""
+    return await logs.recent_logs(container, minutes, contains)
 
 
 @mcp.custom_route("/health", methods=["GET"])
