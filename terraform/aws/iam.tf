@@ -20,10 +20,21 @@ data "aws_iam_policy_document" "github_actions_assume" {
       values   = ["sts.amazonaws.com"]
     }
 
+    # Milestone 20 (ADR-0025): only jobs in the approval-gated `production`
+    # environment (terraform apply, platform deploy, RouterOS, voice jobs)
+    # and runs from `main` (portal on push, the scheduled preview sweep and
+    # woods calendar). Pull requests -- including Dependabot's -- get the
+    # read-only home-platform-github-plan role instead (ci-roles.tf).
+    # `pull_request` stays here only until terraform.yml's plan job has moved
+    # to that role (the next Milestone 20 PR), so PR plans keep working.
     condition {
-      test     = "StringLike"
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_org}/${var.github_repo}:*"]
+      values = [
+        "repo:${var.github_org}/${var.github_repo}:environment:production",
+        "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main",
+        "repo:${var.github_org}/${var.github_repo}:pull_request",
+      ]
     }
   }
 }
@@ -162,19 +173,22 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     resources = ["*"]
   }
 
-  # SSM — scoped to this project's parameter path instead of every
-  # parameter in the account. DescribeParameters is inherently a
-  # search/list action (like s3:ListAllMyBuckets) and can't be path-scoped.
+  # SSM parameters are no longer in Terraform (ssm.tf, Milestone 20), so this
+  # role has no access to them at all -- it used to be able to read every
+  # /home-platform/ secret. It manages the hub's fixed SSM *documents* instead
+  # (ci-roles.tf), scoped to the per-app document names.
   statement {
-    effect    = "Allow"
-    actions   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter", "ssm:DeleteParameter", "ssm:AddTagsToResource", "ssm:ListTagsForResource", "ssm:RemoveTagsFromResource"]
-    resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/*"]
-  }
-
-  statement {
-    effect    = "Allow"
-    actions   = ["ssm:DescribeParameters"]
-    resources = ["*"]
+    effect = "Allow"
+    actions = [
+      "ssm:CreateDocument", "ssm:DeleteDocument", "ssm:DescribeDocument", "ssm:GetDocument",
+      "ssm:UpdateDocument", "ssm:UpdateDocumentDefaultVersion", "ssm:ListDocumentVersions",
+      "ssm:DescribeDocumentPermission", "ssm:AddTagsToResource", "ssm:ListTagsForResource",
+      "ssm:RemoveTagsFromResource",
+    ]
+    resources = [
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:document/todo-app-*",
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:document/hue-*",
+    ]
   }
 
   # IAM — this is the important one: was iam:* on every IAM resource in the
@@ -210,6 +224,9 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       # forcing a local apply with admin credentials instead every time
       # (confirmed live 2026-08-22, see docs/roadmap.md's Milestone 14).
       "arn:aws:iam::${var.aws_account_id}:role/hue-github-actions",
+      # Milestone 20 (ci-roles.tf)
+      "arn:aws:iam::${var.aws_account_id}:role/home-platform-github-plan",
+      "arn:aws:iam::${var.aws_account_id}:role/todo-app-github-preview",
     ]
   }
 
@@ -233,6 +250,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       # been AccessDenied for this role.
       "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/hue",
       "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/hue-agent",
+      # Preview images, separate from production (Milestone 20)
+      "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/todo-app-preview",
     ]
   }
 

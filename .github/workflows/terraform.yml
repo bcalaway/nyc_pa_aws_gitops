@@ -4,11 +4,21 @@ on:
   pull_request:
     paths:
       - 'terraform/**'
+      # Bundled into the hub's SSM documents (terraform/aws/ci-roles.tf)
+      - 'scripts/hub/app-deploy.sh'
+      - 'scripts/hub/preview-up.sh'
+      - 'scripts/hub/preview-compose.py'
+      - 'scripts/hub/preview-down.sh'
   push:
     branches:
       - main
     paths:
       - 'terraform/**'
+      # Bundled into the hub's SSM documents (terraform/aws/ci-roles.tf)
+      - 'scripts/hub/app-deploy.sh'
+      - 'scripts/hub/preview-up.sh'
+      - 'scripts/hub/preview-compose.py'
+      - 'scripts/hub/preview-down.sh'
 
 permissions:
   id-token: write
