@@ -42,6 +42,10 @@ import updates
 from auth import AuthentikTokenVerifier
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+# httpx logs every request URL at INFO. Those lines include Loki queries
+# whose text contains "tool_call", which security_events then miscounted as
+# audit entries from an unknown user (2026-10-02). Errors still surface.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 audit = logging.getLogger("home-mcp.audit")
 
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://mcp.billandjessie.com")
