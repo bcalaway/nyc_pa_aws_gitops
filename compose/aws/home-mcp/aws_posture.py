@@ -15,12 +15,18 @@ Checks:
 - Root account sign-ins and console sign-ins without MFA (CloudTrail event
   history, free, 90 days)
 - IAM users: access keys older than 90 days, console access without MFA
+- The hub's IMDS guard (compose/aws/host/imds-guard.sh): whether app
+  containers are blocked from the instance role's credentials, from the
+  hub_imds_guard_active metric in Prometheus
 """
 
 import asyncio
 import datetime
 import json
 import os
+import time
+import urllib.parse
+import urllib.request
 
 import boto3
 from botocore.config import Config
@@ -157,12 +163,40 @@ def _iam_users() -> tuple[list[str], list[str]]:
     return lines, []
 
 
+PROMETHEUS_URL = os.environ.get("PROMETHEUS_URL", "http://prometheus:9090")
+GUARD_STALE_SECONDS = 3 * 3600
+
+
+def _imds_guard() -> tuple[list[str], list[str]]:
+    """App containers must not reach the hub role's credentials (ADR-0024)."""
+
+    def q(expr: str) -> list[dict]:
+        url = f"{PROMETHEUS_URL}/api/v1/query?" + urllib.parse.urlencode({"query": expr})
+        with urllib.request.urlopen(url, timeout=5) as r:
+            return json.load(r)["data"]["result"]
+
+    active = q('hub_imds_guard_active{instance="aws-hub"}')
+    last = q('hub_imds_guard_last_run_timestamp_seconds{instance="aws-hub"}')
+    if not active:
+        return ["IMDS guard isn't reporting: app containers may be able to read the hub role's credentials"], []
+    lines = []
+    if active[0]["value"][1] != "1":
+        lines.append(
+            "IMDS guard is off or rolled back: app containers can read the hub role's credentials "
+            "(journalctl -u imds-guard on the hub says why)"
+        )
+    if last and time.time() - float(last[0]["value"][1]) > GUARD_STALE_SECONDS:
+        lines.append("IMDS guard hasn't run for over 3 hours (it should run hourly)")
+    return lines, []
+
+
 CHECKS = {
     "GuardDuty": _guardduty,
     "Access Analyzer": _access_analyzer,
     "security groups": _security_groups,
     "sign-in history": _root_and_console,
     "IAM users": _iam_users,
+    "IMDS guard": _imds_guard,
 }
 
 
@@ -182,7 +216,10 @@ async def aws_posture() -> str:
     if findings:
         head = f"{len(findings)} AWS finding{'s' if len(findings) != 1 else ''}: " + "; ".join(findings) + "."
     else:
-        head = "AWS looks clean: no GuardDuty or Access Analyzer findings, nothing unexpected open to the internet, no root or no-MFA sign-ins this week."
+        head = (
+            "AWS looks clean: no GuardDuty or Access Analyzer findings, nothing unexpected open to the internet, "
+            "no root or no-MFA sign-ins this week, and app containers are blocked from the hub's credentials."
+        )
     lines = [head]
     if notes:
         lines.append("Note: " + "; ".join(notes) + ".")

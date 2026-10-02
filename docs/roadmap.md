@@ -83,7 +83,7 @@ Tasks:
 - [x] 🧑 Approve Terraform, then Platform deploy (hub + NUCs)
 - [x] 🤖 Verify each tool live by voice/chat; update the weekly review's prompt to use them — done 2026-10-02 (#28 deployed; all seven answer live; the scheduled Sunday review uses them)
 - [x] 🤖 Follow-ups from the first live results, 2026-10-02: Authentik 2026.2.6 → 2026.2.7 → 2026.5.7 → 2026.8.3 one line at a time (#38, #39, #42); image bumps (#38); false "other user" count fixed (#41); Promtail 3.6.8 shipped without journal support and stopped all container logs ~30 min (#43 rollback), then replaced by Grafana Alloy v1.20.1 (#44); template version updates (#45); both NUCs rebooted for security updates; both RB5009s upgraded to RouterOS 7.24.5 + RouterBOOT
-- [ ] 🧑 Decide on the IMDS finding (app containers can reach the hub role's credentials — ADR-0024 "Found while designing this")
+- [x] 🤖 IMDS finding (app containers could reach the hub role's credentials): fixed 2026-10-02 with a host-level allow-list, `compose/aws/host/imds-guard.sh` — only the hub stack's own Docker network may reach the metadata service; verified on every deploy with automatic rollback; `aws_posture` reports it
 
 ## Future / Deferred
 
