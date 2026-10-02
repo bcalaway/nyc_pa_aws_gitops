@@ -66,7 +66,7 @@ def _scan() -> tuple[list[str], list[str], list[str]]:
         with open(EXPOSURE_FILE) as fh:
             data = json.load(fh)
     except FileNotFoundError:
-        return [], [], ["port scan (no results yet; the first runs Sunday early morning, or ask to run the exposure check now)"]
+        return [], [], ["port scan (no results yet; it runs Friday late afternoon, or ask to run the exposure check now)"]
     except (OSError, ValueError) as exc:
         return [], [], [f"port scan results ({type(exc).__name__})"]
     problems, info, couldnt = [], [], []

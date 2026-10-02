@@ -239,12 +239,14 @@ async def security_events(days: int = 7) -> str:
 
 @mcp.tool()
 @audited
-async def github_security(repo: str = "") -> str:
+async def github_security(repo: str = "", detail: bool = False) -> str:
     """Open GitHub security alerts per repo (vulnerable dependencies,
     committed secrets, code-scanning findings) and whether each repo's main
     branch still has its protection rules. Read-only. Omit `repo` for all
-    three (todo-app, hue, platform repo)."""
-    return await github_security_mod.github_security(repo)
+    three (todo-app, hue, platform repo). detail=true names every finding:
+    the CodeQL rule and file:line, or the package, manifest and fixed
+    version (secret values are never shown)."""
+    return await github_security_mod.github_security(repo, detail)
 
 
 @mcp.tool()

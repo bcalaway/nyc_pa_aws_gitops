@@ -64,7 +64,7 @@ Tasks:
 - [ ] 🤖 Grafana alert on backup failure
 
 ### Milestone 19 — Security & Update Visibility
-**Goal:** The weekly security review (Sunday mornings, emailed) and voice can see what's out of date and what happened, not just the code. See [ADR-0024](adr/0024-security-and-update-visibility.md).
+**Goal:** The weekly security review (Friday nights, emailed) and voice can see what's out of date and what happened, not just the code. See [ADR-0024](adr/0024-security-and-update-visibility.md).
 
 Tasks:
 - [x] 🤖 `update_status`: pending OS updates / reboots / AL2023 release on hub + NUCs (host timer → node-exporter textfile), OS end of life, RouterOS/RouterBOOT, DSM, SG300 firmware (snmp_exporter `versions.yml`), compose image tags vs registries

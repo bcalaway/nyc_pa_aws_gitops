@@ -3,7 +3,10 @@
 Read-only. For each repo: open Dependabot alerts (vulnerable dependencies),
 secret-scanning alerts (credentials committed to the repo), code-scanning
 alerts (CodeQL findings), and whether `main` still has its ruleset (PR
-required, no force-push or deletion, CI required).
+required, no force-push or deletion, CI required). With detail=True it also
+names each finding: the CodeQL rule and file:line, or the vulnerable package,
+its manifest and the first fixed version -- enough to fix it without opening
+GitHub.
 
 Credential: GITHUB_SECURITY_TOKEN, a fine-grained token over the three
 repos with read-only Dependabot alerts, Secret scanning alerts, Code
@@ -27,6 +30,8 @@ TOKEN = os.environ.get("GITHUB_SECURITY_TOKEN", "")
 if TOKEN == "none":
     TOKEN = ""
 SEVERITY_ORDER = ["critical", "high", "medium", "low"]
+SEVERITY_RANK = {s: i for i, s in enumerate(SEVERITY_ORDER)}
+MAX_DETAIL_LINES = 40
 WANTED_RULES = {"pull_request": "PR required", "non_fast_forward": "no force-push", "deletion": "no deletion", "required_status_checks": "CI required"}
 # The platform repo has no PR CI, so its ruleset can't require a check.
 NO_CI_REPOS = {"nyc_pa_aws_gitops"}
@@ -59,10 +64,34 @@ def _by_severity(sevs: list[str]) -> str:
     return ", ".join(f"{n} {s}" for s, n in counts.items())
 
 
-async def _repo(client: httpx.AsyncClient, repo: str) -> tuple[list[str], list[str], list[str]]:
-    """(urgent, info, couldnt) lines for one repo."""
+def _code_detail(name: str, a: dict) -> tuple[int, str]:
+    rule = a.get("rule") or {}
+    sev = rule.get("security_severity_level") or rule.get("severity") or "low"
+    loc = (a.get("most_recent_instance") or {}).get("location") or {}
+    where = f"{loc.get('path', '?')}:{loc.get('start_line', '?')}"
+    what = rule.get("description") or rule.get("id") or "finding"
+    return SEVERITY_RANK.get(sev, 9), f"{name} code-scanning {sev}: {what} [{rule.get('id', '?')}] at {where} (alert #{a.get('number')})"
+
+
+def _dep_detail(name: str, a: dict) -> tuple[int, str]:
+    adv = a.get("security_advisory") or {}
+    sev = adv.get("severity", "low")
+    dep = a.get("dependency") or {}
+    pkg = (dep.get("package") or {}).get("name", "?")
+    fixed = ((a.get("security_vulnerability") or {}).get("first_patched_version") or {}).get("identifier")
+    summary = (adv.get("summary") or "").rstrip(".")
+    return SEVERITY_RANK.get(sev, 9), (
+        f"{name} dependency {sev}: {pkg} in {dep.get('manifest_path', '?')} -- {summary}; "
+        + (f"fixed in {fixed}" if fixed else "no fixed version yet")
+        + f" (alert #{a.get('number')})"
+    )
+
+
+async def _repo(client: httpx.AsyncClient, repo: str) -> tuple[list[str], list[str], list[str], list[tuple[int, str]]]:
+    """(urgent, info, couldnt, details) for one repo; details are (severity rank, line)."""
     name = SPOKEN.get(repo, repo)
     urgent, info, couldnt = [], [], []
+    details: list[tuple[int, str]] = []
     calls = {
         "rules": _get(client, f"/repos/{OWNER}/{repo}/rules/branches/main", auth=False),
     }
@@ -88,7 +117,7 @@ async def _repo(client: httpx.AsyncClient, repo: str) -> tuple[list[str], list[s
             urgent.append(f"{name}: main is missing " + ", ".join(missing))
 
     if not TOKEN:
-        return urgent, info, couldnt
+        return urgent, info, couldnt, details
 
     dep = results["dependabot"]
     if isinstance(dep, NotEnabled):
@@ -98,6 +127,7 @@ async def _repo(client: httpx.AsyncClient, repo: str) -> tuple[list[str], list[s
     elif dep:
         sevs = [a.get("security_advisory", {}).get("severity", "low") for a in dep]
         pkgs = sorted({a.get("dependency", {}).get("package", {}).get("name", "?") for a in dep})
+        details += [_dep_detail(name, a) for a in dep]
         line = f"{name}: {len(dep)} vulnerable dependenc{'ies' if len(dep) != 1 else 'y'} ({_by_severity(sevs)}) in " + ", ".join(pkgs[:6])
         (urgent if {"critical", "high"} & set(sevs) else info).append(line)
 
@@ -108,6 +138,9 @@ async def _repo(client: httpx.AsyncClient, repo: str) -> tuple[list[str], list[s
         couldnt.append(f"{name} secret-scanning alerts")
     elif sec:
         kinds = sorted({a.get("secret_type_display_name") or a.get("secret_type", "secret") for a in sec})
+        for a in sec:
+            loc = ((a.get("first_location_detected") or {}).get("details") or {}).get("path", "?")
+            details.append((0, f"{name} secret: {a.get('secret_type_display_name') or a.get('secret_type', 'secret')} in {loc} (alert #{a.get('number')}); value not shown"))
         urgent.append(f"{name}: {len(sec)} exposed secret{'s' if len(sec) != 1 else ''} ({', '.join(kinds)}); rotate, then close the alert")
 
     code = results["code"]
@@ -117,16 +150,18 @@ async def _repo(client: httpx.AsyncClient, repo: str) -> tuple[list[str], list[s
         couldnt.append(f"{name} code-scanning alerts")
     elif code:
         sevs = [(a.get("rule", {}).get("security_severity_level") or "low") for a in code]
+        details += [_code_detail(name, a) for a in code]
         line = f"{name}: {len(code)} code-scanning finding{'s' if len(code) != 1 else ''} ({_by_severity(sevs)})"
         (urgent if {"critical", "high"} & set(sevs) else info).append(line)
-    return urgent, info, couldnt
+    return urgent, info, couldnt, details
 
 
-async def github_security(repo: str = "") -> str:
+async def github_security(repo: str = "", detail: bool = False) -> str:
     repos = [r for r in REPOS if not repo or repo in (r, SPOKEN.get(r))] or REPOS
     async with httpx.AsyncClient() as client:
         results = await asyncio.gather(*(_repo(client, r) for r in repos), return_exceptions=True)
     urgent, info, couldnt = [], [], []
+    details: list[tuple[int, str]] = []
     for r, res in zip(repos, results):
         if isinstance(res, Exception):
             couldnt.append(SPOKEN.get(r, r))
@@ -134,6 +169,7 @@ async def github_security(repo: str = "") -> str:
         urgent += res[0]
         info += res[1]
         couldnt += res[2]
+        details += res[3]
     if urgent:
         head = f"{len(urgent)} GitHub security item{'s' if len(urgent) != 1 else ''} need you: " + "; ".join(urgent) + "."
     elif TOKEN:
@@ -148,6 +184,15 @@ async def github_security(repo: str = "") -> str:
             "Security alerts aren't set up yet: home-mcp needs a read-only GitHub token "
             "in SSM at /home-platform/github/security-read-token (ADR-0024)."
         )
+    if detail and details:
+        details.sort(key=lambda d: d[0])
+        shown = details[:MAX_DETAIL_LINES]
+        lines.append("Details, most severe first:")
+        lines += ["- " + d[1] for d in shown]
+        if len(details) > len(shown):
+            lines.append(f"- ...and {len(details) - len(shown)} more (lowest severity) not shown")
+    elif details and not detail:
+        lines.append("Ask for the detail to hear each finding.")
     if couldnt:
         lines.append("Couldn't check: " + ", ".join(couldnt) + ".")
     return "\n".join(lines)
