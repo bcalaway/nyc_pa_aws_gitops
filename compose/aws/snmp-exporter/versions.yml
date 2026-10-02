@@ -1,0 +1,65 @@
+# Software/firmware version modules for snmp_exporter (Milestone 19,
+# ADR-0024), loaded as another --config.file alongside the built-in
+# snmp.yml and printer.yml. Hand-written, same as printer.yml: each needs
+# only two or three scalar OIDs, not a generator run. Scraped by
+# prometheus.yml's snmp-versions-* jobs; home-mcp's update_status compares
+# the reported versions with the vendors' current releases.
+#
+# Strings are DisplayString metrics: value 1, the version in a label of the
+# same name (e.g. mtxrLicVersion{mtxrLicVersion="7.19.6"} 1).
+# Auth comes from the built-in file's default `public_v2`.
+modules:
+  # MikroTik RouterOS (rt-nyc, rt-rambles RB5009s; sw-10g CRS309).
+  # MIKROTIK-MIB.
+  mikrotik_version:
+    get:
+      - 1.3.6.1.4.1.14988.1.1.4.4.0   # mtxrLicVersion: RouterOS version
+      - 1.3.6.1.4.1.14988.1.1.7.4.0   # mtxrFirmwareVersion: RouterBOOT running now
+      - 1.3.6.1.4.1.14988.1.1.7.7.0   # mtxrFirmwareUpgradeVersion: RouterBOOT bundled with the installed RouterOS
+    metrics:
+      - name: mtxrLicVersion
+        oid: 1.3.6.1.4.1.14988.1.1.4.4
+        type: DisplayString
+        help: Installed RouterOS version
+      - name: mtxrFirmwareVersion
+        oid: 1.3.6.1.4.1.14988.1.1.7.4
+        type: DisplayString
+        help: RouterBOOT firmware currently running
+      - name: mtxrFirmwareUpgradeVersion
+        oid: 1.3.6.1.4.1.14988.1.1.7.7
+        type: DisplayString
+        help: RouterBOOT firmware available to apply (bundled with the installed RouterOS)
+
+  # Synology DSM (nas2). SYNOLOGY-SYSTEM-MIB.
+  synology_version:
+    get:
+      - 1.3.6.1.4.1.6574.1.5.1.0      # modelName
+      - 1.3.6.1.4.1.6574.1.5.3.0      # version: DSM version string
+      - 1.3.6.1.4.1.6574.1.5.4.0      # upgradeAvailable
+    metrics:
+      - name: synoModelName
+        oid: 1.3.6.1.4.1.6574.1.5.1
+        type: DisplayString
+        help: Synology model
+      - name: synoDsmVersion
+        oid: 1.3.6.1.4.1.6574.1.5.3
+        type: DisplayString
+        help: Installed DSM version
+      - name: synoUpgradeAvailable
+        oid: 1.3.6.1.4.1.6574.1.5.4
+        type: gauge
+        help: DSM update status as DSM itself reports it (1 available, 2 unavailable, 3 connecting, 4 disconnected, 5 other)
+
+  # Cisco Small Business SG300 (sw-main, sw-desk). CISCOSB-Physicaldescription-MIB,
+  # rlPhdUnitGenParamSoftwareVersion, one row per stack unit.
+  cisco_sb_version:
+    walk:
+      - 1.3.6.1.4.1.9.6.1.101.53.14.1.2
+    metrics:
+      - name: rlPhdUnitGenParamSoftwareVersion
+        oid: 1.3.6.1.4.1.9.6.1.101.53.14.1.2
+        type: DisplayString
+        help: Installed switch firmware version
+        indexes:
+          - labelname: unit
+            type: gauge

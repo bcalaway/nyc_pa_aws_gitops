@@ -12,6 +12,7 @@ journald log driver + Promtail's journal job ship to Loki
 ({container="home-mcp"}), giving an audit trail for free.
 """
 
+import asyncio
 import functools
 import json
 import logging
@@ -26,12 +27,18 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+import authentik_audit as authentik_audit_mod
+import aws_posture as aws_posture_mod
 import context
+import exposure
+import github_security as github_security_mod
 import github_status as github_status_mod
 import jobs
 import logs
+import security_events as security_events_mod
 import status
 import tasks
+import updates
 from auth import AuthentikTokenVerifier
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -198,6 +205,97 @@ async def recent_logs(container: str, minutes: int = 30, contains: str = "") -> 
     Read-only; secrets are redacted and at most 40 lines come back. Summarize
     what the lines show rather than reading them out verbatim."""
     return await logs.recent_logs(container, minutes, contains)
+
+
+# --- Security and update visibility (Milestone 19, ADR-0024). All read-only.
+
+
+@mcp.tool()
+@audited
+async def update_status(detail: bool = False) -> str:
+    """What's out of date across the platform: pending OS updates and reboots
+    on the hub and NUCs, OS end-of-life dates, RouterOS/RouterBOOT on the
+    MikroTiks, DSM on the NAS, legacy switch firmware, and container images
+    pinned in the compose files that have newer releases. Read-only. Leads
+    with what's worth doing soon; pass detail=true for the full list
+    (including every image that's behind). Use for "anything need updating?"."""
+    return await updates.update_status(detail)
+
+
+@mcp.tool()
+@audited
+async def security_events(days: int = 7) -> str:
+    """A week (or up to 30 days) of security-relevant activity as counts:
+    failed SSH and device logins, fail2ban bans, router config changes,
+    home-mcp calls (by whom, rejected tokens, coding tasks and jobs started),
+    and failed/refused web requests per app with the busiest sources.
+    Read-only, aggregates only. Use for "anything odd this week?"."""
+    return await security_events_mod.security_events(days)
+
+
+@mcp.tool()
+@audited
+async def github_security(repo: str = "") -> str:
+    """Open GitHub security alerts per repo (vulnerable dependencies,
+    committed secrets, code-scanning findings) and whether each repo's main
+    branch still has its protection rules. Read-only. Omit `repo` for all
+    three (todo-app, hue, platform repo)."""
+    return await github_security_mod.github_security(repo)
+
+
+@mcp.tool()
+@audited
+async def aws_posture() -> str:
+    """AWS account security: GuardDuty threat findings, IAM Access Analyzer
+    (anything shared outside the account), security groups open to the
+    internet beyond the expected hub ports, root or no-MFA console sign-ins
+    this week, and old IAM access keys. Read-only."""
+    return await aws_posture_mod.aws_posture()
+
+
+@mcp.tool()
+@audited
+async def authentik_audit() -> str:
+    """Authentik (the login system for every app): active users, who's an
+    admin, anyone without MFA, failed logins and suspicious requests this
+    week with their sources, successful logins per user, and changes to
+    users, groups, tokens or apps. Read-only."""
+    return await authentik_audit_mod.authentik_audit()
+
+
+@mcp.tool()
+@audited
+async def exposure_check() -> str:
+    """What the internet can reach: the latest weekly port scan of the hub
+    and both sites' public IPs (anything open that isn't expected), plus
+    TLS certificate expiry for every public hostname. Read-only. To rescan
+    now, use run_job("exposure-check-now")."""
+    return await exposure.exposure_check()
+
+
+@mcp.tool()
+@audited
+async def security_summary() -> str:
+    """One line each from every security check -- updates, a week of events,
+    GitHub alerts, AWS, Authentik, and internet exposure -- for "how's
+    security?". Read-only. Follow up with the individual tool for detail."""
+    names = ["Updates", "Events", "GitHub", "AWS", "Authentik", "Exposure"]
+    results = await asyncio.gather(
+        updates.update_status(False),
+        security_events_mod.security_events(7),
+        github_security_mod.github_security(""),
+        aws_posture_mod.aws_posture(),
+        authentik_audit_mod.authentik_audit(),
+        exposure.exposure_check(),
+        return_exceptions=True,
+    )
+    lines = []
+    for name, res in zip(names, results):
+        if isinstance(res, Exception):
+            lines.append(f"{name}: couldn't check ({type(res).__name__}).")
+        else:
+            lines.append(f"{name}: {res.splitlines()[0]}")
+    return "\n".join(lines)
 
 
 @mcp.custom_route("/health", methods=["GET"])

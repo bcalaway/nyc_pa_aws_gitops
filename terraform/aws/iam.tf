@@ -297,6 +297,38 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     ]
     resources = ["*"]
   }
+
+  # GuardDuty detector + IAM Access Analyzer (security.tf, Milestone 19,
+  # ADR-0024). The account has exactly one of each; their ARNs contain
+  # IDs that don't exist until creation, so "*" as for DLM above.
+  statement {
+    effect = "Allow"
+    actions = [
+      "guardduty:CreateDetector", "guardduty:GetDetector", "guardduty:UpdateDetector",
+      "guardduty:DeleteDetector", "guardduty:ListDetectors",
+      "guardduty:TagResource", "guardduty:UntagResource", "guardduty:ListTagsForResource",
+      "access-analyzer:CreateAnalyzer", "access-analyzer:GetAnalyzer", "access-analyzer:DeleteAnalyzer",
+      "access-analyzer:ListAnalyzers", "access-analyzer:UpdateAnalyzer",
+      "access-analyzer:TagResource", "access-analyzer:UntagResource", "access-analyzer:ListTagsForResource",
+    ]
+    resources = ["*"]
+  }
+
+  # Both services create their own service-linked role on first use.
+  # Limited to exactly those two roles.
+  statement {
+    effect  = "Allow"
+    actions = ["iam:CreateServiceLinkedRole"]
+    resources = [
+      "arn:aws:iam::${var.aws_account_id}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty",
+      "arn:aws:iam::${var.aws_account_id}:role/aws-service-role/access-analyzer.amazonaws.com/AWSServiceRoleForAccessAnalyzer",
+    ]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:AWSServiceName"
+      values   = ["guardduty.amazonaws.com", "access-analyzer.amazonaws.com"]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "github_actions" {

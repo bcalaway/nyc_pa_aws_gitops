@@ -1,0 +1,6 @@
+{
+  "_comment": "Ports expected to be reachable from the internet, per exposure-check target (Milestone 19, ADR-0024). Anything else open is reported as unexpected. hub: Traefik 80 (redirect) and 443; WireGuard 51820/udp is silent to unauthenticated packets, so it never shows as open, but it's listed for completeness. Sites: nothing should be open; their routers dial out to the hub.",
+  "hub": {"tcp": [80, 443], "udp": [51820]},
+  "nyc": {"tcp": [], "udp": []},
+  "rambles": {"tcp": [], "udp": []}
+}

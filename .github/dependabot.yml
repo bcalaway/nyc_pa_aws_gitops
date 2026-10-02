@@ -1,0 +1,83 @@
+# Dependabot version updates (Milestone 19, ADR-0024): weekly PRs for
+# outdated pinned versions. Every PR still needs Bill's merge, and anything
+# that deploys still waits for his approval in the `production` environment.
+#
+# Grouped so a normal week is a handful of PRs, not dozens: minor and patch
+# bumps per ecosystem in one PR, majors on their own (they need reading).
+# Security fixes (from Dependabot alerts) skip the schedule and the grouping.
+version: 2
+updates:
+  # Image tags in the compose files.
+  - package-ecosystem: docker-compose
+    directories: ["/compose/aws", "/compose/nuc", "/compose/nuc/voice-worker"]
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "06:00"
+      timezone: America/New_York
+    labels: [dependencies]
+    groups:
+      images-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Postgres majors need a dump/restore (pg_upgrade), not a tag bump;
+      # update_status reports the end-of-life date instead.
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
+
+  # Base images of the images built on the hub and NUCs.
+  - package-ecosystem: docker
+    directories:
+      - "/compose/aws/home-mcp"
+      - "/compose/aws/cost-exporter"
+      - "/compose/aws/rachio-exporter"
+      - "/compose/aws/postgres-backup"
+      - "/compose/nuc/mopeka-exporter"
+      - "/compose/nuc/weather-exporter"
+      - "/compose/nuc/voice-worker/agent"
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "06:00"
+      timezone: America/New_York
+    labels: [dependencies]
+    groups:
+      base-images:
+        update-types: [minor, patch]
+
+  # Python requirements of those images.
+  - package-ecosystem: pip
+    directories:
+      - "/compose/aws/home-mcp"
+      - "/compose/aws/cost-exporter"
+      - "/compose/aws/rachio-exporter"
+      - "/compose/nuc/mopeka-exporter"
+      - "/compose/nuc/weather-exporter"
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "06:00"
+      timezone: America/New_York
+    labels: [dependencies]
+    groups:
+      python-minor-patch:
+        update-types: [minor, patch]
+
+  # Actions used by this repo's workflows.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "06:00"
+      timezone: America/New_York
+    labels: [dependencies]
+    groups:
+      actions:
+        update-types: [minor, patch]
+
+  - package-ecosystem: terraform
+    directory: "/terraform/aws"
+    schedule:
+      interval: monthly
+    labels: [dependencies]

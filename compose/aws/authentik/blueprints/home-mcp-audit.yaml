@@ -1,0 +1,66 @@
+# home-mcp-audit (Milestone 19, ADR-0024): a read-only Authentik service
+# account for home-mcp's authentik_audit tool. It can VIEW users, their
+# MFA devices, sessions and the event log -- nothing else, and it can't
+# change anything. No password, so it can't sign in interactively; it works
+# only through the API token below.
+#
+# The token's key comes from AUTHENTIK_HOME_MCP_AUDIT_TOKEN, which
+# scripts/hub/deploy-hub-stack.sh generates once and keeps in SSM
+# (/home-platform/authentik/home-mcp-audit-token); home-mcp gets the same
+# value. Rotate by deleting that parameter and redeploying the hub.
+version: 1
+metadata:
+  name: home-mcp-audit
+entries:
+  - model: authentik_rbac.role
+    id: home-mcp-audit-role
+    identifiers:
+      name: home-mcp-audit
+    state: present
+    attrs:
+      name: home-mcp-audit
+      permissions:
+        - authentik_core.view_user
+        - authentik_core.view_group
+        - authentik_core.view_authenticatedsession
+        - authentik_events.view_event
+        - authentik_stages_authenticator_webauthn.view_webauthndevice
+        - authentik_stages_authenticator_totp.view_totpdevice
+        - authentik_stages_authenticator_static.view_staticdevice
+
+  - model: authentik_core.group
+    id: home-mcp-audit-group
+    identifiers:
+      name: home-mcp-audit
+    state: present
+    attrs:
+      name: home-mcp-audit
+      is_superuser: false
+      roles:
+        - !KeyOf home-mcp-audit-role
+
+  - model: authentik_core.user
+    id: home-mcp-audit-user
+    identifiers:
+      username: home-mcp-audit
+    state: present
+    attrs:
+      username: home-mcp-audit
+      name: home-mcp audit (read-only service account)
+      type: service_account
+      path: goauthentik.io/service-accounts
+      is_active: true
+      groups:
+        - !KeyOf home-mcp-audit-group
+
+  - model: authentik_core.token
+    identifiers:
+      identifier: home-mcp-audit
+    state: present
+    attrs:
+      identifier: home-mcp-audit
+      key: !Env AUTHENTIK_HOME_MCP_AUDIT_TOKEN
+      user: !KeyOf home-mcp-audit-user
+      intent: api
+      expiring: false
+      description: home-mcp authentik_audit tool (read-only, ADR-0024)

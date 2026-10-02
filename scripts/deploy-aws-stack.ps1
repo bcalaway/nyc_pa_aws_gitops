@@ -43,8 +43,23 @@ $umamiTwoFactorKey = (& $aws ssm get-parameter --name "/home-platform/umami/two-
 # Optional (ADR-0022): "none" until the voice jobs token exists.
 $voiceJobsToken = (& $aws ssm get-parameter --name "/home-platform/github/voice-jobs-token" --with-decryption --region us-east-1 --output json 2>$null | ConvertFrom-Json).Parameter.Value
 if (-not $voiceJobsToken) { $voiceJobsToken = "none" }
+# Optional (ADR-0024): "none" until the GitHub security-read token exists.
+$githubSecurityToken = (& $aws ssm get-parameter --name "/home-platform/github/security-read-token" --with-decryption --region us-east-1 --output json 2>$null | ConvertFrom-Json).Parameter.Value
+if (-not $githubSecurityToken) { $githubSecurityToken = "none" }
+# ADR-0024: home-mcp's Authentik audit token, generated once if missing
+# (same as scripts/hub/deploy-hub-stack.sh's audit_token).
+$auditToken = (& $aws ssm get-parameter --name "/home-platform/authentik/home-mcp-audit-token" --with-decryption --region us-east-1 --output json 2>$null | ConvertFrom-Json).Parameter.Value
+if (-not $auditToken) {
+    $bytes = New-Object byte[] 32
+    [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    $auditToken = -join ($bytes | ForEach-Object { $_.ToString("x2") })
+    # No --overwrite: if the read above failed for any reason other than the
+    # parameter not existing, this fails instead of replacing a live token.
+    & $aws ssm put-parameter --name "/home-platform/authentik/home-mcp-audit-token" --type SecureString --value $auditToken --region us-east-1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Couldn't read or create /home-platform/authentik/home-mcp-audit-token" }
+}
 
-"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nRACHIO_API_KEY=$rachioApiKey`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret`nAUTHENTIK_TODO_APP_CLIENT_ID=$authentikTodoAppClientId`nAUTHENTIK_TODO_APP_CLIENT_SECRET=$authentikTodoAppClientSecret`nAUTHENTIK_HUE_CLIENT_ID=$authentikHueClientId`nAUTHENTIK_HUE_CLIENT_SECRET=$authentikHueClientSecret`nAUTHENTIK_HOME_MCP_CLIENT_ID=$authentikHomeMcpClientId`nAUTHENTIK_HOME_MCP_CLIENT_SECRET=$authentikHomeMcpClientSecret`nVOICE_WORKER_SSH_KEY_B64=$voiceWorkerSshKeyB64`nUMAMI_DB_PASSWORD=$umamiDbPassword`nUMAMI_APP_SECRET=$umamiAppSecret`nUMAMI_TWO_FACTOR_KEY=$umamiTwoFactorKey`nVOICE_JOBS_GITHUB_TOKEN=$voiceJobsToken" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
+"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nRACHIO_API_KEY=$rachioApiKey`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret`nAUTHENTIK_TODO_APP_CLIENT_ID=$authentikTodoAppClientId`nAUTHENTIK_TODO_APP_CLIENT_SECRET=$authentikTodoAppClientSecret`nAUTHENTIK_HUE_CLIENT_ID=$authentikHueClientId`nAUTHENTIK_HUE_CLIENT_SECRET=$authentikHueClientSecret`nAUTHENTIK_HOME_MCP_CLIENT_ID=$authentikHomeMcpClientId`nAUTHENTIK_HOME_MCP_CLIENT_SECRET=$authentikHomeMcpClientSecret`nVOICE_WORKER_SSH_KEY_B64=$voiceWorkerSshKeyB64`nUMAMI_DB_PASSWORD=$umamiDbPassword`nUMAMI_APP_SECRET=$umamiAppSecret`nUMAMI_TWO_FACTOR_KEY=$umamiTwoFactorKey`nVOICE_JOBS_GITHUB_TOKEN=$voiceJobsToken`nGITHUB_SECURITY_TOKEN=$githubSecurityToken`nAUTHENTIK_HOME_MCP_AUDIT_TOKEN=$auditToken" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
 
 Write-Host "Copying compose stack to EC2..."
 ssh -i $sshKey $ec2Host "mkdir -p $remoteDir"
@@ -80,9 +95,14 @@ scp -i $sshKey "$localDir\.env" "${ec2Host}:${remoteDir}/.env"
 
 # Per-PR previews' network (ADR-0023), created once; see scripts/hub/deploy-hub-stack.sh.
 ssh -i $sshKey $ec2Host "docker network inspect preview >/dev/null 2>&1 || docker network create --internal preview"
+# Exposure-check results dir (ADR-0024), bind-mounted into home-mcp.
+ssh -i $sshKey $ec2Host "sudo install -d -m 0755 /var/lib/home-platform/exposure"
 
 Write-Host "Starting stack..."
 ssh -i $sshKey $ec2Host "cd $remoteDir && docker compose pull && docker compose build && docker compose up -d"
+
+Write-Host "Installing host units (ADR-0024)..."
+ssh -i $sshKey $ec2Host "sudo bash $remoteDir/host/install.sh $remoteDir"
 
 Write-Host "Done. Services on EC2 (reachable via WireGuard):"
 Write-Host "  Grafana:      http://10.0.3.1:3000"

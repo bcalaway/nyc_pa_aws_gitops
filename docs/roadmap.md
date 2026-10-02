@@ -63,6 +63,23 @@ Tasks:
 - [ ] 🤖 Backup metrics exposed to Prometheus
 - [ ] 🤖 Grafana alert on backup failure
 
+### Milestone 19 — Security & Update Visibility
+**Goal:** The weekly security review (Sunday mornings, emailed) and voice can see what's out of date and what happened, not just the code. See [ADR-0024](adr/0024-security-and-update-visibility.md).
+
+Tasks:
+- [ ] 🤖 `update_status`: pending OS updates / reboots / AL2023 release on hub + NUCs (host timer → node-exporter textfile), OS end of life, RouterOS/RouterBOOT, DSM, SG300 firmware (snmp_exporter `versions.yml`), compose image tags vs registries
+- [ ] 🤖 `security_events`: 7–30 day Loki rollups (SSH, fail2ban, device logins/config changes, home-mcp audit, Traefik 4xx/5xx); Traefik access log on (4xx/5xx only)
+- [ ] 🤖 `github_security`: Dependabot / secret-scanning / code-scanning alerts + `main` rules
+- [ ] 🤖 `aws_posture`: GuardDuty + Access Analyzer (Terraform), open security groups, root/no-MFA sign-ins, old keys; hub role `hub_security_read`
+- [ ] 🤖 `authentik_audit`: view-only `home-mcp-audit` service account (blueprint), token generated on deploy
+- [ ] 🤖 `exposure_check`: weekly hub-side nmap of hub + site WAN IPs, TLS expiry; `exposure-check-now` voice job
+- [ ] 🤖 `security_summary` + Dependabot version updates (`.github/dependabot.yml`)
+- [ ] 🧑 Create the alerts-read-only GitHub token → SSM `/home-platform/github/security-read-token` (ADR-0024, "Bill's steps")
+- [ ] 🧑 Turn on Dependabot alerts and CodeQL default setup on all three repos
+- [ ] 🧑 Approve Terraform, then Platform deploy (hub + NUCs)
+- [ ] 🤖 Verify each tool live by voice/chat; update the weekly review's prompt to use them
+- [ ] 🧑 Decide on the IMDS finding (app containers can reach the hub role's credentials — ADR-0024 "Found while designing this")
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*
