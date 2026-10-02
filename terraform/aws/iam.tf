@@ -25,15 +25,12 @@ data "aws_iam_policy_document" "github_actions_assume" {
     # and runs from `main` (portal on push, the scheduled preview sweep and
     # woods calendar). Pull requests -- including Dependabot's -- get the
     # read-only home-platform-github-plan role instead (ci-roles.tf).
-    # `pull_request` stays here only until terraform.yml's plan job has moved
-    # to that role (the next Milestone 20 PR), so PR plans keep working.
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
         "repo:${var.github_org}/${var.github_repo}:environment:production",
         "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main",
-        "repo:${var.github_org}/${var.github_repo}:pull_request",
       ]
     }
   }
@@ -328,6 +325,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "guardduty:TagResource", "guardduty:UntagResource", "guardduty:ListTagsForResource",
       "access-analyzer:CreateAnalyzer", "access-analyzer:GetAnalyzer", "access-analyzer:DeleteAnalyzer",
       "access-analyzer:ListAnalyzers", "access-analyzer:UpdateAnalyzer",
+      "access-analyzer:CreateArchiveRule", "access-analyzer:GetArchiveRule", "access-analyzer:UpdateArchiveRule",
+      "access-analyzer:DeleteArchiveRule", "access-analyzer:ListArchiveRules", "access-analyzer:ApplyArchiveRule",
       "access-analyzer:TagResource", "access-analyzer:UntagResource", "access-analyzer:ListTagsForResource",
     ]
     resources = ["*"]

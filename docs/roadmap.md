@@ -90,12 +90,15 @@ Tasks:
 
 Found 2026-10-02 by `aws_posture` (IAM Access Analyzer). The three GitHub OIDC roles (`home-platform-github-actions`, `todo-app-github-actions`, `hue-github-actions`) are pinned to their own repo, but each trusts `repo:<owner>/<repo>:*` — any branch or PR, including Dependabot's, gets the full deploy role (the platform one can change EC2, IAM roles, S3, SSM). Today only Bill, Dependabot and Claude's session can push branches, so this is hardening, not an open hole.
 
+Design: ADR-0025 (Bill chose the full fix 2026-10-02: also move the SSM secrets out of Terraform state and replace the app roles' `AWS-RunShellScript` with fixed SSM documents).
+
 Tasks:
-- [ ] 🤖 Per repo, a read-only plan role trusted by `repo:<owner>/<repo>:pull_request` (Terraform plan, previews' read needs); the existing role's trust narrowed to `repo:<owner>/<repo>:environment:production` (and `ref:refs/heads/main` where a workflow has no environment)
-- [ ] 🤖 Workflows: PR jobs assume the plan role; deploy/apply jobs keep the write role behind the `production` environment
-- [ ] 🤖 Check previews (ADR-0023) still deploy from PRs with only what they need — they push images and run SSM on the hub, so they may need a small dedicated role rather than the plan role
-- [ ] 🤖 Archive the three Access Analyzer findings with a Terraform archive rule scoped to the GitHub OIDC provider, so the weekly review stops raising them once the trust is narrowed
-- [ ] 🧑 Approve Terraform, then watch one PR plan and one deploy go through
+- [ ] 🤖 #61: read-only `home-platform-github-plan` role; `todo-app-github-preview` role + `todo-app-preview` ECR repo; fixed `<app>-deploy` / `todo-app-preview-up` / `-down` SSM documents; 21 SSM parameters removed from Terraform state (not destroyed); hub-side `--strict` preview check
+- [ ] 🤖 #62: workflows use the plan role (`-lock=false`), the preview role and the documents
+- [ ] 🤖 Lockdown PR: app roles lose `AWS-RunShellScript` and direct SSM reads, trust narrowed to `main` + `production`; platform role drops `pull_request`; Access Analyzer archive rule for the GitHub-OIDC findings
+- [ ] 🧑 Merge and approve in order (#61 → #62 → lockdown), each after the previous apply finishes
+- [ ] 🧑 Test: a todo-app deploy, a hue deploy, a throwaway todo-app PR (preview up, then down on close), and a Terraform PR plan
+- [ ] 🧑 Expire the Terraform state bucket's noncurrent versions from before #61 (they still contain the secret values), or rotate those secrets over time
 
 ## Future / Deferred
 

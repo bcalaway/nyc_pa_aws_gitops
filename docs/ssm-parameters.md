@@ -2,6 +2,8 @@
 
 Catalog of every `/home-platform/*` parameter (moved verbatim from CLAUDE.md on 2026-09-30). **Add a row here whenever a new parameter is created.** Values never go in Git.
 
+None of these are managed by Terraform. Until Milestone 20 (ADR-0025), 21 of them were declared in `terraform/aws/ssm.tf` as placeholders, which put their real values in the state file. They're now removed from state (not deleted), so create and update every parameter by hand with `aws ssm put-parameter`.
+
 
 | Path | What it is |
 |------|-----------|

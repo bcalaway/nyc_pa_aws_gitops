@@ -48,7 +48,7 @@ What the platform gives us, and the constraints that come with it:
 ### Lifecycle
 
 - **Trigger:** the app repo's `preview.yml` (workflow name **Preview**) on `pull_request` opened, synchronize, reopened or closed, **same-repo branches only** (fork PRs skipped; they get no OIDC token anyway). `no-preview` label opts out. Per-PR concurrency cancels a superseded run
-- **Up (automatic):** `app-preview.yml` builds and pushes the image, stages the rewritten Compose file under `apps/<app>/previews/pr-<n>/`, and runs `scripts/hub/preview-up.sh` via SSM (`scripts/hub/run-on-hub.sh` ships it base64, so the app's existing CI role is enough). The script starts the preview, checks `/health` from inside the preview network, and comments the URL on the PR
+- **Up (automatic):** `app-preview.yml` builds and pushes the image, stages the rewritten Compose file under `apps/<app>/previews/pr-<n>/`, and runs `scripts/hub/preview-up.sh` via SSM (`scripts/hub/run-on-hub.sh` ships it base64, so the app's existing CI role is enough). *(Since ADR-0025: the `<app>-preview-up` SSM document, with the `<app>-github-preview` role, and the hub re-checks the staged file.)* The script starts the preview, checks `/health` from inside the preview network, and comments the URL on the PR
 - **Down:** on PR closed (merged or not), `preview-down.sh` removes the containers, database, role and files
 - **Limits:** at most **2** previews running. A third deploy fails with a PR comment saying so. `preview-sweep.yml` runs nightly (and as the `preview-cleanup` voice job): it removes previews whose PR is closed, over 7 days old, or orphaned
 - **Voice:** `github_status` shows each open PR's preview URL ("preview at todo-app-pr7.preview.billandjessie.com"), or that it's deploying or failed
