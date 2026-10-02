@@ -4,7 +4,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.66"
     }
     # Used once, in s3.tf, to force a real wait after the github_actions
     # role's S3 permissions are granted before the ansible_deploy bucket is
