@@ -484,7 +484,7 @@ services:
       - "9121:9121"
 
   authentik-server:
-    image: ghcr.io/goauthentik/server:2026.2.7
+    image: ghcr.io/goauthentik/server:2026.5.7
     container_name: authentik-server
     restart: unless-stopped
     command: server
@@ -502,6 +502,11 @@ services:
       AUTHENTIK_BOOTSTRAP_EMAIL: "bcalaway@gmail.com"
       AUTHENTIK_BOOTSTRAP_PASSWORD: "${AUTHENTIK_BOOTSTRAP_PASSWORD}"
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      # 2026.5 changed the default listen address from 0.0.0.0 to [::].
+      # Docker networks here are IPv4-only, so pin IPv4 explicitly.
+      AUTHENTIK_LISTEN__HTTP: "0.0.0.0:9000"
+      AUTHENTIK_LISTEN__HTTPS: "0.0.0.0:9443"
+      AUTHENTIK_LISTEN__METRICS: "0.0.0.0:9300"
       # Grafana OIDC client (blueprints/grafana-oidc.yaml reads these via
       # !Env) -- not consumed directly by authentik-server itself, but both
       # server and worker get the same env since blueprint discovery/apply
@@ -559,7 +564,7 @@ services:
       - "traefik.http.routers.auth-preview.service=auth"
 
   authentik-worker:
-    image: ghcr.io/goauthentik/server:2026.2.7
+    image: ghcr.io/goauthentik/server:2026.5.7
     container_name: authentik-worker
     restart: unless-stopped
     command: worker
@@ -574,6 +579,11 @@ services:
       AUTHENTIK_BOOTSTRAP_EMAIL: "bcalaway@gmail.com"
       AUTHENTIK_BOOTSTRAP_PASSWORD: "${AUTHENTIK_BOOTSTRAP_PASSWORD}"
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      # 2026.5 changed the default listen address from 0.0.0.0 to [::].
+      # Docker networks here are IPv4-only, so pin IPv4 explicitly.
+      AUTHENTIK_LISTEN__HTTP: "0.0.0.0:9000"
+      AUTHENTIK_LISTEN__HTTPS: "0.0.0.0:9443"
+      AUTHENTIK_LISTEN__METRICS: "0.0.0.0:9300"
       AUTHENTIK_GRAFANA_CLIENT_ID: "${AUTHENTIK_GRAFANA_CLIENT_ID}"
       AUTHENTIK_GRAFANA_CLIENT_SECRET: "${AUTHENTIK_GRAFANA_CLIENT_SECRET}"
       AUTHENTIK_TODO_APP_CLIENT_ID: "${AUTHENTIK_TODO_APP_CLIENT_ID}"
