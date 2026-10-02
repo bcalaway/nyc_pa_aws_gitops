@@ -21,12 +21,24 @@ resource "aws_guardduty_detector" "main" {
 # Pinned off explicitly rather than trusting whatever a new detector
 # defaults to: these are the plans that bill for this account's resources
 # (S3 data events on the buckets, EBS malware scans, runtime agents).
+#
+# RUNTIME_MONITORING comes back from AWS with three agent-management
+# sub-settings attached; declaring them (also off) keeps every later plan
+# clean instead of showing a phantom change each time (seen on #29/#30).
 resource "aws_guardduty_detector_feature" "off" {
   for_each = toset(["S3_DATA_EVENTS", "EBS_MALWARE_PROTECTION", "RUNTIME_MONITORING"])
 
   detector_id = aws_guardduty_detector.main.id
   name        = each.key
   status      = "DISABLED"
+
+  dynamic "additional_configuration" {
+    for_each = each.key == "RUNTIME_MONITORING" ? ["EKS_ADDON_MANAGEMENT", "ECS_FARGATE_AGENT_MANAGEMENT", "EC2_AGENT_MANAGEMENT"] : []
+    content {
+      name   = additional_configuration.value
+      status = "DISABLED"
+    }
+  }
 }
 
 # The CI role's permission to create these (iam.tf) lands in the same
