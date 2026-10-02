@@ -78,6 +78,9 @@ foreach ($f in $staleFiles) {
 scp -i $sshKey -r "$localDir\*" "${ec2Host}:${remoteDir}/"
 scp -i $sshKey "$localDir\.env" "${ec2Host}:${remoteDir}/.env"
 
+# Per-PR previews' network (ADR-0023), created once; see scripts/hub/deploy-hub-stack.sh.
+ssh -i $sshKey $ec2Host "docker network inspect preview >/dev/null 2>&1 || docker network create --internal preview"
+
 Write-Host "Starting stack..."
 ssh -i $sshKey $ec2Host "cd $remoteDir && docker compose pull && docker compose build && docker compose up -d"
 

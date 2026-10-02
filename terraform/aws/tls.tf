@@ -326,6 +326,18 @@ resource "aws_route53_record" "auth" {
 # First app onboarded per ADR-0019/docs/app-platform.md -- one more record
 # per app going forward, no wildcard (see that doc's Ingress and DNS
 # section for why).
+# Per-PR preview environments (ADR-0023): one wildcard, scoped to the
+# preview subdomain only -- production hosts keep their explicit records.
+# Covers <app>-pr<n>.preview.billandjessie.com and auth.preview (the
+# domain-level forward-auth outpost host).
+resource "aws_route53_record" "preview_wildcard" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "*.preview.billandjessie.com"
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.hub.public_ip]
+}
+
 resource "aws_route53_record" "todo_app" {
   zone_id = aws_route53_zone.main.zone_id
   name    = "todo-app.billandjessie.com"

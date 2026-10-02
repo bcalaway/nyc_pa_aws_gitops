@@ -105,6 +105,9 @@ done
 scp -i "$SSH_KEY" -r "$LOCAL_DIR"/* "$EC2_HOST:$REMOTE_DIR/"
 scp -i "$SSH_KEY" "$LOCAL_DIR/.env" "$EC2_HOST:$REMOTE_DIR/.env"
 
+# Per-PR previews' network (ADR-0023), created once; see deploy-hub-stack.sh.
+ssh -i "$SSH_KEY" "$EC2_HOST" "docker network inspect preview >/dev/null 2>&1 || docker network create --internal preview"
+
 echo "Starting stack..."
 ssh -i "$SSH_KEY" "$EC2_HOST" "cd $REMOTE_DIR && docker compose pull && docker compose build && docker compose up -d"
 

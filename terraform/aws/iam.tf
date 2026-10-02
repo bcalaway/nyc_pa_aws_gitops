@@ -223,6 +223,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     actions = [
       "ecr:CreateRepository", "ecr:DeleteRepository", "ecr:DescribeRepositories",
       "ecr:TagResource", "ecr:UntagResource", "ecr:ListTagsForResource",
+      # Lifecycle policies expiring per-PR preview images (ADR-0023, apps.tf)
+      "ecr:PutLifecyclePolicy", "ecr:GetLifecyclePolicy", "ecr:DeleteLifecyclePolicy",
     ]
     resources = [
       "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/todo-app",

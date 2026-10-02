@@ -15,6 +15,29 @@ resource "aws_ecr_repository" "todo_app" {
   tags = { Name = "todo-app" }
 }
 
+# Preview images (ADR-0023) are tagged pr-<n>-<sha> and never `latest`;
+# they expire 14 days after push. Production tags (<sha>, latest) are
+# untouched: the rule only selects the pr- prefix.
+resource "aws_ecr_lifecycle_policy" "todo_app_previews" {
+  repository = aws_ecr_repository.todo_app.name
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Expire PR preview images after 14 days"
+      selection = {
+        tagStatus     = "tagged"
+        tagPrefixList = ["pr-"]
+        countType     = "sinceImagePushed"
+        countUnit     = "days"
+        countNumber   = 14
+      }
+      action = { type = "expire" }
+    }]
+  })
+  # This role grants itself ecr:PutLifecyclePolicy in the same apply.
+  depends_on = [aws_iam_role_policy.github_actions]
+}
+
 data "aws_iam_policy_document" "todo_app_github_actions_assume" {
   statement {
     effect  = "Allow"

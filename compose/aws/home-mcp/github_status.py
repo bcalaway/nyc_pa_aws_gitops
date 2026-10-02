@@ -101,6 +101,9 @@ def _what(run: dict) -> str:
         import jobs  # local: jobs imports this module
 
         return jobs._label_from_title(title)
+    prs = run.get("pull_requests") or []
+    if run.get("event") == "pull_request" and prs:
+        return f"PR #{prs[0]['number']}"
     msg = ((run.get("head_commit") or {}).get("message") or "").splitlines()[0:1]
     first = msg[0] if msg else ""
     m = re.match(r"Merge pull request #(\d+)", first)
@@ -109,9 +112,32 @@ def _what(run: dict) -> str:
     return (first[:50] + "...") if len(first) > 50 else first
 
 
+PREVIEW_WORKFLOW = "Preview"  # app repos' preview.yml (ADR-0023)
+
+
+def _pr_preview(repo: str, pr: dict, runs: list[dict]) -> str:
+    """', preview at <host>' when this PR's latest Preview run deployed it."""
+    sha = pr["head"]["sha"]
+    mine = [r for r in runs if r.get("name") == PREVIEW_WORKFLOW and r.get("head_sha") == sha]
+    if not mine:
+        return ""
+    state = _run_state(mine[0])
+    host = f"{repo}-pr{pr['number']}.preview.billandjessie.com"
+    if state == "succeeded":
+        return f", preview at {host}"
+    if state == "running":
+        return ", preview deploying"
+    if state == "failed":
+        return ", preview failed"
+    return ""
+
+
 def _pr_ci(pr: dict, runs: list[dict]) -> str:
     sha = pr["head"]["sha"]
-    mine = [r for r in runs if r.get("head_sha") == sha and r.get("event") == "pull_request"]
+    mine = [
+        r for r in runs
+        if r.get("head_sha") == sha and r.get("event") == "pull_request" and r.get("name") != PREVIEW_WORKFLOW
+    ]
     if not mine:
         return "no CI yet"
     states = {_run_state(r) for r in mine}
@@ -135,7 +161,7 @@ def _summarize(repo: str, data: dict, now: datetime.datetime) -> str:
 
     pulls = data["pulls"]
     if pulls:
-        shown = [f"#{p['number']} {p['title'][:60]} ({_pr_ci(p, runs)})" for p in pulls[:MAX_PRS]]
+        shown = [f"#{p['number']} {p['title'][:60]} ({_pr_ci(p, runs)}{_pr_preview(repo, p, runs)})" for p in pulls[:MAX_PRS]]
         more = f", plus {len(pulls) - MAX_PRS} more" if len(pulls) > MAX_PRS else ""
         parts.append(f"{len(pulls)} open PR{'s' if len(pulls) != 1 else ''}: " + "; ".join(shown) + more)
     else:

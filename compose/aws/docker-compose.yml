@@ -220,9 +220,12 @@ services:
     # own default network. Keeps its existing default-network membership too
     # (still needs to reach authentik-server, grafana, etc. by hostname), so
     # this is additive, not a replacement.
+    # `preview` (ADR-0023): per-PR preview containers live only on that
+    # internal network, so Traefik joins it to route to them.
     networks:
       - default
       - home-platform
+      - preview
 
   grafana:
     image: grafana/grafana-oss:11.4.0
@@ -385,9 +388,12 @@ services:
     # Additional attachment to the shared external network -- app containers
     # (e.g. todo-app) join home-platform and need to reach postgres by
     # hostname from there. See traefik's networks: comment above.
+    # `preview` (ADR-0023): previews reach Postgres (as a role that owns
+    # only its own <app>-pr<n> database) and nothing else on the hub.
     networks:
       - default
       - home-platform
+      - preview
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.15.0
@@ -512,6 +518,17 @@ services:
       - "traefik.http.routers.kuma-outpost.entrypoints=websecure"
       - "traefik.http.routers.kuma-outpost.tls.certresolver=route53"
       - "traefik.http.routers.kuma-outpost.service=auth"
+      # Domain-level forward-auth for per-PR previews (ADR-0023,
+      # blueprints/preview-proxy.yaml): login callbacks land on
+      # auth.preview, which sets a cookie for all of .preview.billandjessie.com.
+      # This router also obtains the one wildcard certificate every preview
+      # host reuses (no per-preview Let's Encrypt issuance).
+      - "traefik.http.routers.auth-preview.rule=Host(`auth.preview.billandjessie.com`)"
+      - "traefik.http.routers.auth-preview.entrypoints=websecure"
+      - "traefik.http.routers.auth-preview.tls.certresolver=route53"
+      - "traefik.http.routers.auth-preview.tls.domains[0].main=*.preview.billandjessie.com"
+      - "traefik.http.routers.auth-preview.middlewares=hsts@docker"
+      - "traefik.http.routers.auth-preview.service=auth"
 
   authentik-worker:
     image: ghcr.io/goauthentik/server:2026.2.6
@@ -570,4 +587,10 @@ networks:
   # recreate this stack's own compose project network. See app-platform.md's
   # Networking section (Milestone 11).
   home-platform:
+    external: true
+  # Per-PR previews (ADR-0023). `internal: true` -- no route to the
+  # internet -- created once by scripts/hub/deploy-hub-stack.sh
+  # (`docker network create --internal preview`). Only Traefik and
+  # Postgres join it from this stack.
+  preview:
     external: true

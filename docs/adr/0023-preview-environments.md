@@ -1,7 +1,7 @@
 # ADR-0023: Per-PR Preview Environments (Milestone 18, Phase 5)
 
 Date: 2026-10-01
-Status: Proposed
+Status: Accepted (2026-10-01)
 
 ## Context
 
@@ -20,9 +20,9 @@ What the platform gives us, and the constraints that come with it:
 
 ## Options Considered
 
-**A. Previews on the hub, approval-gated, isolated network** (recommended)
+**A. Previews on the hub, isolated network** (chosen)
 - Reuses everything: ECR, S3 + SSM deploy, Traefik, Authentik, Postgres
-- A preview deploy waits for Bill's tap, the same gate as production deploys, so no unreviewed code runs without his say-so. One tap per push to the PR
+- As first proposed, every preview deploy waited for Bill's tap. He chose automatic deploys instead (see Decision), so containment carries the security weight
 - Preview containers run on a separate **internal** Docker network (no internet egress) that reaches only Traefik and Postgres (with a preview-only role), not Redis, Authentik, home-mcp or other apps, and they hold no production secrets
 
 **B. Previews on nuc4**
@@ -31,47 +31,33 @@ What the platform gives us, and the constraints that come with it:
 **C. Previews as plain containers on an ephemeral EC2 or Fargate task per PR**
 - Strongest isolation, but new infra (VPC wiring, IAM, cost, start-up minutes), and it still needs DNS, TLS and auth. Too much for a household platform
 
-## Decision (proposed)
+## Decision
 
-**Option A**, todo-app first.
+**Option A**, todo-app first. Bill's answers (2026-10-01): copy production data, leave hue out, max 2 previews with a 7-day expiry, and **no approval for previews**. "Non-prod deployments should just be automatic": production deploys keep the `production` gate; previews deploy on every push.
 
 ### Shape
 
-- **Host:** `pr-<n>.<app>.preview.billandjessie.com`, e.g. `pr-7.todo-app.preview.billandjessie.com`
-- **DNS and TLS, set up once:** a single wildcard record `*.preview.billandjessie.com` pointing at the hub EIP, scoped to the `preview` subdomain only (production stays on explicit records), plus **one wildcard certificate** for that name from the existing Route 53 resolver. Previews then cost no certificate issuance at all
-- **Auth:** Authentik **forward-auth** (ADR-0017 Pattern B) on every preview router, so nobody but Bill reaches a preview, whatever the app does. The app's **own OIDC login is off in previews**: giving unreviewed code the production OIDC client secret, plus an internet path to use it, is exactly what isolation is for. If an app needs a signed-in user, it reads forward-auth's `X-authentik-username` header in preview mode (`PREVIEW=1`). That's a small, once-per-app change, and it means previews can't test the login flow itself
-- **Image:** CI builds the PR's image anyway; the preview workflow pushes it as `<app>:pr-<n>` (never `latest`)
-- **Data:** a fresh database `<app>_pr<n>` owned by a `<app>_preview` role, **seeded with a copy of production** (`pg_dump`/restore of the app's own database: household-sized, seconds). Previews never touch the production database. Open question 2 has the alternative
-- **Compose:** the workflow (on the runner, where `yq` exists) rewrites the app's own fragment: project name `<app>-pr<n>`, no `container_name`, router and service labels renamed to `<app>-pr<n>`, Host rule set to the preview host, forward-auth middleware added, network swapped to `preview`, `mem_limit: 384m`, and env overrides for the DB name and the external URL. The hub gets a ready file. Apps don't need a second fragment
-- **Isolation:** a `preview` Docker network with `internal: true` (no route to the internet), joined by Traefik and Postgres only. Previews get the app's non-secret env, `PREVIEW=1`, and the preview DB credentials. **No production secrets**: no `.env` from SSM
+- **Host:** `<app>-pr<n>.preview.billandjessie.com`, e.g. `todo-app-pr7.preview.billandjessie.com`. One label under `preview`, because a wildcard certificate covers exactly one level
+- **DNS and TLS, set up once:** a single wildcard record `*.preview.billandjessie.com` pointing at the hub EIP, scoped to the `preview` subdomain only (production stays on explicit records), plus **one wildcard certificate**, obtained by the `auth-preview` router and reused by every preview router through `tls.domains`. Previews cost no certificate issuance
+- **Auth:** Authentik **domain-level forward-auth** (`blueprints/preview-proxy.yaml`, `mode: forward_domain`, cookie domain `preview.billandjessie.com`, callbacks on `auth.preview.billandjessie.com`) on every preview router, using the existing `authentik-forward-auth` middleware. One provider covers every preview host. Like Kuma and Umami, it has to be assigned to the Embedded Outpost by hand once
+- **The app's own login is off in previews.** Previews get no OIDC client secret. todo-app already runs open when `AUTHENTIK_CLIENT_ID`/`SECRET` are unset, so it needs **no code change**; forward-auth is the only gate. Previews can't test the login flow itself
+- **Image:** the preview workflow builds the PR head as `<app>:pr-<n>-<sha12>` (never `latest`). An ECR lifecycle rule expires `pr-*` tags after 14 days
+- **Data:** Postgres role and database `<app>-pr<n>` (the platform's APP_NAME convention, so the app connects with no changes), **seeded with a copy of production**: `pg_dump --no-owner --no-acl` of the app's database, restored *as the preview role*, so it owns everything in its database and nothing else. Created by `preview-up.sh` through `docker exec postgres psql` on the hub; no new credential. The database persists across pushes to the same PR
+- **Compose:** `scripts/hub/preview-compose.py` (on the runner) rewrites the app's own fragment: no `container_name`, no host ports, volumes, devices or extra capabilities, `APP_NAME=<app>-pr<n>`, `PREVIEW=1`, `.env` holding only the preview DB password and a session secret, network `preview` only, `mem_limit 384m`, `cpus 0.5`, `pids_limit 256`, `cap_drop: ALL`, `no-new-privileges`, and preview Traefik labels. Apps need no second fragment
 
 ### Lifecycle
 
-- **Trigger:** `pull_request` opened, synchronize or reopened, **same-repo branches only** (`head.repo == base.repo`; fork PRs are skipped). Opt-out per PR with a `no-preview` label
-- **Gate:** the deploy job runs in a new `preview` environment with Bill as required reviewer, separate from `production` so approvals read clearly ("preview for todo-app PR #7"). `platform_status` and `github_status` already announce waiting runs
-- **Up:** `scripts/hub/preview-up.sh` creates the DB and role on first deploy, pulls `<app>:pr-<n>`, runs `docker compose -p <app>-pr<n> up -d`, waits for `/health`, then comments the URL on the PR
-- **Down:** on PR closed (merged or not), `preview-down.sh` removes the containers, drops the DB and deletes the image tag. No approval needed: teardown only removes things
-- **Limits:** at most **2 previews** running on the hub (the hub is 4 GB). A third waits with a PR comment saying so. A nightly sweep (a scheduled workflow, also usable as a voice job) removes previews whose PR is closed or older than 7 days
-- **Voice:** `github_status` adds the preview URL to each open PR; new voice job `preview-down {app, pr}` for manual cleanup
-
-### Platform pieces
-
-- Terraform: wildcard record; nothing for IAM, since the existing app CI roles already push to ECR and trigger SSM
-- `compose/aws`: `preview` network; Traefik wildcard certificate (`tls.domains` for `*.preview.billandjessie.com`); Postgres joins `preview`; one `preview-admin` SSM credential, able only to create and drop `*_pr*` databases (via a `SECURITY DEFINER` function, not superuser)
-- Reusable workflows `app-preview.yml` (build, push, gate, up) and `app-preview-down.yml`; app repos add one thin `preview.yml`
-- Per app: honour `PREVIEW=1` (skip OIDC, trust forward-auth's username header). For todo-app that's a small PR in its repo
+- **Trigger:** the app repo's `preview.yml` (workflow name **Preview**) on `pull_request` opened, synchronize, reopened or closed, **same-repo branches only** (fork PRs skipped; they get no OIDC token anyway). `no-preview` label opts out. Per-PR concurrency cancels a superseded run
+- **Up (automatic):** `app-preview.yml` builds and pushes the image, stages the rewritten Compose file under `apps/<app>/previews/pr-<n>/`, and runs `scripts/hub/preview-up.sh` via SSM (`scripts/hub/run-on-hub.sh` ships it base64, so the app's existing CI role is enough). The script starts the preview, checks `/health` from inside the preview network, and comments the URL on the PR
+- **Down:** on PR closed (merged or not), `preview-down.sh` removes the containers, database, role and files
+- **Limits:** at most **2** previews running. A third deploy fails with a PR comment saying so. `preview-sweep.yml` runs nightly (and as the `preview-cleanup` voice job): it removes previews whose PR is closed, over 7 days old, or orphaned
+- **Voice:** `github_status` shows each open PR's preview URL ("preview at todo-app-pr7.preview.billandjessie.com"), or that it's deploying or failed
 
 ## Consequences
 
-- Bill can try any same-repo PR on his phone before merging, with one extra tap per push
-- Unreviewed code runs on the hub for the first time, but only after Bill's tap, behind forward-auth, with no production secrets, on an internal network that can reach only Traefik and Postgres (as a role that owns nothing but its own preview database), with memory capped. Even fully malicious preview code can't phone home
-- A small permanent platform surface: one wildcard DNS name, one wildcard certificate, one network, one Postgres helper role, and a nightly sweep
-- hue is **excluded at first** (open question 3): a hue preview would drive the real lights through the same agents as production
-- Copying production data into previews means household data (to-do items) lives briefly in extra databases on the same instance. That's acceptable for todo-app; revisit per app
-
-## Open questions for Bill
-
-1. **One tap per push** to a PR, or approve once per PR and let later pushes redeploy automatically? Recommendation: every push, because each push is new unreviewed code
-2. **Preview data:** a copy of production (realistic, recommended for todo-app), or an empty database each time (no household data copied, but you test against nothing)?
-3. **hue:** leave it out (recommended for now), or include it knowing a preview can switch real lights?
-4. **Max 2 concurrent previews and a 7-day expiry:** OK?
+- Bill can try any same-repo PR on his phone, with nothing to tap
+- **Unreviewed code, often the voice agent's, now runs on the hub automatically.** Containment is the control: no production secrets; an internal network with no route to the internet, reaching only Traefik and Postgres; a Postgres role that owns only its own database; CPU, memory and process caps; no capabilities, host ports or volumes; forward-auth in front. Residual risk, accepted: from the preview network, code can send requests through Traefik to other hostnames (the same as an anonymous internet client, so forward-auth and IP allowlists still apply), can open connections to other databases it has no grants in, and Docker's embedded DNS may still resolve external names (a narrow exfiltration path, nothing to exfiltrate but the PR's own code and its copy of the app's data)
+- A small permanent platform surface: one wildcard DNS name, one wildcard certificate, one network, a nightly sweep
+- hue is **excluded**: a hue preview would drive the real lights through the same agents as production
+- Copying production data means household data (to-do items) lives briefly in extra databases on the same instance; acceptable for todo-app, revisit per app
+- Onboarding another app: an ECR lifecycle rule for its `pr-*` tags, its own `preview.yml`, and confirming it runs open without its auth secrets

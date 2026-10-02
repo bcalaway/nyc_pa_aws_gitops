@@ -1,0 +1,49 @@
+name: Preview sweep
+
+# Nightly cleanup of per-PR previews (ADR-0023): removes previews whose PR
+# is closed, that are older than 7 days, or that were left behind by a
+# failed deploy. Removal only, so no approval gate. The same sweep runs on
+# demand as the `preview-cleanup` voice job.
+
+on:
+  schedule:
+    - cron: "17 7 * * *"   # 03:17 New York (EDT)
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: platform-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  DEPLOY_BUCKET: home-platform-ansible-deploy-147856894209
+
+jobs:
+  sweep:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Stage hub scripts
+        run: aws s3 sync scripts/hub/ "s3://${DEPLOY_BUCKET}/voice-jobs/hub/" --delete --only-show-errors
+
+      - name: Sweep on the hub
+        run: |
+          cat > "$RUNNER_TEMP/sweep.sh" <<'SH'
+          set -uo pipefail
+          D=$(mktemp -d)
+          trap 'rm -rf "$D"' EXIT
+          aws s3 sync "s3://$1/voice-jobs/hub/" "$D/" --only-show-errors
+          bash "$D/preview-sweep.sh"
+          SH
+          bash scripts/hub/run-on-hub.sh "$RUNNER_TEMP/sweep.sh" "$DEPLOY_BUCKET"
