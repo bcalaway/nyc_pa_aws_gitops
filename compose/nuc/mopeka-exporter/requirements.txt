@@ -1,6 +1,6 @@
-aioesphomeapi==46.2.1
-bluetooth-data-tools==1.29.21
+aioesphomeapi==46.6.0
+bluetooth-data-tools==1.29.24
 home-assistant-bluetooth==2.0.0
 mopeka-iot-ble==1.0.0
-prometheus-client==0.21.1
-PyYAML==6.0.2
+prometheus-client==0.26.0
+PyYAML==6.0.3
