@@ -38,10 +38,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Read-only role (terraform/aws/ci-roles.tf, ADR-0025): a pull request --
+      # Dependabot's included -- can see the plan but can't change anything,
+      # and can't read SSM secrets. It can't write the state lock either,
+      # hence -lock=false below; applies still lock.
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-actions
+          role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-plan
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -56,7 +60,7 @@ jobs:
       - name: Terraform Plan
         id: plan
         working-directory: terraform/aws
-        run: terraform plan -no-color -out=tfplan 2>&1 | tee plan.txt
+        run: terraform plan -lock=false -no-color -out=tfplan 2>&1 | tee plan.txt
         continue-on-error: true
 
       - name: Post plan as PR comment
