@@ -85,7 +85,7 @@ Tasks:
 - [x] 🤖 Follow-ups from the first live results, 2026-10-02: Authentik 2026.2.6 → 2026.2.7 → 2026.5.7 → 2026.8.3 one line at a time (#38, #39, #42); image bumps (#38); false "other user" count fixed (#41); Promtail 3.6.8 shipped without journal support and stopped all container logs ~30 min (#43 rollback), then replaced by Grafana Alloy v1.20.1 (#44); template version updates (#45); both NUCs rebooted for security updates; both RB5009s upgraded to RouterOS 7.24.5 + RouterBOOT
 - [x] 🤖 IMDS finding (app containers could reach the hub role's credentials): fixed 2026-10-02 with a host-level allow-list, `compose/aws/host/imds-guard.sh` — only the hub stack's own Docker network may reach the metadata service; verified on every deploy with automatic rollback; `aws_posture` reports it
 
-### Milestone 20 — Split GitHub Actions AWS roles (plan vs deploy)
+### Milestone 20 — Split GitHub Actions AWS roles (plan vs deploy) — done 2026-10-02 except one cleanup
 **Goal:** A pull request can only ever *read* AWS; only an approved `production` deploy can change it.
 
 Found 2026-10-02 by `aws_posture` (IAM Access Analyzer). The three GitHub OIDC roles (`home-platform-github-actions`, `todo-app-github-actions`, `hue-github-actions`) are pinned to their own repo, but each trusts `repo:<owner>/<repo>:*` — any branch or PR, including Dependabot's, gets the full deploy role (the platform one can change EC2, IAM roles, S3, SSM). Today only Bill, Dependabot and Claude's session can push branches, so this is hardening, not an open hole.
@@ -93,11 +93,11 @@ Found 2026-10-02 by `aws_posture` (IAM Access Analyzer). The three GitHub OIDC r
 Design: ADR-0025 (Bill chose the full fix 2026-10-02: also move the SSM secrets out of Terraform state and replace the app roles' `AWS-RunShellScript` with fixed SSM documents).
 
 Tasks:
-- [ ] 🤖 #61: read-only `home-platform-github-plan` role; `todo-app-github-preview` role + `todo-app-preview` ECR repo; fixed `<app>-deploy` / `todo-app-preview-up` / `-down` SSM documents; 21 SSM parameters removed from Terraform state (not destroyed); hub-side `--strict` preview check
-- [ ] 🤖 #62: workflows use the plan role (`-lock=false`), the preview role and the documents
-- [ ] 🤖 Lockdown PR: app roles lose `AWS-RunShellScript` and direct SSM reads, trust narrowed to `main` + `production`; platform role drops `pull_request`; Access Analyzer archive rule for the GitHub-OIDC findings
-- [ ] 🧑 Merge and approve in order (#61 → #62 → lockdown), each after the previous apply finishes
-- [ ] 🧑 Test: a todo-app deploy, a hue deploy, a throwaway todo-app PR (preview up, then down on close), and a Terraform PR plan
+- [x] 🤖 #61: read-only `home-platform-github-plan` role; `todo-app-github-preview` role + `todo-app-preview` ECR repo; fixed `<app>-deploy` / `todo-app-preview-up` / `-down` SSM documents; 21 SSM parameters removed from Terraform state (not destroyed); hub-side `--strict` preview check
+- [x] 🤖 #62: workflows use the plan role (`-lock=false`), the preview role and the documents
+- [x] 🤖 #63 (lockdown): app roles lose `AWS-RunShellScript` and direct SSM reads, trust narrowed to `main` + `production`; platform role drops `pull_request`; Access Analyzer archive rule for the GitHub-OIDC findings
+- [x] 🧑 Merge and approve in order (#61 → #62 → #63) — all applied 2026-10-02 (#61's first apply hit IAM propagation on the new ECR repo; a re-run passed). Bill applied the archive rule to the existing findings by hand (`aws accessanalyzer apply-archive-rule`); `aws_posture` no longer lists the GitHub roles
+- [x] 🧑 Tested 2026-10-02: todo-app deploy (before and after #63), hue deploy, todo-app PR #7 preview up and removed on close, Terraform PR plan under the read-only role
 - [ ] 🧑 Expire the Terraform state bucket's noncurrent versions from before #61 (they still contain the secret values), or rotate those secrets over time
 
 ## Future / Deferred
