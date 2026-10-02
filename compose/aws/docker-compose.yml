@@ -1,6 +1,6 @@
 services:
   node-exporter:
-    image: prom/node-exporter:v1.8.2
+    image: prom/node-exporter:v1.12.1
     container_name: node-exporter
     restart: unless-stopped
     pid: host
@@ -22,7 +22,7 @@ services:
       - "9100:9100"
 
   snmp-exporter:
-    image: prom/snmp-exporter:v0.26.0
+    image: prom/snmp-exporter:v0.30.1
     container_name: snmp-exporter
     restart: unless-stopped
     # Built-in snmp.yml (if_mib etc.) plus our hand-written printer and
@@ -38,7 +38,7 @@ services:
       - "9116:9116"
 
   prometheus:
-    image: prom/prometheus:v3.1.0
+    image: prom/prometheus:v3.15.0
     container_name: prometheus
     restart: unless-stopped
     volumes:
@@ -124,7 +124,7 @@ services:
       - "traefik.http.services.mcp.loadbalancer.server.port=8000"
 
   loki:
-    image: grafana/loki:3.3.2
+    image: grafana/loki:3.7.8
     container_name: loki
     restart: unless-stopped
     volumes:
@@ -135,7 +135,7 @@ services:
       - "3100:3100"
 
   promtail:
-    image: grafana/promtail:3.3.2
+    image: grafana/promtail:3.6.8
     container_name: promtail
     restart: unless-stopped
     depends_on:
@@ -163,7 +163,7 @@ services:
     command: -config.file=/etc/promtail/config.yml
 
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.7
     container_name: traefik
     restart: unless-stopped
     command:
@@ -362,7 +362,7 @@ services:
   # explicitly rather than trusted to Umami's own defaults, specifically so
   # the Traefik PathPrefix rule below matches the real paths.
   umami:
-    image: ghcr.io/umami-software/umami:3.2.0
+    image: ghcr.io/umami-software/umami:3.4.0
     container_name: umami
     restart: unless-stopped
     environment:
@@ -422,7 +422,7 @@ services:
       - preview
 
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.15.0
+    image: prometheuscommunity/postgres-exporter:v0.20.1
     container_name: postgres-exporter
     restart: unless-stopped
     depends_on:
@@ -472,7 +472,7 @@ services:
       - home-platform
 
   redis-exporter:
-    image: oliver006/redis_exporter:v1.66.0
+    image: oliver006/redis_exporter:v1.92.1
     container_name: redis-exporter
     restart: unless-stopped
     depends_on:
@@ -484,7 +484,7 @@ services:
       - "9121:9121"
 
   authentik-server:
-    image: ghcr.io/goauthentik/server:2026.2.6
+    image: ghcr.io/goauthentik/server:2026.8.3
     container_name: authentik-server
     restart: unless-stopped
     command: server
@@ -559,7 +559,7 @@ services:
       - "traefik.http.routers.auth-preview.service=auth"
 
   authentik-worker:
-    image: ghcr.io/goauthentik/server:2026.2.6
+    image: ghcr.io/goauthentik/server:2026.8.3
     container_name: authentik-worker
     restart: unless-stopped
     command: worker
