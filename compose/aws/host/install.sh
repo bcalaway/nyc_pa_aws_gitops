@@ -24,6 +24,7 @@ install -d -o root -g root -m 0755 "$LIB" /var/lib/home-platform/exposure
 install -o root -g root -m 0755 "$SRC/update-metrics.sh" "$LIB/update-metrics.sh"
 install -o root -g root -m 0755 "$SRC/exposure-check.py" "$LIB/exposure-check.py"
 install -o root -g root -m 0644 "$SRC/exposure-expected.json" "$LIB/exposure-expected.json"
+install -o root -g root -m 0755 "$SRC/imds-guard.sh" "$LIB/imds-guard.sh"
 
 # The hub's node-exporter reads textfile metrics from the compose stack's
 # backup-metrics volume (postgres-backup already writes there). Resolve its
@@ -94,8 +95,41 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
+# IMDS guard: only the hub stack's own network may reach the EC2 metadata
+# service (imds-guard.sh explains why). Runs at boot, hourly, and below on
+# every deploy.
+cat > /etc/systemd/system/imds-guard.service <<UNIT
+[Unit]
+Description=Allow only the hub stack's own network to reach EC2 instance metadata
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=$LIB/with-textfile-dir.sh $LIB/imds-guard.sh --verify --textfile-dir @TEXTFILE_DIR@
+TimeoutStartSec=10min
+UNIT
+
+cat > /etc/systemd/system/imds-guard.timer <<'UNIT'
+[Unit]
+Description=Re-apply the IMDS guard at boot and hourly (follows recreated networks)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+
 systemctl daemon-reload
-systemctl enable --now host-update-metrics.timer exposure-check.timer
+systemctl enable --now host-update-metrics.timer exposure-check.timer imds-guard.timer
+# Apply and verify now, so the deploy log shows the result. A rollback
+# (a platform service lost access) is reported, not a deploy failure.
+echo "Applying IMDS guard..."
+systemctl start imds-guard.service || echo "WARNING: IMDS guard didn't verify cleanly; see journalctl -u imds-guard"
+journalctl -u imds-guard.service --since "-5min" -o cat --no-pager | grep '^imds-guard:' | tail -15 || true
 # Populate update metrics right away instead of waiting for the first tick.
 systemctl start --no-block host-update-metrics.service
-echo "Host units installed: host-update-metrics.timer, exposure-check.timer"
+echo "Host units installed: host-update-metrics.timer, exposure-check.timer, imds-guard.timer"
