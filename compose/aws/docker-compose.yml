@@ -452,7 +452,7 @@ services:
       - backup-metrics:/textfile_collector
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: redis
     restart: unless-stopped
     # General shared cache/session store, not tied to any one app. Originally
