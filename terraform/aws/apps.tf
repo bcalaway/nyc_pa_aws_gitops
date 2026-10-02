@@ -70,12 +70,15 @@ data "aws_iam_policy_document" "todo_app_github_actions_assume" {
     # is the simpler fix and survives either way if that default ever
     # changes again.
     condition {
-      test     = "StringLike"
+      # Milestone 20 (ADR-0025): build-push runs on `main`, deploy in the
+      # approval-gated `production` environment. Pull requests (previews)
+      # use todo-app-github-preview instead (ci-roles.tf).
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values = [
-        "repo:${var.github_org}/todo-app:*",
-        "repo:bcalaway@37939549/todo-app@1313063209:*",
-      ]
+      values = flatten([for s in local.repo_subjects["todo-app"] : [
+        "${s}:ref:refs/heads/main",
+        "${s}:environment:production",
+      ]])
     }
   }
 }
@@ -108,26 +111,9 @@ data "aws_iam_policy_document" "todo_app_github_actions_permissions" {
     resources = [aws_ecr_repository.todo_app.arn]
   }
 
-  # SSM read, scoped to exactly this app's own secrets -- its general
-  # namespace plus the specific cross-service credentials it owns (its
-  # Postgres role's password, its Authentik OIDC client id/secret). Not a
-  # wildcard on postgres/* or authentik/*, which would also expose every
-  # other app's/service's credentials under those same prefixes. Literal
-  # ARN strings, not resource references -- none of these parameters exist
-  # yet (todo-app's DB and Authentik client are provisioned later, per
-  # docs/app-platform.md's onboarding checklist), same pattern already used
-  # for the ansible-deploy bucket and the DLM role in iam.tf.
-  statement {
-    effect  = "Allow"
-    actions = ["ssm:GetParameter", "ssm:GetParameters"]
-    resources = [
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/todo-app/*",
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/postgres/todo-app-password",
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/todo-app-client-id",
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/todo-app-client-secret",
-    ]
-  }
-
+  # No SSM parameter access (Milestone 20, ADR-0025): the hub reads this
+  # app's secrets itself when the todo-app-deploy document runs, with its
+  # own role (tls.tf's hub_app_deploy).
   # Deploy staging -- reuses the existing ansible-deploy bucket (s3.tf)
   # under an apps/todo-app/ prefix instead of standing up a second bucket
   # for the same "stage an artifact, hub pulls it down" purpose the
@@ -151,19 +137,15 @@ data "aws_iam_policy_document" "todo_app_github_actions_permissions" {
   # Deploy triggering -- same SSM Run Command pattern as the RouterOS
   # workflow (iam.tf's github_actions role): DescribeInstances can't be
   # resource-scoped (EC2's Describe* actions don't support it), SendCommand
-  # is scoped to the hub instance specifically, and the Get/List actions
+  # needs both the hub instance (here) and a document -- only this app's
+  # own <app>-deploy document (the _documents policy below; AWS-RunShellScript
+  # was removed in Milestone 20) -- and the Get/List actions
   # below can't be resource-scoped either (identified by command-id, not a
   # taggable/ARN-able resource -- same limitation noted in iam.tf).
   statement {
     effect    = "Allow"
     actions   = ["ec2:DescribeInstances"]
     resources = ["*"]
-  }
-
-  statement {
-    effect    = "Allow"
-    actions   = ["ssm:SendCommand"]
-    resources = ["arn:aws:ssm:us-east-1::document/AWS-RunShellScript"]
   }
 
   statement {
@@ -231,12 +213,15 @@ data "aws_iam_policy_document" "hue_github_actions_assume" {
     # `gh api repos/bcalaway/hue` that this newly-created repo also
     # presents the newer immutable-ID sub claim, not the plain one.
     condition {
-      test     = "StringLike"
+      # Milestone 20 (ADR-0025): build-push runs on `main`, deploy in the
+      # approval-gated `production` environment. Pull requests (previews)
+      # use hue-github-preview instead (ci-roles.tf).
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values = [
-        "repo:${var.github_org}/hue:*",
-        "repo:bcalaway@37939549/hue@1340907446:*",
-      ]
+      values = flatten([for s in local.repo_subjects["hue"] : [
+        "${s}:ref:refs/heads/main",
+        "${s}:environment:production",
+      ]])
     }
   }
 }
@@ -265,28 +250,10 @@ data "aws_iam_policy_document" "hue_github_actions_permissions" {
     resources = [aws_ecr_repository.hue.arn, aws_ecr_repository.hue_agent.arn]
   }
 
-  # The /home-platform/hue/* wildcard also covers the two site Hue bridge
-  # API keys (SSM), which this role can therefore read even though only the
-  # NUC-side agent (a different deploy path entirely) actually uses them --
-  # accepted as low-risk rather than splitting them into a separate SSM
-  # namespace for one household app.
-  #
-  # Postgres password (Milestone 14, animation persistence): matches
-  # todo-app's identical grant on its own CI role above, even though the
-  # actual deploy-time read happens on the hub itself via hub_app_deploy's
-  # role (tls.tf), not this one -- kept for consistency with the
-  # established per-app pattern.
-  statement {
-    effect  = "Allow"
-    actions = ["ssm:GetParameter", "ssm:GetParameters"]
-    resources = [
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/hue/*",
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-id",
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-secret",
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/postgres/hue-password",
-    ]
-  }
-
+  # No SSM parameter access (Milestone 20, ADR-0025): this role used to be
+  # able to read /home-platform/hue/* (which includes both sites' Hue bridge
+  # keys) and hue's Postgres/Authentik credentials. The hub reads them
+  # itself when the hue-deploy document runs.
   statement {
     effect    = "Allow"
     actions   = ["s3:PutObject", "s3:GetObject"]
@@ -303,12 +270,6 @@ data "aws_iam_policy_document" "hue_github_actions_permissions" {
     effect    = "Allow"
     actions   = ["ec2:DescribeInstances"]
     resources = ["*"]
-  }
-
-  statement {
-    effect    = "Allow"
-    actions   = ["ssm:SendCommand"]
-    resources = ["arn:aws:ssm:us-east-1::document/AWS-RunShellScript"]
   }
 
   statement {

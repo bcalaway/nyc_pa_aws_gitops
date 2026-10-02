@@ -59,3 +59,37 @@ resource "aws_accessanalyzer_analyzer" "account" {
 
   tags = { Name = "home-platform" }
 }
+
+# The GitHub Actions OIDC roles are "accessible from outside the account" by
+# design -- GitHub's OIDC provider is the external principal. Milestone 20
+# (ADR-0025) narrowed each to specific subjects (main, production, PRs), so
+# archive exactly those findings: same resources AND the GitHub federated
+# principal. Any other external access to these roles still shows up in
+# aws_posture and the weekly review.
+resource "time_sleep" "wait_for_github_actions_archive_rule_policy" {
+  depends_on      = [aws_iam_role_policy.github_actions]
+  create_duration = "15s"
+}
+
+resource "aws_accessanalyzer_archive_rule" "github_oidc_roles" {
+  depends_on = [time_sleep.wait_for_github_actions_archive_rule_policy]
+
+  analyzer_name = aws_accessanalyzer_analyzer.account.analyzer_name
+  rule_name     = "github-oidc-roles"
+
+  filter {
+    criteria = "resource"
+    eq = [
+      aws_iam_role.github_actions.arn,
+      aws_iam_role.github_plan.arn,
+      aws_iam_role.todo_app_github_actions.arn,
+      aws_iam_role.hue_github_actions.arn,
+      aws_iam_role.todo_app_preview.arn,
+    ]
+  }
+
+  filter {
+    criteria = "principal.Federated"
+    eq       = [aws_iam_openid_connect_provider.github.arn]
+  }
+}
