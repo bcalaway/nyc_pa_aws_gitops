@@ -484,7 +484,7 @@ services:
       - "9121:9121"
 
   authentik-server:
-    image: ghcr.io/goauthentik/server:2026.5.7
+    image: ghcr.io/goauthentik/server:2026.8.3
     container_name: authentik-server
     restart: unless-stopped
     command: server
@@ -507,6 +507,10 @@ services:
       AUTHENTIK_LISTEN__HTTP: "0.0.0.0:9000"
       AUTHENTIK_LISTEN__HTTPS: "0.0.0.0:9443"
       AUTHENTIK_LISTEN__METRICS: "0.0.0.0:9300"
+      # 2026.8 only honours X-Forwarded-* from these networks. Pinned to the
+      # private ranges (the default) so Traefik's Docker networks stay
+      # trusted even if a future release narrows the default.
+      AUTHENTIK_LISTEN__TRUSTED_PROXY_CIDRS: "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
       # Grafana OIDC client (blueprints/grafana-oidc.yaml reads these via
       # !Env) -- not consumed directly by authentik-server itself, but both
       # server and worker get the same env since blueprint discovery/apply
@@ -564,7 +568,7 @@ services:
       - "traefik.http.routers.auth-preview.service=auth"
 
   authentik-worker:
-    image: ghcr.io/goauthentik/server:2026.5.7
+    image: ghcr.io/goauthentik/server:2026.8.3
     container_name: authentik-worker
     restart: unless-stopped
     command: worker
@@ -584,6 +588,10 @@ services:
       AUTHENTIK_LISTEN__HTTP: "0.0.0.0:9000"
       AUTHENTIK_LISTEN__HTTPS: "0.0.0.0:9443"
       AUTHENTIK_LISTEN__METRICS: "0.0.0.0:9300"
+      # 2026.8 only honours X-Forwarded-* from these networks. Pinned to the
+      # private ranges (the default) so Traefik's Docker networks stay
+      # trusted even if a future release narrows the default.
+      AUTHENTIK_LISTEN__TRUSTED_PROXY_CIDRS: "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
       AUTHENTIK_GRAFANA_CLIENT_ID: "${AUTHENTIK_GRAFANA_CLIENT_ID}"
       AUTHENTIK_GRAFANA_CLIENT_SECRET: "${AUTHENTIK_GRAFANA_CLIENT_SECRET}"
       AUTHENTIK_TODO_APP_CLIENT_ID: "${AUTHENTIK_TODO_APP_CLIENT_ID}"
