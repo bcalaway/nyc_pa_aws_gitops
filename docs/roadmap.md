@@ -85,6 +85,18 @@ Tasks:
 - [x] 🤖 Follow-ups from the first live results, 2026-10-02: Authentik 2026.2.6 → 2026.2.7 → 2026.5.7 → 2026.8.3 one line at a time (#38, #39, #42); image bumps (#38); false "other user" count fixed (#41); Promtail 3.6.8 shipped without journal support and stopped all container logs ~30 min (#43 rollback), then replaced by Grafana Alloy v1.20.1 (#44); template version updates (#45); both NUCs rebooted for security updates; both RB5009s upgraded to RouterOS 7.24.5 + RouterBOOT
 - [x] 🤖 IMDS finding (app containers could reach the hub role's credentials): fixed 2026-10-02 with a host-level allow-list, `compose/aws/host/imds-guard.sh` — only the hub stack's own Docker network may reach the metadata service; verified on every deploy with automatic rollback; `aws_posture` reports it
 
+### Milestone 20 — Split GitHub Actions AWS roles (plan vs deploy)
+**Goal:** A pull request can only ever *read* AWS; only an approved `production` deploy can change it.
+
+Found 2026-10-02 by `aws_posture` (IAM Access Analyzer). The three GitHub OIDC roles (`home-platform-github-actions`, `todo-app-github-actions`, `hue-github-actions`) are pinned to their own repo, but each trusts `repo:<owner>/<repo>:*` — any branch or PR, including Dependabot's, gets the full deploy role (the platform one can change EC2, IAM roles, S3, SSM). Today only Bill, Dependabot and Claude's session can push branches, so this is hardening, not an open hole.
+
+Tasks:
+- [ ] 🤖 Per repo, a read-only plan role trusted by `repo:<owner>/<repo>:pull_request` (Terraform plan, previews' read needs); the existing role's trust narrowed to `repo:<owner>/<repo>:environment:production` (and `ref:refs/heads/main` where a workflow has no environment)
+- [ ] 🤖 Workflows: PR jobs assume the plan role; deploy/apply jobs keep the write role behind the `production` environment
+- [ ] 🤖 Check previews (ADR-0023) still deploy from PRs with only what they need — they push images and run SSM on the hub, so they may need a small dedicated role rather than the plan role
+- [ ] 🤖 Archive the three Access Analyzer findings with a Terraform archive rule scoped to the GitHub OIDC provider, so the weekly review stops raising them once the trust is narrowed
+- [ ] 🧑 Approve Terraform, then watch one PR plan and one deploy go through
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*
