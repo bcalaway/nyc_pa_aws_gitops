@@ -117,15 +117,18 @@ Task:
 
 
 def run_agent(task, work, cfg):
-    env_file = TASKS / task["id"] / "agent.env"
-    env_file.write_text(f"CLAUDE_CODE_OAUTH_TOKEN={secret('claude-oauth-token')}\n")
-    env_file.chmod(0o600)
+    # The agent's Claude token reaches the container through the docker CLI's
+    # own environment (`-e NAME` with no value copies it from there): never
+    # written to disk, and not in argv, so not visible in `ps`. Replaces an
+    # agent.env file that was briefly world-readable between write and chmod
+    # (CodeQL py/clear-text-storage-sensitive-data, 2026-10-02).
+    docker_env = dict(os.environ, CLAUDE_CODE_OAUTH_TOKEN=secret("claude-oauth-token"))
     prompt = AGENT_PROMPT.format(repo=task["repo"], instructions=task["instructions"])
     name = f"voice-agent-{task['id']}"
     argv = [
         "docker", "run", "--rm", "--name", name,
         "--network", AGENT_NETWORK,
-        "--env-file", str(env_file),
+        "-e", "CLAUDE_CODE_OAUTH_TOKEN",
         "-e", f"HTTPS_PROXY={PROXY}", "-e", f"HTTP_PROXY={PROXY}",
         "-e", f"https_proxy={PROXY}", "-e", f"http_proxy={PROXY}",
         "-e", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1",
@@ -141,12 +144,10 @@ def run_agent(task, work, cfg):
         "--permission-prompts", "none",
     ]
     try:
-        proc = subprocess.run(argv, capture_output=True, timeout=cfg["max_minutes"] * 60)
+        proc = subprocess.run(argv, capture_output=True, timeout=cfg["max_minutes"] * 60, env=docker_env)
     except subprocess.TimeoutExpired:
         subprocess.run(["docker", "kill", name], capture_output=True)
         raise RuntimeError(f"agent ran past the {cfg['max_minutes']}-minute limit and was stopped")
-    finally:
-        env_file.unlink(missing_ok=True)
     try:
         result = json.loads(proc.stdout.decode(errors="replace").strip().splitlines()[-1])
     except (json.JSONDecodeError, IndexError):
