@@ -67,17 +67,22 @@ Tasks:
 **Goal:** The weekly security review (Sunday mornings, emailed) and voice can see what's out of date and what happened, not just the code. See [ADR-0024](adr/0024-security-and-update-visibility.md).
 
 Tasks:
-- [ ] 🤖 `update_status`: pending OS updates / reboots / AL2023 release on hub + NUCs (host timer → node-exporter textfile), OS end of life, RouterOS/RouterBOOT, DSM, SG300 firmware (snmp_exporter `versions.yml`), compose image tags vs registries
-- [ ] 🤖 `security_events`: 7–30 day Loki rollups (SSH, fail2ban, device logins/config changes, home-mcp audit, Traefik 4xx/5xx); Traefik access log on (4xx/5xx only)
-- [ ] 🤖 `github_security`: Dependabot / secret-scanning / code-scanning alerts + `main` rules
-- [ ] 🤖 `aws_posture`: GuardDuty + Access Analyzer (Terraform), open security groups, root/no-MFA sign-ins, old keys; hub role `hub_security_read`
-- [ ] 🤖 `authentik_audit`: view-only `home-mcp-audit` service account (blueprint), token generated on deploy
-- [ ] 🤖 `exposure_check`: weekly hub-side nmap of hub + site WAN IPs, TLS expiry; `exposure-check-now` voice job
-- [ ] 🤖 `security_summary` + Dependabot version updates (`.github/dependabot.yml`)
-- [ ] 🧑 Create the alerts-read-only GitHub token → SSM `/home-platform/github/security-read-token` (ADR-0024, "Bill's steps")
-- [ ] 🧑 Turn on Dependabot alerts and CodeQL default setup on all three repos
-- [ ] 🧑 Approve Terraform, then Platform deploy (hub + NUCs)
-- [ ] 🤖 Verify each tool live by voice/chat; update the weekly review's prompt to use them
+- [x] 🤖 `update_status`: pending OS updates / reboots / AL2023 release on hub + NUCs (host timer → node-exporter textfile), OS end of life, RouterOS/RouterBOOT, DSM, SG300 firmware (snmp_exporter `versions.yml`), compose image tags vs registries
+- [x] 🤖 `security_events`: 7–30 day Loki rollups (SSH, fail2ban, device logins/config changes, home-mcp audit, Traefik 4xx/5xx); Traefik access log on (4xx/5xx only)
+- [x] 🤖 `github_security`: Dependabot / secret-scanning / code-scanning alerts + `main` rules
+- [x] 🤖 `aws_posture`: GuardDuty + Access Analyzer (Terraform), open security groups, root/no-MFA sign-ins, old keys; hub role `hub_security_read`
+- [x] 🤖 `authentik_audit`: view-only `home-mcp-audit` service account (blueprint), token generated on deploy
+- [x] 🤖 `exposure_check`: weekly hub-side nmap of hub + site WAN IPs, TLS expiry; `exposure-check-now` voice job
+- [x] 🤖 `security_summary` + Dependabot version updates (`.github/dependabot.yml`)
+- [x] 🧑 Create the alerts-read-only GitHub token → SSM `/home-platform/github/security-read-token` (ADR-0024, "Bill's steps")
+- [ ] 🧑 Turn on Dependabot alerts and CodeQL default setup on all three repos (alerts still off on todo-app as of 2026-10-02)
+- [ ] 🧑 Turn on **Dependabot security updates** on all three repos — opens fix PRs for hue's and the templates' vulnerable dependencies
+- [ ] 🧑 Add a passkey to `akadmin` (the only Authentik admin, no MFA); optionally `jmojo`
+- [ ] 🧑 Rotate the `home-platform-admin` IAM access key (95+ days old)
+- [ ] 🧑 Optional: sw-10g RouterOS 6.49.20 → 6.49.22 + RouterBOOT (NYC LAN down ~8 min); hub Amazon Linux release update (`dnf upgrade --releasever`)
+- [x] 🧑 Approve Terraform, then Platform deploy (hub + NUCs)
+- [x] 🤖 Verify each tool live by voice/chat; update the weekly review's prompt to use them — done 2026-10-02 (#28 deployed; all seven answer live; the scheduled Sunday review uses them)
+- [x] 🤖 Follow-ups from the first live results, 2026-10-02: Authentik 2026.2.6 → 2026.2.7 → 2026.5.7 → 2026.8.3 one line at a time (#38, #39, #42); image bumps (#38); false "other user" count fixed (#41); Promtail 3.6.8 shipped without journal support and stopped all container logs ~30 min (#43 rollback), then replaced by Grafana Alloy v1.20.1 (#44); template version updates (#45); both NUCs rebooted for security updates; both RB5009s upgraded to RouterOS 7.24.5 + RouterBOOT
 - [ ] 🧑 Decide on the IMDS finding (app containers can reach the hub role's credentials — ADR-0024 "Found while designing this")
 
 ## Future / Deferred
