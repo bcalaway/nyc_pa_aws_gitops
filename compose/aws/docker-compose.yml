@@ -135,7 +135,10 @@ services:
       - "3100:3100"
 
   promtail:
-    image: grafana/promtail:3.6.8
+    # Held at 3.3.2: 3.6.8 (#38, 2026-10-02) stopped shipping logs to Loki
+    # the moment it deployed. Promtail is end of life upstream; the fix is
+    # moving to Grafana Alloy, not chasing Promtail versions.
+    image: grafana/promtail:3.3.2
     container_name: promtail
     restart: unless-stopped
     depends_on:
