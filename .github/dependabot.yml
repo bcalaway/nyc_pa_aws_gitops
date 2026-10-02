@@ -19,6 +19,12 @@ updates:
     groups:
       images-minor-patch:
         update-types: [minor, patch]
+        # Authentik gets its own PR: it must be upgraded one release line
+        # at a time (2026.2 -> 2026.5 -> 2026.8, latest patch of each
+        # first), and its "minor" bumps are really those release lines.
+        # Dependabot always proposes the newest, so step through by hand
+        # when its PR skips a line (docs/gotchas.md, Authentik).
+        exclude-patterns: ["*goauthentik*"]
     ignore:
       # Postgres majors need a dump/restore (pg_upgrade), not a tag bump;
       # update_status reports the end-of-life date instead.
@@ -44,6 +50,11 @@ updates:
     groups:
       base-images:
         update-types: [minor, patch]
+    ignore:
+      # postgres-backup must match the server's major (16): a newer
+      # pg_dumpall writes dumps the older server can't restore (#31).
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
 
   # Python requirements of those images.
   - package-ecosystem: pip
