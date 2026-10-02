@@ -1,7 +1,7 @@
 """recent_logs: read-only container logs from Loki, for debugging by chat or voice.
 
-Every container on the hub logs through journald, and Promtail ships it to
-Loki with a `container` label (compose/aws/promtail). This module only
+Every container on the hub logs through journald, and Alloy ships it to
+Loki with a `container` label (compose/aws/alloy). This module only
 queries Loki over the stack's internal network, so it adds no collection
 and no credentials.
 
@@ -31,7 +31,7 @@ MAX_LINE_CHARS = 400
 CONTAINERS = {
     "authentik-server", "authentik-worker", "traefik", "home-mcp", "postgres",
     "postgres-backup", "grafana", "uptime-kuma", "umami", "prometheus", "loki",
-    "promtail", "redis", "cost-exporter", "rachio-exporter", "todo-app", "hue",
+    "alloy", "redis", "cost-exporter", "rachio-exporter", "todo-app", "hue",
 }
 # Short names Bill might say.
 ALIASES = {

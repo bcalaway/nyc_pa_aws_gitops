@@ -40,7 +40,7 @@ USER_AGENT = "home-mcp update_status (github.com/bcalaway/nyc_pa_aws_gitops)"
 
 # Images whose release line itself is finished, independent of tag numbers.
 IMAGE_NOTES = {
-    "grafana/promtail": "Promtail is deprecated and Grafana has ended support for it; plan a move to Grafana Alloy",
+    "grafana/promtail": "Promtail is end of life; this platform moved to Grafana Alloy, so it shouldn't be pinned anywhere",
 }
 # Images whose major version is a product line with an end-of-life date
 # (endoflife.date names Postgres cycles by major version, matching the tag).
