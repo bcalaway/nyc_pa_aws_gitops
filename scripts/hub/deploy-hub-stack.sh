@@ -151,7 +151,8 @@ docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Status}}'
 # Host-level units (ADR-0024): pending-update metrics + weekly exposure
 # check. After `up` so the backup-metrics volume they write into exists.
 echo "Installing host units..."
-bash "$STAGING/host/install.sh" "$STAGING"
+bash "$STAGING/host/install.sh" "$STAGING" | tee "$STAGING/.host-install.log"
+boot=$(sed -n 's/^Boot units: //p' "$STAGING/.host-install.log" | tail -1)
 
 # One-line summary for the run's `result` annotation, which home-mcp's
 # last_deploys reads back (GitHub's log downloads aren't reachable from
@@ -166,4 +167,4 @@ done < <(docker inspect -f '{{.Name}}{{"\t"}}{{.State.Status}}{{"\t"}}{{.State.S
            $(docker compose ps -aq) | sed 's#^/##')
 join() { [ $# -gt 0 ] || return 0; printf '%s\n' "$@" | paste -sd, - | sed 's/,/, /g'; }
 r=$(join "${restarted[@]}"); n=$(join "${stopped[@]}")
-echo "RESULT: hub deployed (Compose ${compose_ver}): $(docker compose ps -q | wc -l) running; restarted: ${r:-none}; not running: ${n:-none}."
+echo "RESULT: hub deployed (Compose ${compose_ver}): $(docker compose ps -q | wc -l) running; restarted: ${r:-none}; not running: ${n:-none}.${boot:+ Boot units: ${boot}.}"

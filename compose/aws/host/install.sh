@@ -133,3 +133,23 @@ journalctl -u imds-guard.service --since "-5min" -o cat --no-pager | grep '^imds
 # Populate update metrics right away instead of waiting for the first tick.
 systemctl start --no-block host-update-metrics.service
 echo "Host units installed: host-update-metrics.timer, exposure-check.timer, imds-guard.timer"
+
+# Boot safety (ADR-0026's resize is a stop/start): host-level services that
+# predate Git tracking (docs/platform-reference.md) must come back on their
+# own after a reboot -- above all wg0, since SSH to the hub only works over
+# WireGuard. `enable` without --now changes boot behaviour only; nothing
+# running is restarted. Units that don't exist on this host are skipped.
+boot_ok=() boot_fixed=() boot_missing=()
+for u in docker.service wg-quick@wg0.service rsyslog.service fail2ban.service \
+         amazon-ssm-agent.service dnf-automatic.timer; do
+  if ! systemctl cat "$u" >/dev/null 2>&1; then
+    boot_missing+=("$u"); continue
+  fi
+  if [ "$(systemctl is-enabled "$u" 2>/dev/null)" = enabled ]; then
+    boot_ok+=("${u%.service}")
+  else
+    systemctl enable "$u" >/dev/null 2>&1 && boot_fixed+=("${u%.service}") || boot_missing+=("$u (enable failed)")
+  fi
+done
+j() { [ $# -gt 0 ] && printf '%s\n' "$@" | paste -sd, - | sed 's/,/, /g' || echo none; }
+echo "Boot units: enabled: $(j "${boot_ok[@]}"); newly enabled: $(j "${boot_fixed[@]}"); missing: $(j "${boot_missing[@]}")"
