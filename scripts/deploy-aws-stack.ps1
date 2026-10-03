@@ -101,9 +101,10 @@ ssh -i $sshKey $ec2Host "sudo install -d -m 0755 /var/lib/home-platform/exposure
 Write-Host "Starting stack..."
 # Promtail -> Alloy (2026-10-02): remove the old container first; see deploy-hub-stack.sh.
 ssh -i $sshKey $ec2Host "docker rm -f promtail >/dev/null 2>&1 || true"
-# HUP Prometheus (config reload) only if it was already running before `up`;
-# a HUP that lands just after `up` started it kills it (see docs/gotchas.md).
-ssh -i $sshKey $ec2Host "cd $remoteDir && docker compose pull && docker compose build && t0=`$(date +%s) && docker compose up -d && s=`$(docker inspect -f '{{.State.StartedAt}}' prometheus) && if [ `"`$(date -d `"`$s`" +%s)`" -lt `"`$t0`" ]; then docker kill -s HUP prometheus >/dev/null; fi"
+# HUP Prometheus (config reload) only if it was already running before `up`,
+# and from inside the container: `docker kill` marks it manually stopped, so it
+# wouldn't come back after a reboot (see docs/gotchas.md).
+ssh -i $sshKey $ec2Host "cd $remoteDir && docker compose pull && docker compose build && t0=`$(date +%s) && docker compose up -d && s=`$(docker inspect -f '{{.State.StartedAt}}' prometheus) && if [ `"`$(date -d `"`$s`" +%s)`" -lt `"`$t0`" ]; then docker exec prometheus kill -HUP 1; fi"
 
 Write-Host "Installing host units (ADR-0024)..."
 ssh -i $sshKey $ec2Host "sudo bash $remoteDir/host/install.sh $remoteDir"

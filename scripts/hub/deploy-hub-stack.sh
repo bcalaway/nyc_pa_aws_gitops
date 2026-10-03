@@ -147,10 +147,16 @@ docker compose up -d
 # makes it re-read the file -- but only if it was already running before
 # this deploy. If `up` just (re)started it, it has read the new file anyway,
 # and a HUP that lands before Prometheus installs its signal handler kills it
-# (exit 129): that's what left Prometheus down after the 2026-10-03 resize.
+# (exit 129).
+#
+# Sent from INSIDE the container (`docker exec ... kill -HUP 1`), never with
+# `docker kill -s HUP`: Docker records any `docker kill` as a manual stop
+# (HasBeenManuallyStopped=true, even for a reload signal), so `unless-stopped`
+# then refuses to restart the container after a reboot. That's what kept
+# Prometheus down after the 2026-10-03 resize (docs/gotchas.md).
 prom_started=$(docker inspect -f '{{.State.StartedAt}}' prometheus 2>/dev/null || true)
 if [ -n "$prom_started" ] && [ "$(date -d "$prom_started" +%s 2>/dev/null || echo 0)" -lt "$DEPLOY_START" ]; then
-  docker kill -s HUP prometheus >/dev/null
+  docker exec prometheus kill -HUP 1
 else
   echo "Prometheus (re)started by this deploy; skipping the config-reload HUP."
 fi
