@@ -133,7 +133,7 @@ Live in this repo under `templates/<language>/`, not a separate GitHub template 
 
 ## GitHub repos (ADR-0030)
 
-`terraform/github/` creates and configures every registry app's repo: ruleset on `main` (PR with passing CI, no force-push or deletion), `production` environment with Bill as reviewer, `preview` for apps with previews, Dependabot security updates, secret scanning with push protection, classic OIDC subject, and (from the apply workflow) CodeQL default setup. New repos start with a README; the first PR brings the starter template. The platform repo itself is configured by hand.
+`terraform/github/` creates and configures every registry app's repo: ruleset on `main` (PR with passing CI, no force-push or deletion), `production` environment with Bill as reviewer, `preview` for apps with previews, Dependabot security updates, secret scanning with push protection, GitHub's default (immutable-ID) OIDC subject, and (from the apply workflow) CodeQL default setup. New repos start with a README; the first PR brings the starter template. The platform repo itself is configured by hand.
 
 **One-time token setup (Bill):** two fine-grained personal access tokens at github.com → Settings → Developer settings → Fine-grained tokens, each with **Repository access: All repositories** and an expiry you're happy to renew:
 
@@ -148,11 +148,11 @@ When one expires, `terraform-github.yml` fails at its "Check the … token" step
 
 ## Onboarding checklist for a new app
 
-1. [ ] Add the app to `apps/registry.yml` (step 5 below has the fields); merging creates the GitHub repo with all its settings (ADR-0030). Then a first PR in the new repo copies in `templates/<language>/` and replaces `REPLACE_WITH_APP_NAME`
+1. [ ] Add the app to `apps/registry.yml` (step 5 below has the fields); merging creates the GitHub repo with all its settings (ADR-0030). **Then add the new repo's `github_repo_id`** (`gh api repos/bcalaway/<app> --jq .id`) in a follow-up registry PR and approve its Terraform (AWS) apply: until it's there, the app's AWS roles refuse its OIDC subject and CD fails at "Configure AWS credentials". Then a first PR in the new repo copies in `templates/<language>/` and replaces `REPLACE_WITH_APP_NAME`
 2. [ ] Platform side: `database: true` in the app's `apps/registry.yml` entry — the platform deploy creates the database, role and SSM password (see Database above)
 3. [ ] Platform side: add the app's Authentik OIDC blueprint (or forward-auth middleware), store client credentials in SSM
 4. [ ] Platform side: add the app's `aws_route53_record` in `terraform/aws/tls.tf`
-5. [ ] Platform side: add the app to `apps/registry.yml` (ADR-0028) — name, `github_repo_id` (`gh api repos/bcalaway/<app> --jq .id`), `database`, `authentik`, `preview`, any `extra_ecr_repos`. Terraform builds the rest from it: ECR repo, `<app>-github-actions` role (trusts `main` + `production` only), `<app>-deploy` document, the hub role's ECR-pull/SSM-read grants and the CI role's ARNs. Check the PR's plan only adds that app's resources, merge, approve
+5. [ ] Platform side: add the app to `apps/registry.yml` (ADR-0028) — name, `github_repo_id` (once the repo exists; step 1), `database`, `authentik`, `preview`, any `extra_ecr_repos`. Terraform builds the rest from it: ECR repo, `<app>-github-actions` role (trusts `main` + `production` only), `<app>-deploy` document, the hub role's ECR-pull/SSM-read grants and the CI role's ARNs. Check the PR's plan only adds that app's resources, merge, approve
 6. [ ] Platform side (first app only): migrate `compose/aws/docker-compose.yml` onto the shared external Docker network
 7. [ ] App repo: Dockerfile with `lint`/`test`/runtime stages, Traefik labels on its `deploy/docker-compose.yml`
 8. [ ] App repo: `mem_limit` on every service in `deploy/docker-compose.yml` (the deploy rejects a fragment without one, ADR-0026); start from the template's `256m`, then resize from the Containers dashboard after a week
