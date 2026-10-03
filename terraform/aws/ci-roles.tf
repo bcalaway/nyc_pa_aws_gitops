@@ -16,10 +16,12 @@ locals {
   deploy_bucket = aws_s3_bucket.ansible_deploy.bucket
   ci_apps       = local.app_names
   preview_apps  = local.preview_app_names
-  # GitHub sends the subject in both forms depending on the claim format.
-  # Repos created by terraform/github are set to the classic one (ADR-0030),
-  # so the immutable-ID form is only trusted for older repos that have a
-  # github_repo_id in the registry.
+  # App repos' OIDC subject is GitHub's immutable-ID form
+  # (repo:bcalaway@<owner id>/<name>@<repo id>:...), trusted once the app's
+  # github_repo_id is in the registry. A ("repo", "context") customization
+  # does NOT turn it back into the classic form: tried for mkt-data
+  # (ADR-0030, PR #93) and its first CD run was refused. The classic form
+  # stays trusted too; the platform repo itself still sends it.
   repo_subjects = merge(
     { for n, a in local.apps : n => concat(
       ["repo:${var.github_org}/${n}"],

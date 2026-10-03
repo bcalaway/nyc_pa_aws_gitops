@@ -116,9 +116,9 @@ data "aws_iam_policy_document" "app_github_actions_assume" {
     # defaults to GitHub's newer immutable-ID format
     # (repo:OWNER@OWNER_ID/REPO@REPO_ID:...), unlike nyc_pa_aws_gitops's own
     # github_actions role (iam.tf), which still gets plain repo:OWNER/REPO:....
-    # Forcing the classic format per repo needs repo Administration write,
-    # which the gh CLI's PAT in SSM doesn't have; trusting both survives
-    # either way. Milestone 20 (ADR-0025): build-push runs on `main`, deploy
+    # Setting a classic-format customization doesn't change it (mkt-data,
+    # 2026-10-03), so app roles trust the immutable form via the registry's
+    # github_repo_id, plus the classic form. Milestone 20 (ADR-0025): build-push runs on `main`, deploy
     # in the approval-gated `production` environment. Pull requests
     # (previews) use <app>-github-preview instead (ci-roles.tf).
     condition {

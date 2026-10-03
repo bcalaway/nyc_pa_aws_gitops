@@ -4,11 +4,6 @@ locals {
   # Registry order kept for readability; resources are keyed by name.
   apps = { for a in local.registry.apps : a.name => {
     preview = try(a.preview, false)
-    # Repos created before this stack still use GitHub's default OIDC subject
-    # (immutable IDs) and list github_repo_id in the registry; repos created
-    # here get the classic subject (repo:bcalaway/<name>:...), which is all
-    # their AWS roles trust (terraform/aws/ci-roles.tf, repo_subjects).
-    legacy_oidc = try(a.github_repo_id, null) != null
     # The CI check a PR must pass: the template's caller job is `ci`.
     required_check        = try(a.required_check, "ci / Build, test, lint")
     required_check_app_id = try(a.required_check_app_id, null)
@@ -153,12 +148,14 @@ resource "github_repository_environment" "preview" {
   environment = "preview"
 }
 
-# OIDC subject format: classic for repos created here, GitHub's default left
-# alone for the older ones (see legacy_oidc above).
+# OIDC subject format: GitHub's default (immutable IDs) for every app. A
+# ("repo", "context") customization was meant to give new repos the classic
+# subject, but GitHub still sent repo:bcalaway@<owner id>/mkt-data@<repo id>
+# (2026-10-03), so the AWS roles trust that form via github_repo_id instead
+# (apps/registry.yml). Kept as a resource so the setting stays pinned.
 resource "github_actions_repository_oidc_subject_claim_customization_template" "app" {
   for_each = local.apps
 
-  repository         = github_repository.app[each.key].name
-  use_default        = each.value.legacy_oidc
-  include_claim_keys = each.value.legacy_oidc ? null : ["repo", "context"]
+  repository  = github_repository.app[each.key].name
+  use_default = true
 }
