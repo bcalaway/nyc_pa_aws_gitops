@@ -175,10 +175,15 @@ jobs:
           # is in the hub's /var/lib/amazon/ssm/.../stdout for this command id.
           STATUS=$(jq -r '.Status' "$RUNNER_TEMP/$SCRIPT.json")
           echo "- $LABEL: **$STATUS**" >> "$GITHUB_STEP_SUMMARY"
+          # The script's last `RESULT:` line becomes this step's `result`
+          # annotation, which home-mcp's last_deploys reads back. (If SSM's
+          # 24,000-character cut drops it, the label-only fallback is used.)
+          RESULT=$(jq -r '.StandardOutputContent' "$RUNNER_TEMP/$SCRIPT.json" | sed -n 's/^RESULT: //p' | tail -1)
           if [ "$STATUS" != "Success" ]; then
-            echo "::error::$LABEL failed: $STATUS"
+            echo "::error title=result::$LABEL failed ($STATUS)${RESULT:+: $RESULT}"
             exit 1
           fi
+          echo "::notice title=result::${RESULT:-$LABEL succeeded}"
           EOF
           chmod +x "$RUNNER_TEMP/run-on-hub.sh"
 

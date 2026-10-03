@@ -136,8 +136,11 @@ docker compose config --quiet
 # first so Alloy also starts from Promtail's final read positions. No-op
 # once it's gone.
 docker rm -f promtail >/dev/null 2>&1 || true
-docker compose pull
+# --quiet: pull progress is most of the output, and SSM keeps only the first
+# 24,000 characters, which would cut off the RESULT line at the end.
+docker compose pull --quiet
 docker compose build
+DEPLOY_START=$(date +%s)
 docker compose up -d
 # `up` doesn't recreate Prometheus when only prometheus.yml changed (it's a
 # bind mount), so the running process keeps the old scrape jobs. SIGHUP
@@ -149,3 +152,18 @@ docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Status}}'
 # check. After `up` so the backup-metrics volume they write into exists.
 echo "Installing host units..."
 bash "$STAGING/host/install.sh" "$STAGING"
+
+# One-line summary for the run's `result` annotation, which home-mcp's
+# last_deploys reads back (GitHub's log downloads aren't reachable from
+# Claude's sessions, annotations are): Compose version, what (re)started in
+# this deploy, and anything not running.
+restarted=() stopped=()
+while IFS=$'\t' read -r name state started; do
+  [ -n "$name" ] || continue
+  [ "$state" = running ] || stopped+=("$name ($state)")
+  [ "$(date -d "$started" +%s 2>/dev/null || echo 0)" -ge "$DEPLOY_START" ] && restarted+=("$name")
+done < <(docker inspect -f '{{.Name}}{{"\t"}}{{.State.Status}}{{"\t"}}{{.State.StartedAt}}' \
+           $(docker compose ps -aq) | sed 's#^/##')
+join() { [ $# -gt 0 ] || return 0; printf '%s\n' "$@" | paste -sd, - | sed 's/,/, /g'; }
+r=$(join "${restarted[@]}"); n=$(join "${stopped[@]}")
+echo "RESULT: hub deployed (Compose ${compose_ver}): $(docker compose ps -q | wc -l) running; restarted: ${r:-none}; not running: ${n:-none}."

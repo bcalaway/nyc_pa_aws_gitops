@@ -6,8 +6,10 @@ queries Loki over the stack's internal network, so it adds no collection
 and no credentials.
 
 Guard rails, since log lines go into a Claude conversation:
-- containers: an allowlist of hub services, plus per-PR preview containers
-  (<app>-pr<n>-<service>-1, ADR-0023). No free-form LogQL
+- containers: any container Loki has seen in the last 24 hours (so a new
+  service such as cadvisor or airflow is covered as soon as it logs), plus
+  a fixed fallback list if Loki's label API is unreachable, and per-PR
+  preview containers (<app>-pr<n>-<service>-1, ADR-0023). No free-form LogQL
 - filter text: a plain substring, stripped of anything that could change
   the query
 - secrets: values after keys like token/password/secret/code/state/cookie/
@@ -32,6 +34,7 @@ CONTAINERS = {
     "authentik-server", "authentik-worker", "traefik", "home-mcp", "postgres",
     "postgres-backup", "grafana", "uptime-kuma", "umami", "prometheus", "loki",
     "alloy", "redis", "cost-exporter", "rachio-exporter", "todo-app", "hue",
+    "cadvisor", "node-exporter", "snmp-exporter", "postgres-exporter", "redis-exporter",
 }
 # Short names Bill might say.
 ALIASES = {
@@ -57,12 +60,40 @@ def redact(line: str) -> str:
     return line
 
 
-def _resolve(container: str) -> str | None:
+KNOWN_CACHE_SECONDS = 300
+CONTAINER_NAME = re.compile(r"[a-z0-9][a-z0-9_.-]{0,63}")
+_known: dict = {"at": 0.0, "names": set()}
+
+
+async def _known_containers() -> set[str]:
+    """Container names in Loki over the last 24 hours, unioned with the fixed
+    list. Cached; falls back to the fixed list if Loki can't be asked."""
+    if time.monotonic() - _known["at"] < KNOWN_CACHE_SECONDS and _known["names"]:
+        return _known["names"]
+    names = set(CONTAINERS)
+    end = time.time_ns()
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(
+                f"{LOKI_URL}/loki/api/v1/label/container/values",
+                params={"start": end - MAX_MINUTES * 60 * 1_000_000_000, "end": end},
+                timeout=10,
+            )
+            r.raise_for_status()
+            names |= {n for n in r.json().get("data", []) if CONTAINER_NAME.fullmatch(n)}
+    except (httpx.HTTPError, ValueError):
+        return names
+    _known.update(at=time.monotonic(), names=names)
+    return names
+
+
+async def _resolve(container: str) -> tuple[str | None, set[str]]:
     c = container.strip().lower()
     c = ALIASES.get(c, c)
-    if c in CONTAINERS or PREVIEW_CONTAINER.fullmatch(c):
-        return c
-    return None
+    known = await _known_containers()
+    if c in known or PREVIEW_CONTAINER.fullmatch(c):
+        return c, known
+    return None, known
 
 
 def _shorten(raw: str) -> str:
@@ -85,10 +116,11 @@ def _shorten(raw: str) -> str:
 
 
 async def recent_logs(container: str, minutes: int = 30, contains: str = "") -> str:
-    name = _resolve(container)
+    name, known = await _resolve(container)
     if not name:
+        listed = sorted(n for n in known if not PREVIEW_CONTAINER.fullmatch(n))
         return (
-            f"I can read logs for: {', '.join(sorted(CONTAINERS))}, "
+            f"I can read logs for: {', '.join(listed)}, "
             "and preview containers like todo-app-pr7-app-1."
         )
     minutes = max(1, min(int(minutes or 30), MAX_MINUTES))
