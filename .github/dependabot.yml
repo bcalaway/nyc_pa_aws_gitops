@@ -55,6 +55,10 @@ updates:
       # pg_dumpall writes dumps the older server can't restore (#31).
       - dependency-name: postgres
         update-types: [version-update:semver-major]
+      # The voice-worker agent's Node major tracks hue's frontend (node:24);
+      # move both together by hand. node:26 broke the agent build (#33).
+      - dependency-name: node
+        update-types: [version-update:semver-major]
 
   # Python requirements of those images.
   - package-ecosystem: pip
