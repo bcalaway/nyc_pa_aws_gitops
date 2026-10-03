@@ -18,7 +18,8 @@ locals {
   # to guess.
   app_names = [for a in local.registry.apps : a.name]
   apps = { for a in local.registry.apps : a.name => {
-    github_repo_id  = tostring(a.github_repo_id)
+    # Only repos created before terraform/github have one (ADR-0030).
+    github_repo_id  = try(tostring(a.github_repo_id), "")
     database        = try(a.database, false)
     authentik       = try(a.authentik, false)
     preview         = try(a.preview, false)
@@ -142,8 +143,8 @@ resource "aws_iam_role" "app_github_actions" {
       error_message = "apps/registry.yml: app name \"${each.key}\" must be lowercase letters, digits and hyphens (3-32 chars)."
     }
     precondition {
-      condition     = can(regex("^[0-9]+$", each.value.github_repo_id))
-      error_message = "apps/registry.yml: ${each.key}'s github_repo_id must be the numeric repo ID (gh api repos/bcalaway/${each.key} --jq .id)."
+      condition     = can(regex("^[0-9]*$", each.value.github_repo_id))
+      error_message = "apps/registry.yml: ${each.key}'s github_repo_id, when set, must be the numeric repo ID."
     }
   }
 }

@@ -1,13 +1,17 @@
 # Apps registry (ADR-0028): every app the platform hosts, and what it needs.
 #
-# Terraform reads this file (terraform/aws/apps.tf, local.apps) and creates,
-# per app: the ECR repository, the <app>-github-actions OIDC role, the
+# Terraform reads this file twice. terraform/github (ADR-0030) creates the
+# GitHub repo with the platform's standard settings: ruleset on main, the
+# `production` (and `preview`) environment, Dependabot security updates and
+# secret scanning, the OIDC subject format. terraform/aws (local.apps)
+# creates, per app: the ECR repository, the <app>-github-actions OIDC role, the
 # <app>-deploy SSM document, the apps/<app>/ staging prefix grant, the hub
 # role's ECR-pull and SSM-read grants, and -- with preview: true -- the
 # <app>-preview ECR repo and <app>-github-preview role (ADR-0023, ADR-0025).
 #
-# Adding an app: append an entry, open a PR, check the Terraform plan only
-# adds that app's resources, merge, approve. Removing one stays a deliberate
+# Adding an app: append an entry, open a PR, check both Terraform plans only
+# add that app's resources, merge, approve both applies. The repo starts
+# with a README; its first PR brings in the starter template. Removing one stays a deliberate
 # manual step (ADR-0028) -- deleting an entry here would destroy its ECR repo
 # and images.
 #
@@ -19,10 +23,10 @@
 #   name             GitHub repo name under bcalaway/, and the app's name
 #                    everywhere (ECR repo, roles, SSM paths, documents).
 #                    Lowercase letters, digits and hyphens.
-#   github_repo_id   Numeric repo ID, for GitHub's immutable-ID OIDC subject
-#                    (repo:bcalaway@37939549/<name>@<id>, the default for new
-#                    repos -- see apps.tf). Get it with:
-#                      gh api repos/bcalaway/<name> --jq .id
+#   github_repo_id   Only for repos that existed before terraform/github: the
+#                    numeric repo ID, because they keep GitHub's default
+#                    immutable-ID OIDC subject. Leave it out for new apps;
+#                    their repos get the classic subject instead.
 #   database         true: the app has its own Postgres database; the hub
 #                    reads /home-platform/postgres/<name>-password at deploy.
 #   authentik        true: the app is an Authentik OIDC client; the hub reads
@@ -31,6 +35,11 @@
 #                    without its Authentik secrets.
 #   extra_ecr_repos  Optional. More ECR repos the app's CI pushes to and the
 #                    hub pulls from (hue's NUC agent image).
+#   required_check   Optional. The status check main's ruleset requires;
+#                    default "ci / Build, test, lint" (the template's CI job).
+#   required_check_app_id  Optional. GitHub App the check must come from.
+#   ruleset_name     Optional. Default "protect-main"; set only to keep an
+#                    existing ruleset's name.
 #
 # Every app's hub deploy also reads /home-platform/<name>/* by path.
 #
@@ -46,6 +55,7 @@ apps:
     database: true
     authentik: true
     preview: true
+    ruleset_name: main-protection
 
   - name: hue
     github_repo_id: 1340907446
@@ -55,6 +65,9 @@ apps:
     # The NUC agent (Milestone 12): built by hue's CI, relayed to the NUCs
     # by Ansible on the hub (ansible/roles/hue-agent), not by app-deploy.
     extra_ecr_repos: [hue-agent]
+    # hue's CI caller job is named for its hub component.
+    required_check: "hub / Build, test, lint"
+    required_check_app_id: 15368
 
 platform_databases:
   # Airflow's metadata database (ADR-0027, compose/aws/data.yml).
