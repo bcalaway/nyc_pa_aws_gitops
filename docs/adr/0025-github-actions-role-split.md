@@ -56,5 +56,5 @@ Three PRs, each safe on its own:
 - The 21 parameters are no longer created by Terraform. A rebuilt account would need them created by hand (they always needed real values put by hand anyway).
 - **Old state versions still hold the secret values.** The state bucket is versioned. Noncurrent versions from before #61 contain them, readable by anyone with `s3:GetObjectVersion` on the bucket (today, only account admins). Expire or delete them, or rotate the secrets over time.
 - Terraform PR plans can't take the state lock. Two plans can overlap harmlessly; applies still lock.
-- A second previewed app needs its own `<app>-github-preview` role and `<app>-preview` repository: add it to `local.preview_apps` and repeat the role block in `ci-roles.tf`.
+- A second previewed app needs its own `<app>-github-preview` role and `<app>-preview` repository. Since ADR-0028 that is `preview: true` in `apps/registry.yml`; the role block is generated.
 - Changing a hub script that is bundled into a document (`app-deploy.sh`, `preview-*.sh`, `preview-compose.py`) is a Terraform change. `terraform.yml` triggers on those paths.

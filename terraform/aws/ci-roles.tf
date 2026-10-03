@@ -3,7 +3,9 @@
 #   home-platform-github-actions  production deploys + main (iam.tf)   can change AWS
 #   home-platform-github-plan     platform-repo pull requests          read-only, PR plans
 #   <app>-github-actions          app main + production deploys        build, push, run <app>-deploy
-#   todo-app-github-preview       todo-app pull requests + `preview`   preview images, run preview docs
+#   <app>-github-preview          app pull requests + `preview`        preview images, run preview docs
+#
+# Which apps get which is apps/registry.yml (ADR-0028, locals in apps.tf).
 #
 # The hub runs app work only through fixed SSM documents below: the script
 # lives here (from scripts/hub/), and a workflow can pass only the few
@@ -12,14 +14,16 @@
 
 locals {
   deploy_bucket = aws_s3_bucket.ansible_deploy.bucket
-  ci_apps       = ["todo-app", "hue"]
-  preview_apps  = ["todo-app"]
+  ci_apps       = local.app_names
+  preview_apps  = local.preview_app_names
   # GitHub sends the subject in both forms depending on the claim format.
-  repo_subjects = {
-    "todo-app"          = ["repo:${var.github_org}/todo-app", "repo:bcalaway@37939549/todo-app@1313063209"]
-    "hue"               = ["repo:${var.github_org}/hue", "repo:bcalaway@37939549/hue@1340907446"]
-    "nyc_pa_aws_gitops" = ["repo:${var.github_org}/${var.github_repo}"]
-  }
+  repo_subjects = merge(
+    { for n, a in local.apps : n => [
+      "repo:${var.github_org}/${n}",
+      "repo:${var.github_org}@${local.github_owner_id}/${n}@${a.github_repo_id}",
+    ] },
+    { "nyc_pa_aws_gitops" = ["repo:${var.github_org}/${var.github_repo}"] },
+  )
 
   # One SSM Command document: write the bundled scripts to a private temp
   # dir, run the entry script with the arguments, clean up, keep the exit
@@ -151,15 +155,18 @@ data "aws_iam_policy_document" "app_deploy_document" {
 
 # Preview images get their own repository, so a role usable from a pull
 # request can never overwrite a production image tag.
-resource "aws_ecr_repository" "todo_app_preview" {
+resource "aws_ecr_repository" "app_preview" {
+  for_each   = toset(local.preview_apps)
   depends_on = [time_sleep.wait_for_github_actions_m20_policy]
 
-  name = "todo-app-preview"
-  tags = { Name = "todo-app-preview" }
+  name = "${each.key}-preview"
+  tags = { Name = "${each.key}-preview" }
 }
 
-resource "aws_ecr_lifecycle_policy" "todo_app_preview" {
-  repository = aws_ecr_repository.todo_app_preview.name
+resource "aws_ecr_lifecycle_policy" "app_preview" {
+  for_each = toset(local.preview_apps)
+
+  repository = aws_ecr_repository.app_preview[each.key].name
   policy = jsonencode({
     rules = [{
       rulePriority = 1
@@ -175,7 +182,9 @@ resource "aws_ecr_lifecycle_policy" "todo_app_preview" {
   })
 }
 
-data "aws_iam_policy_document" "todo_app_preview_assume" {
+data "aws_iam_policy_document" "app_preview_assume" {
+  for_each = toset(local.preview_apps)
+
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -196,7 +205,7 @@ data "aws_iam_policy_document" "todo_app_preview_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values = flatten([for s in local.repo_subjects["todo-app"] : [
+      values = flatten([for s in local.repo_subjects[each.key] : [
         "${s}:pull_request",
         "${s}:environment:preview",
       ]])
@@ -204,16 +213,19 @@ data "aws_iam_policy_document" "todo_app_preview_assume" {
   }
 }
 
-resource "aws_iam_role" "todo_app_preview" {
+resource "aws_iam_role" "app_preview" {
+  for_each   = toset(local.preview_apps)
   depends_on = [time_sleep.wait_for_github_actions_m20_policy]
 
-  name               = "todo-app-github-preview"
-  assume_role_policy = data.aws_iam_policy_document.todo_app_preview_assume.json
+  name               = "${each.key}-github-preview"
+  assume_role_policy = data.aws_iam_policy_document.app_preview_assume[each.key].json
 
-  tags = { Name = "todo-app-github-preview" }
+  tags = { Name = "${each.key}-github-preview" }
 }
 
-data "aws_iam_policy_document" "todo_app_preview_permissions" {
+data "aws_iam_policy_document" "app_preview_permissions" {
+  for_each = toset(local.preview_apps)
+
   statement {
     effect    = "Allow"
     actions   = ["ecr:GetAuthorizationToken"]
@@ -226,13 +238,13 @@ data "aws_iam_policy_document" "todo_app_preview_permissions" {
       "ecr:BatchCheckLayerAvailability", "ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage",
       "ecr:PutImage", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload",
     ]
-    resources = [aws_ecr_repository.todo_app_preview.arn]
+    resources = [aws_ecr_repository.app_preview[each.key].arn]
   }
 
   statement {
     effect    = "Allow"
     actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.ansible_deploy.arn}/apps/todo-app/previews/*"]
+    resources = ["${aws_s3_bucket.ansible_deploy.arn}/apps/${each.key}/previews/*"]
   }
 
   statement {
@@ -245,8 +257,8 @@ data "aws_iam_policy_document" "todo_app_preview_permissions" {
     effect  = "Allow"
     actions = ["ssm:SendCommand"]
     resources = [
-      aws_ssm_document.preview_up["todo-app"].arn,
-      aws_ssm_document.preview_down["todo-app"].arn,
+      aws_ssm_document.preview_up[each.key].arn,
+      aws_ssm_document.preview_down[each.key].arn,
       aws_instance.hub.arn,
     ]
   }
@@ -259,10 +271,33 @@ data "aws_iam_policy_document" "todo_app_preview_permissions" {
   }
 }
 
-resource "aws_iam_role_policy" "todo_app_preview" {
-  name   = "todo-app-github-preview"
-  role   = aws_iam_role.todo_app_preview.id
-  policy = data.aws_iam_policy_document.todo_app_preview_permissions.json
+resource "aws_iam_role_policy" "app_preview" {
+  for_each = toset(local.preview_apps)
+
+  name   = "${each.key}-github-preview"
+  role   = aws_iam_role.app_preview[each.key].id
+  policy = data.aws_iam_policy_document.app_preview_permissions[each.key].json
+}
+
+# Migration from the hand-written todo-app preview blocks (ADR-0028).
+moved {
+  from = aws_ecr_repository.todo_app_preview
+  to   = aws_ecr_repository.app_preview["todo-app"]
+}
+
+moved {
+  from = aws_ecr_lifecycle_policy.todo_app_preview
+  to   = aws_ecr_lifecycle_policy.app_preview["todo-app"]
+}
+
+moved {
+  from = aws_iam_role.todo_app_preview
+  to   = aws_iam_role.app_preview["todo-app"]
+}
+
+moved {
+  from = aws_iam_role_policy.todo_app_preview
+  to   = aws_iam_role_policy.app_preview["todo-app"]
 }
 
 # ---------------------------------------------------------------- PR plans

@@ -1,0 +1,51 @@
+# Apps registry (ADR-0028): every app the platform hosts, and what it needs.
+#
+# Terraform reads this file (terraform/aws/apps.tf, local.apps) and creates,
+# per app: the ECR repository, the <app>-github-actions OIDC role, the
+# <app>-deploy SSM document, the apps/<app>/ staging prefix grant, the hub
+# role's ECR-pull and SSM-read grants, and -- with preview: true -- the
+# <app>-preview ECR repo and <app>-github-preview role (ADR-0023, ADR-0025).
+#
+# Adding an app: append an entry, open a PR, check the Terraform plan only
+# adds that app's resources, merge, approve. Removing one stays a deliberate
+# manual step (ADR-0028) -- deleting an entry here would destroy its ECR repo
+# and images.
+#
+# A list, not a map, on purpose: some generated lists (the Access Analyzer
+# archive rule's role ARNs) are order-sensitive, and list order keeps them
+# stable as apps are appended. Append new apps at the end.
+#
+# Fields:
+#   name             GitHub repo name under bcalaway/, and the app's name
+#                    everywhere (ECR repo, roles, SSM paths, documents).
+#                    Lowercase letters, digits and hyphens.
+#   github_repo_id   Numeric repo ID, for GitHub's immutable-ID OIDC subject
+#                    (repo:bcalaway@37939549/<name>@<id>, the default for new
+#                    repos -- see apps.tf). Get it with:
+#                      gh api repos/bcalaway/<name> --jq .id
+#   database         true: the app has its own Postgres database; the hub
+#                    reads /home-platform/postgres/<name>-password at deploy.
+#   authentik        true: the app is an Authentik OIDC client; the hub reads
+#                    /home-platform/authentik/<name>-client-id and -secret.
+#   preview          true: per-PR previews (ADR-0023). The app must run
+#                    without its Authentik secrets.
+#   extra_ecr_repos  Optional. More ECR repos the app's CI pushes to and the
+#                    hub pulls from (hue's NUC agent image).
+#
+# Every app's hub deploy also reads /home-platform/<name>/* by path.
+
+apps:
+  - name: todo-app
+    github_repo_id: 1313063209
+    database: true
+    authentik: true
+    preview: true
+
+  - name: hue
+    github_repo_id: 1340907446
+    database: true
+    authentik: true
+    preview: false
+    # The NUC agent (Milestone 12): built by hue's CI, relayed to the NUCs
+    # by Ansible on the hub (ansible/roles/hue-agent), not by app-deploy.
+    extra_ecr_repos: [hue-agent]

@@ -4,8 +4,11 @@ on:
   pull_request:
     paths:
       - 'terraform/**'
+      # Read by Terraform with yamldecode() (ADR-0028, terraform/aws/apps.tf)
+      - 'apps/registry.yml'
       # Bundled into the hub's SSM documents (terraform/aws/ci-roles.tf)
       - 'scripts/hub/app-deploy.sh'
+      - 'scripts/hub/compose-mem-check.py'
       - 'scripts/hub/preview-up.sh'
       - 'scripts/hub/preview-compose.py'
       - 'scripts/hub/preview-down.sh'
@@ -14,8 +17,11 @@ on:
       - main
     paths:
       - 'terraform/**'
+      # Read by Terraform with yamldecode() (ADR-0028, terraform/aws/apps.tf)
+      - 'apps/registry.yml'
       # Bundled into the hub's SSM documents (terraform/aws/ci-roles.tf)
       - 'scripts/hub/app-deploy.sh'
+      - 'scripts/hub/compose-mem-check.py'
       - 'scripts/hub/preview-up.sh'
       - 'scripts/hub/preview-compose.py'
       - 'scripts/hub/preview-down.sh'

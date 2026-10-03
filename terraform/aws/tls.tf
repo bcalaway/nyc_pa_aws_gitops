@@ -116,8 +116,9 @@ resource "aws_iam_role_policy" "hub_ansible_deploy_read" {
 # App deploy support (ADR-0019, apps.tf) -- the hub-side deploy script
 # (.github/workflows/app-deploy.yml) runs as this role, not the GitHub
 # Actions workflow's own role, so it needs its own ECR pull access and its
-# own read access to each app's secrets. Grows by one block of statements
-# per app, same pattern as the SSM router-secrets statement above.
+# own read access to each app's secrets. One set of statements per app in
+# apps/registry.yml (ADR-0028); the NUC relays below (hue-agent,
+# mopeka-exporter, voice-worker) are listed by hand.
 data "aws_iam_policy_document" "hub_app_deploy" {
   statement {
     effect    = "Allow"
@@ -125,63 +126,46 @@ data "aws_iam_policy_document" "hub_app_deploy" {
     resources = ["*"]
   }
 
-  statement {
-    effect    = "Allow"
-    actions   = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]
-    resources = [aws_ecr_repository.todo_app.arn, aws_ecr_repository.todo_app_preview.arn]
+  # Image pulls: the app's own repositories plus its preview repository.
+  # Extra repos cover NUC relays too -- hue-agent is NOT deployed by
+  # app-deploy.yml at all; Ansible on this hub (ansible/roles/hue-agent)
+  # pulls it with this role's credentials and docker save/scp/loads it onto
+  # the NUC, which has no AWS credentials of its own.
+  dynamic "statement" {
+    for_each = local.app_names
+    content {
+      effect  = "Allow"
+      actions = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]
+      resources = concat(
+        [for r in local.app_repo_names[statement.value] : aws_ecr_repository.app[r].arn],
+        local.apps[statement.value].preview ? [aws_ecr_repository.app_preview[statement.value].arn] : [],
+      )
+    }
   }
 
-  # Secret injection at deploy time (see app-deploy.yml's header comment
-  # for the full SSM-path-to-env-var convention) -- scoped to exactly the
-  # same parameter set todo-app's own GitHub Actions role can read
-  # (apps.tf), since both roles need it for the same reason: this app's
-  # own credentials, nothing broader.
-  statement {
-    effect    = "Allow"
-    actions   = ["ssm:GetParametersByPath"]
-    resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/todo-app/*"]
+  # Secret injection at deploy time (see app-deploy.yml's header comment for
+  # the SSM-path-to-env-var convention): the app's own /home-platform/<app>/
+  # tree (for hue this also covers Ansible's read of the site bridge keys)...
+  dynamic "statement" {
+    for_each = local.app_names
+    content {
+      effect    = "Allow"
+      actions   = ["ssm:GetParametersByPath"]
+      resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${statement.value}/*"]
+    }
   }
 
-  statement {
-    effect  = "Allow"
-    actions = ["ssm:GetParameter"]
-    resources = [
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/postgres/todo-app-password",
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/todo-app-client-id",
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/todo-app-client-secret",
-    ]
-  }
-
-  # hue (Milestone 12) -- the hub component (deployed here via the normal
-  # SSM-SendCommand path) and the agent, which is NOT deployed by
-  # app-deploy.yml at all -- it's relayed to the NUCs by Ansible
-  # (ansible/roles/hue-agent), running on this same hub, using this same
-  # role's credentials to `docker pull` from hue-agent's ECR repo and then
-  # `docker save`/scp/`docker load` the image onto the NUC (which has no
-  # AWS credentials of its own). ssm:GetParametersByPath below already
-  # covers Ansible's need to read the site Hue bridge API keys.
-  statement {
-    effect    = "Allow"
-    actions   = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]
-    resources = [aws_ecr_repository.hue.arn, aws_ecr_repository.hue_agent.arn]
-  }
-
-  statement {
-    effect    = "Allow"
-    actions   = ["ssm:GetParametersByPath"]
-    resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/hue/*"]
-  }
-
-  statement {
-    effect  = "Allow"
-    actions = ["ssm:GetParameter"]
-    resources = [
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-id",
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/hue-client-secret",
-      # Milestone 14: hue's hub component now has its own Postgres database
-      # (animation configs), same onboarding pattern as todo-app.
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/postgres/hue-password",
-    ]
+  # ...plus its database password and Authentik client, when it has them.
+  dynamic "statement" {
+    for_each = { for n in local.app_names : n => n if local.apps[n].database || local.apps[n].authentik }
+    content {
+      effect  = "Allow"
+      actions = ["ssm:GetParameter"]
+      resources = [for p in concat(
+        local.apps[statement.key].database ? ["postgres/${statement.key}-password"] : [],
+        local.apps[statement.key].authentik ? ["authentik/${statement.key}-client-id", "authentik/${statement.key}-client-secret"] : [],
+      ) : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${p}"]
+    }
   }
 
   # Milestone 15: mopeka-exporter is relayed to nuc5 by Ansible
@@ -233,7 +217,7 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
   statement {
     effect  = "Allow"
     actions = ["ssm:GetParameter"]
-    resources = [for p in [
+    resources = [for p in concat([
       "grafana/smtp-password",
       "postgres/admin-password",
       "authentik/redis-password",
@@ -243,10 +227,6 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
       "authentik/bootstrap-password",
       "authentik/grafana-client-id",
       "authentik/grafana-client-secret",
-      "authentik/todo-app-client-id",
-      "authentik/todo-app-client-secret",
-      "authentik/hue-client-id",
-      "authentik/hue-client-secret",
       "authentik/home-mcp-client-id",
       "authentik/home-mcp-client-secret",
       "voice-worker/ssh-private-key",
@@ -257,7 +237,10 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
       "github/voice-jobs-token",
       "github/security-read-token",
       "authentik/home-mcp-audit-token",
-    ] : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${p}"]
+      ],
+      # Each registry app's Authentik client (ADR-0028), for the hub stack's .env.
+      flatten([for n in local.app_names : local.apps[n].authentik ? ["authentik/${n}-client-id", "authentik/${n}-client-secret"] : []]),
+    ) : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${p}"]
   }
 
   # ADR-0024: deploy-hub-stack.sh generates the Authentik audit token on

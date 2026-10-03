@@ -173,7 +173,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
   # SSM parameters are no longer in Terraform (ssm.tf, Milestone 20), so this
   # role has no access to them at all -- it used to be able to read every
   # /home-platform/ secret. It manages the hub's fixed SSM *documents* instead
-  # (ci-roles.tf), scoped to the per-app document names.
+  # (ci-roles.tf), scoped to the per-app document names (apps/registry.yml).
   statement {
     effect = "Allow"
     actions = [
@@ -182,10 +182,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ssm:DescribeDocumentPermission", "ssm:AddTagsToResource", "ssm:ListTagsForResource",
       "ssm:RemoveTagsFromResource",
     ]
-    resources = [
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:document/todo-app-*",
-      "arn:aws:ssm:us-east-1:${var.aws_account_id}:document/hue-*",
-    ]
+    resources = [for n in local.app_names : "arn:aws:ssm:us-east-1:${var.aws_account_id}:document/${n}-*"]
   }
 
   # IAM — this is the important one: was iam:* on every IAM resource in the
@@ -209,29 +206,27 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     # iam:CreateRole first. IAM role ARNs are fully deterministic from the
     # role name, so no need to reference the resource. github_actions/hub
     # don't hit this because they predate this statement being scoped down
-    # to reference them. Every future per-app role (ADR-0019, apps.tf) adds
-    # one more literal ARN here, following this same pattern.
-    resources = [
-      aws_iam_role.github_actions.arn, aws_iam_role.hub.arn,
-      "arn:aws:iam::${var.aws_account_id}:role/home-platform-dlm",
-      "arn:aws:iam::${var.aws_account_id}:role/todo-app-github-actions",
-      # hue-github-actions was missing here entirely since onboarding
-      # (Milestone 12) -- the actual root cause of every hue-related
-      # `terraform apply` failing in CI with AccessDenied on iam:GetRole,
-      # forcing a local apply with admin credentials instead every time
-      # (confirmed live 2026-08-22, see docs/roadmap.md's Milestone 14).
-      "arn:aws:iam::${var.aws_account_id}:role/hue-github-actions",
-      # Milestone 20 (ci-roles.tf)
-      "arn:aws:iam::${var.aws_account_id}:role/home-platform-github-plan",
-      "arn:aws:iam::${var.aws_account_id}:role/todo-app-github-preview",
-    ]
+    # to reference them. Per-app roles (apps.tf, ci-roles.tf) are built from
+    # apps/registry.yml (ADR-0028) as names, never resource references, so a
+    # new app's role is granted here in the same apply that creates it --
+    # hue's was once missed by hand for months (Milestone 14).
+    resources = concat(
+      [
+        aws_iam_role.github_actions.arn, aws_iam_role.hub.arn,
+        "arn:aws:iam::${var.aws_account_id}:role/home-platform-dlm",
+        # Milestone 20 (ci-roles.tf)
+        "arn:aws:iam::${var.aws_account_id}:role/home-platform-github-plan",
+      ],
+      [for n in local.app_names : "arn:aws:iam::${var.aws_account_id}:role/${n}-github-actions"],
+      [for n in local.preview_app_names : "arn:aws:iam::${var.aws_account_id}:role/${n}-github-preview"],
+    )
   }
 
   # ECR — per-app repositories (ADR-0019, apps.tf). Literal ARN string for
   # the same reason as the IAM statement above: this statement must grant
   # CreateRepository before the repository exists, so referencing
-  # aws_ecr_repository.todo_app.arn would create the same circular
-  # dependency. One more literal ARN here per future app's ECR repo.
+  # aws_ecr_repository.app[...].arn would create the same circular
+  # dependency. Built from apps/registry.yml names instead (ADR-0028).
   statement {
     effect = "Allow"
     actions = [
@@ -240,16 +235,11 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       # Lifecycle policies expiring per-PR preview images (ADR-0023, apps.tf)
       "ecr:PutLifecyclePolicy", "ecr:GetLifecyclePolicy", "ecr:DeleteLifecyclePolicy",
     ]
-    resources = [
-      "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/todo-app",
-      # Same gap as the IAM statement above -- hue's two ECR repos were
-      # never added here, so ecr:DescribeRepositories on them has always
-      # been AccessDenied for this role.
-      "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/hue",
-      "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/hue-agent",
+    resources = concat(
+      [for r in keys(local.app_ecr_repos) : "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/${r}"],
       # Preview images, separate from production (Milestone 20)
-      "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/todo-app-preview",
-    ]
+      [for n in local.preview_app_names : "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/${n}-preview"],
+    )
   }
 
   statement {
