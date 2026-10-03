@@ -126,6 +126,18 @@ Tasks:
 - [x] 🤖 GitHub repos from the registry: `terraform/github/` stack + `terraform-github.yml`, importing todo-app and hue (ADR-0030) *(done 2026-10-03, PR #86: 13 imported, 3 changed (two no-op repo re-saves, plus todo-app's `production` now gated, Bill's call). Tokens created and stored in SSM + Actions secrets. `imports.tf` removed afterwards)*
 - [ ] 🤖 home-mcp: market data status, open gaps and backfill as named tools/jobs, once mkt-data exists
 
+### Milestone 22 — Market data platform, phase 1: holiday calendars end to end
+**Goal:** One vertical slice through the whole data layer before adding more sources: holiday calendars sourced, stored raw, processed, scheduled by Airflow, monitored, and on a Grafana dashboard. Scheduling and monitoring for later datasets honor these calendars.
+
+Scope (Bill, 2026-10-03): SIFMA US bond market, Federal Reserve (FedWire/FRB holidays), NYSE. CME later.
+
+Tasks:
+- [ ] 🤖 Registry entry for `mkt-data` (`database: true`, no Authentik or previews) — creates the repo (terraform/github), its ECR repo and roles (terraform/aws) and its database (platform deploy). 🧑 Approve in order: Terraform (AWS) → Terraform (GitHub) → Platform deploy (onboarding needs the hub role's grant on `postgres/mkt-data-password` from the AWS apply)
+- [ ] 🤖 mkt-data's first PR: `templates/python` plus the phase-1 plan in its README/docs
+- [ ] 🤖 Decide and build how app DAGs reach Airflow's `dags/<app>/`, how app secrets reach Airflow, and DockerOperator/socket isolation (ADR-0027's open points)
+- [ ] 🤖 Calendar sourcing (raw, kept forever), processed calendar tables with short readable names, backfill as far back as each source allows
+- [ ] 🤖 Data-quality metrics and alerts; Grafana dashboard with per-dataset backfill coverage and storage/cost
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*

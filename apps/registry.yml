@@ -69,6 +69,14 @@ apps:
     required_check: "hub / Build, test, lint"
     required_check_app_id: 15368
 
+  # Market data platform's data pipeline (Milestone 22): sourcing, raw and
+  # processed stores, Airflow DAGs. Phase 1 starts with holiday calendars.
+  # No Authentik client or previews yet: it has no UI of its own.
+  - name: mkt-data
+    database: true
+    authentik: false
+    preview: false
+
 platform_databases:
   # Airflow's metadata database (ADR-0027, compose/aws/data.yml).
   - name: airflow
