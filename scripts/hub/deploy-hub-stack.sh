@@ -38,7 +38,12 @@ aws s3 sync "s3://${BUCKET}/compose-aws/" "$STAGING/" --delete --exact-timestamp
 # the repo; .env is excluded so it's never deleted between the sync and the
 # rewrite below.
 echo "Updating ${REMOTE_DIR}..."
-rsync -rlt --inplace --checksum --delete --exclude='/.env' --itemize-changes "$STAGING/" "$REMOTE_DIR/"
+# No -t: since the S3 download uses --exact-timestamps, every staged file has
+# a fresh mtime on each deploy, and preserving times made --itemize-changes
+# list every file (pushing the RESULT line past SSM's 24,000-character
+# output limit). Without -t, only files whose content changed are listed and
+# written.
+rsync -rl --inplace --checksum --delete --exclude='/.env' --itemize-changes "$STAGING/" "$REMOTE_DIR/"
 
 ssm() {
   aws ssm get-parameter --name "$1" --with-decryption --region "$REGION" --query "Parameter.Value" --output text
