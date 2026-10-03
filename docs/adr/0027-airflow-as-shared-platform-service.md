@@ -1,7 +1,7 @@
 # ADR-0027: Airflow as a Shared Platform Service
 
 Date: 2026-10-03
-Status: Proposed
+Status: Accepted (2026-10-03)
 
 ## Context
 

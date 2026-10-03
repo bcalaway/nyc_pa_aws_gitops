@@ -1,7 +1,7 @@
 # ADR-0026: Resize the Hub to t3.large and Give Every Container a Memory Limit
 
 Date: 2026-10-03
-Status: Proposed
+Status: Accepted (2026-10-03)
 
 ## Context
 

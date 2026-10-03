@@ -1,7 +1,7 @@
 # ADR-0028: A Single Apps Registry Drives Per-App Platform Resources
 
 Date: 2026-10-03
-Status: Proposed
+Status: Accepted (2026-10-03)
 
 ## Context
 

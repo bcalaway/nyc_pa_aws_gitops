@@ -129,6 +129,10 @@ docker rm -f promtail >/dev/null 2>&1 || true
 docker compose pull
 docker compose build
 docker compose up -d
+# `up` doesn't recreate Prometheus when only prometheus.yml changed (it's a
+# bind mount), so the running process keeps the old scrape jobs. SIGHUP
+# makes it re-read the file; harmless when nothing changed.
+docker kill -s HUP prometheus >/dev/null
 docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Status}}'
 
 # Host-level units (ADR-0024): pending-update metrics + weekly exposure
