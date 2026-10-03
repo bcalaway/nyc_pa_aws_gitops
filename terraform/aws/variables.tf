@@ -19,7 +19,10 @@ variable "github_repo" {
 variable "ec2_instance_type" {
   description = "EC2 instance type for the hub"
   type        = string
-  default     = "t3.medium"
+  # t3.large (8 GiB) since 2026-10-03, ADR-0026: t3.medium sat near 80%
+  # memory before Airflow. Changing this is an EC2 stop/start (a few minutes
+  # of hub downtime); the Elastic IP keeps the address.
+  default = "t3.large"
 }
 
 variable "ec2_key_name" {
