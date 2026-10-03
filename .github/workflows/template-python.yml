@@ -1,0 +1,113 @@
+name: Python template
+
+# Builds and smoke-tests templates/python on every change to it, so the
+# starter template every mkt-* service copies can't quietly rot. Same lint
+# and test stages app-ci.yml runs for real apps, plus what those can't cover
+# without infrastructure: the final image against a real Postgres 16 (the
+# hub's version), with migrations applied on start and the gRPC health
+# service answering.
+
+on:
+  pull_request:
+    paths:
+      - 'templates/python/**'
+      - '.github/workflows/template-python.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'templates/python/**'
+      - '.github/workflows/template-python.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-smoke:
+    name: Build, test, smoke
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: admin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: templates/python
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: admin
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Lint stage
+        run: docker build --target lint -t template-lint .
+
+      - name: Test stage
+        run: docker build --target test -t template-test .
+
+      - name: Final image
+        run: docker build -t template-final .
+
+      # Same shape as the platform's onboarding (onboard-app-dbs.sh): a LOGIN
+      # role and a database of the app's name, owning its public schema.
+      - name: Create the app's role and database
+        run: |
+          psql -v ON_ERROR_STOP=1 -c "CREATE ROLE smoke LOGIN PASSWORD 'smokepw'" -c "CREATE DATABASE smoke OWNER smoke"
+          psql -v ON_ERROR_STOP=1 -d smoke -c "ALTER SCHEMA public OWNER TO smoke"
+
+      - name: Start the app (migrations run on start)
+        run: |
+          docker run -d --name app --network host \
+            -e APP_NAME=smoke -e POSTGRES_HOST=localhost -e POSTGRES_PASSWORD=smokepw \
+            template-final
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8000/health && break
+            sleep 2
+          done
+          docker logs app
+
+      - name: HTTP, database and migrations
+        run: |
+          set -x
+          curl -fsS http://localhost:8000/health | grep -q '"ok"'
+          curl -fsS http://localhost:8000/db-check | grep -q '"connected":true'
+          test "$(psql -d smoke -tAc 'SELECT version_num FROM alembic_version')" = "0001"
+          test "$(psql -d smoke -tAc "SELECT to_regclass('public.items') IS NOT NULL")" = "t"
+          # Tables belong to the app's role, not the admin.
+          test "$(psql -d smoke -tAc "SELECT tableowner FROM pg_tables WHERE tablename='items'")" = "smoke"
+
+      - name: gRPC health and Ping
+        run: |
+          docker exec app python - <<'EOF'
+          import grpc
+          from grpc_health.v1 import health_pb2, health_pb2_grpc
+          from app.grpc_gen import example_service_pb2, example_service_pb2_grpc
+
+          with grpc.insecure_channel("localhost:9090") as ch:
+              status = health_pb2_grpc.HealthStub(ch).Check(health_pb2.HealthCheckRequest(service="")).status
+              assert status == health_pb2.HealthCheckResponse.SERVING, status
+              reply = example_service_pb2_grpc.ExampleServiceStub(ch).Ping(example_service_pb2.PingRequest(message="ci"))
+              assert reply.message == "pong: ci", reply.message
+          print("gRPC health SERVING, Ping ok")
+          EOF
+
+      - name: Restart is idempotent (migrations already applied)
+        run: |
+          docker restart app
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8000/health && break
+            sleep 2
+          done
+          docker logs --since 1m app 2>&1 | tail -20
+          test "$(docker inspect -f '{{.State.Running}}' app)" = "true"
+          test "$(psql -d smoke -tAc 'SELECT version_num FROM alembic_version')" = "0001"
+
+      - name: App logs on failure
+        if: failure()
+        run: docker logs app || true

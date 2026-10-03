@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from authlib.integrations.starlette_client import OAuth
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -6,12 +8,26 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.db import check_connection
+from app.grpc_server import start_grpc_server
 
 # Routes reachable without an authenticated session -- everything else is
 # gated by RequireAuthMiddleware below.
 PUBLIC_PATHS = {"/health", "/login", "/auth/callback"}
 
-app = FastAPI(title=settings.app_name)
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # The gRPC server (ADR-0020) shares this process and event loop.
+    # GRPC_PORT=0 turns it off (e.g. a quick local run that doesn't need it).
+    server = None
+    if settings.grpc_port:
+        server, _ = await start_grpc_server(settings.grpc_port)
+    yield
+    if server is not None:
+        await server.stop(grace=5)
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 
 class RequireAuthMiddleware(BaseHTTPMiddleware):

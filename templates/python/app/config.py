@@ -19,6 +19,12 @@ class Settings:
     # features degrade gracefully instead of crashing (see app/db.py).
     postgres_host: str = os.environ.get("POSTGRES_HOST", "postgres")
     postgres_password: str | None = os.environ.get("POSTGRES_PASSWORD")
+    # Full SQLAlchemy URL, overriding the two above. Unset in production;
+    # tests set it to a SQLite file to run the migrations without Postgres.
+    database_url: str | None = os.environ.get("DATABASE_URL")
+
+    # gRPC server (ADR-0020): internal-only, port 9090 by convention.
+    grpc_port: int = int(os.environ.get("GRPC_PORT", "9090"))
 
     # Authentik OIDC (ADR-0017, Pattern A). Both unset means auth routes
     # respond 501 instead of crashing -- lets this template run standalone

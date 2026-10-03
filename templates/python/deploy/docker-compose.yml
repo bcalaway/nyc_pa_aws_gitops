@@ -23,6 +23,9 @@ services:
       APP_NAME: REPLACE_WITH_APP_NAME
     env_file:
       - .env
+    # Port 8000 (HTTP) is routed by Traefik below. Port 9090 (gRPC, ADR-0020)
+    # is deliberately not published or routed: other apps reach it on the
+    # home-platform network at REPLACE_WITH_APP_NAME:9090.
     networks:
       - home-platform
     labels:

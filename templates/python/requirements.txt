@@ -1,7 +1,13 @@
 fastapi==0.142.0
 uvicorn[standard]==0.54.0
 sqlalchemy==2.1.1
+alembic==1.19.2
 psycopg2-binary==2.9.13
 authlib==1.8.0
 httpx==0.28.1
 itsdangerous==2.2.0
+# gRPC (ADR-0020). protobuf is left to grpcio-tools/-health-checking's own
+# compatible range rather than pinned separately.
+grpcio==1.83.1
+grpcio-health-checking==1.83.1
+grpcio-tools==1.83.1
