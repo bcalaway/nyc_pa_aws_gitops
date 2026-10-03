@@ -27,6 +27,8 @@ locals {
 
   preview_app_names  = [for n in local.app_names : n if local.apps[n].preview]
   database_app_names = [for n in local.app_names : n if local.apps[n].database]
+  # Shared platform services' databases (registry platform_databases).
+  platform_database_names = [for d in try(local.registry.platform_databases, []) : d.name]
 
   # Every production ECR repository: each app's own, plus its extras.
   app_ecr_repos = { for r in flatten([

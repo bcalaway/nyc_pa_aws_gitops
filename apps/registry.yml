@@ -33,6 +33,12 @@
 #                    hub pulls from (hue's NUC agent image).
 #
 # Every app's hub deploy also reads /home-platform/<name>/* by path.
+#
+# platform_databases: Postgres databases for shared platform services that
+# aren't apps (no repo, ECR, roles or deploy documents). Each gets the same
+# onboarding as a database: true app (scripts/hub/onboard-app-dbs.sh): an
+# SSM password at /home-platform/postgres/<name>-password, a LOGIN role and
+# a database of that name.
 
 apps:
   - name: todo-app
@@ -49,3 +55,7 @@ apps:
     # The NUC agent (Milestone 12): built by hue's CI, relayed to the NUCs
     # by Ansible on the hub (ansible/roles/hue-agent), not by app-deploy.
     extra_ecr_repos: [hue-agent]
+
+platform_databases:
+  # Airflow's metadata database (ADR-0027, compose/aws/data.yml).
+  - name: airflow
