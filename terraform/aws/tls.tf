@@ -273,6 +273,19 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
     resources = [for p in ["fernet-key", "api-secret-key", "jwt-secret"] :
     "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/airflow/${p}"]
   }
+
+  # ADR-0031: deploy-hub-stack.sh generates each airflow: true app's job
+  # token once and writes it into the scheduler's AIRFLOW_CONN_<APP>. The
+  # app reads the same parameter through its own deploy (hub_app_deploy's
+  # /home-platform/<app>/* path read). Exactly these parameters.
+  dynamic "statement" {
+    for_each = length(local.airflow_app_names) > 0 ? [1] : []
+    content {
+      effect    = "Allow"
+      actions   = ["ssm:GetParameter", "ssm:PutParameter"]
+      resources = [for n in local.airflow_app_names : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${n}/airflow-token"]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "hub_platform_deploy" {

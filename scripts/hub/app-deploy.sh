@@ -8,6 +8,7 @@
 # Pulls the app's Compose file (staged by app-deploy.yml in S3), writes its
 # .env from SSM with the hub's own role, checks every service has a memory
 # limit (ADR-0026, compose-mem-check.py beside this script), and brings it up.
+# Then delivers the app's Airflow DAGs, if it has any (ADR-0031, app-dags.py).
 #
 # Usage: app-deploy.sh <bucket> <app>
 set -euo pipefail
@@ -57,4 +58,36 @@ echo "$check"
 mv -f "$NEW" docker-compose.yml
 docker compose pull --quiet
 docker compose up -d
-echo "RESULT: ${APP} deployed."
+
+# Airflow DAGs (ADR-0031), after the app is up so a DAG never calls an
+# endpoint its app doesn't have yet. Staged by app-deploy.yml on every
+# deploy (empty when the repo has none); checked by app-dags.py before any
+# file reaches Airflow's DAG folder. Delivered only for airflow: true apps,
+# which are exactly the ones with an AIRFLOW_TOKEN in their .env.
+DAGS_ROOT=/home/ec2-user/airflow/dags
+dags_note="no DAGs"
+DAG_TAR=$(mktemp)
+DAG_STAGE=$(mktemp -d)
+trap 'rm -rf "$DAG_TAR" "$DAG_STAGE"' EXIT
+if ! aws s3 cp "s3://${BUCKET}/apps/${APP}/dags.tar.gz" "$DAG_TAR" --only-show-errors 2>/dev/null; then
+  dags_note="no DAG archive staged"
+elif ! n=$(python3 "$HERE/app-dags.py" "$DAG_TAR" "$DAG_STAGE"); then
+  echo "RESULT: ${APP} deployed, but its DAGs were rejected (Airflow unchanged): ${n}"
+  exit 1
+elif [ "$n" -gt 0 ]; then
+  if ! grep -q '^AIRFLOW_TOKEN=' .env; then
+    dags_note="${n} DAG files NOT delivered: ${APP} isn't airflow: true in apps/registry.yml (or the hub stack hasn't deployed since)"
+  elif [ ! -d "$DAGS_ROOT" ]; then
+    dags_note="${n} DAG files NOT delivered: no Airflow DAG folder on the hub"
+  else
+    install -d -m 0755 -o ec2-user -g ec2-user "$DAGS_ROOT/$APP"
+    rsync -r --checksum --delete --chmod=D755,F644 "$DAG_STAGE/" "$DAGS_ROOT/$APP/"
+    chown -R ec2-user:ec2-user "$DAGS_ROOT/$APP"
+    dags_note="${n} DAG files delivered to dags/${APP}/"
+  fi
+elif [ -d "$DAGS_ROOT/$APP" ]; then
+  # The repo has no DAGs any more: remove the ones it used to deliver.
+  rm -rf "${DAGS_ROOT:?}/${APP:?}"
+  dags_note="DAGs removed (none in the repo)"
+fi
+echo "RESULT: ${APP} deployed; ${dags_note}."

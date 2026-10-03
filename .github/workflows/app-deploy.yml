@@ -38,6 +38,10 @@ on:
         description: "Path in the caller repo to its deploy-time Compose fragment"
         type: string
         default: "deploy/docker-compose.yml"
+      dags_dir:
+        description: "Path in the caller repo to its Airflow DAGs (ADR-0031); ignored if absent"
+        type: string
+        default: "dags"
 
 permissions:
   id-token: write
@@ -97,6 +101,27 @@ jobs:
         run: |
           aws s3 cp "${{ inputs.compose_file }}" \
             "s3://${DEPLOY_BUCKET}/apps/${{ inputs.app_name }}/docker-compose.yml"
+
+      # Airflow DAGs (ADR-0031): always staged, empty when the app has none,
+      # so the hub removes an app's DAGs when the repo drops them. Regular
+      # .py files only; the hub checks the archive again before using it.
+      - name: Stage Airflow DAGs to S3
+        env:
+          DAGS_DIR: ${{ inputs.dags_dir }}
+        run: |
+          list="$RUNNER_TEMP/dags.list"
+          : > "$list"
+          if [ -d "$DAGS_DIR" ]; then
+            (cd "$DAGS_DIR" && find . -type f -name '*.py' -not -path '*/__pycache__/*' | sort) > "$list"
+          fi
+          echo "DAG files: $(wc -l < "$list")"
+          if [ -s "$list" ]; then
+            tar -czf "$RUNNER_TEMP/dags.tar.gz" -C "$DAGS_DIR" --files-from "$list"
+          else
+            tar -czf "$RUNNER_TEMP/dags.tar.gz" --files-from /dev/null
+          fi
+          aws s3 cp "$RUNNER_TEMP/dags.tar.gz" \
+            "s3://${DEPLOY_BUCKET}/apps/${{ inputs.app_name }}/dags.tar.gz" --only-show-errors
 
       # The deploy script itself is fixed in the <app>-deploy SSM document
       # (scripts/hub/app-deploy.sh, bundled by terraform/aws/ci-roles.tf); this

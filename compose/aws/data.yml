@@ -63,6 +63,14 @@ services:
     environment:
       <<: *airflow-env
       _AIRFLOW_DB_MIGRATE: "true"
+    # One AIRFLOW_CONN_<APP> per registry app with airflow: true (ADR-0031):
+    # the app's internal URL and its job token. Written by
+    # scripts/hub/deploy-hub-stack.sh from the registry and SSM, outside
+    # this directory so manual deploys (which don't build it) leave it
+    # alone. Only the scheduler needs it: tasks run here (LocalExecutor).
+    env_file:
+      - path: /home/ec2-user/airflow/connections.env
+        required: false
     # Tasks run inside this container (LocalExecutor), so their memory
     # counts here. Initial limits per ADR-0026, resized from the
     # Containers dashboard after a week.

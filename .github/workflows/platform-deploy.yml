@@ -83,7 +83,8 @@ jobs:
             CHANGED=$(git diff --name-only "$RANGE")
             HUB=false; NUCS=false; DBS=false
             # scripts/hub/<script> only triggers the part that script deploys.
-            grep -qE '^(compose/aws/|scripts/hub/deploy-hub-stack\.sh$)' <<<"$CHANGED" && HUB=true
+            # The registry also drives the hub stack: Airflow's app connections (ADR-0031).
+            grep -qE '^(compose/aws/|scripts/hub/deploy-hub-stack\.sh$|apps/registry\.yml$)' <<<"$CHANGED" && HUB=true
             grep -qE '^(ansible/|compose/nuc/|scripts/hub/deploy-nucs-on-hub\.sh$)' <<<"$CHANGED" && NUCS=true
             grep -qE '^(apps/registry\.yml|scripts/hub/onboard-app-dbs\.sh)$' <<<"$CHANGED" && DBS=true
           fi
@@ -134,8 +135,10 @@ jobs:
             aws s3 sync ansible/ "s3://${DEPLOY_BUCKET}/ansible/" --delete
             aws s3 sync compose/nuc/ "s3://${DEPLOY_BUCKET}/compose-nuc/" --delete
           fi
-          if [ "$DBS" = "true" ]; then
-            # JSON for the hub, which has python3 but no YAML parser.
+          if [ "$DBS" = "true" ] || [ "$HUB" = "true" ]; then
+            # JSON for the hub, which has python3 but no YAML parser. Read by
+            # onboard-app-dbs.sh and, for Airflow's app connections, by
+            # deploy-hub-stack.sh (ADR-0031).
             yq -o=json apps/registry.yml > "$RUNNER_TEMP/registry.json"
             aws s3 cp "$RUNNER_TEMP/registry.json" "s3://${DEPLOY_BUCKET}/apps-registry/registry.json" --only-show-errors
           fi

@@ -37,7 +37,7 @@ Run Airflow on the hub as a platform service:
 - **UI:** behind Traefik at an internal hostname with Authentik forward-auth (ADR-0017/0018), never public.
 - **Secrets:** Airflow's own under `/home-platform/airflow/*`; each project's connections and keys under its own `/home-platform/<app>/*`, exposed to Airflow at deploy time (ADR-0005).
 - **DAG delivery:** each app repo owns its DAGs and builds them into a versioned image or bundle; its deploy stages them into a per-app DAG folder on the hub (`dags/<app>/`). This repo never contains app DAGs (ADR-0014).
-- **Task isolation:** app code runs in the app's own image (DockerOperator or KubernetesPodOperator-style isolation via Docker), so apps don't share Python dependencies with Airflow or each other.
+- **Task isolation** *(superseded by ADR-0031: DAGs call the app's own HTTP job API instead; no Docker socket)*: app code runs in the app's own image (DockerOperator or KubernetesPodOperator-style isolation via Docker), so apps don't share Python dependencies with Airflow or each other.
 - **Memory:** limits per ADR-0026, sized after measurement.
 - **Observability:** Airflow StatsD/metrics into Prometheus, logs into Loki, task-failure alerts through Grafana.
 

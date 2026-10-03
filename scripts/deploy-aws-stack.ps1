@@ -116,7 +116,10 @@ ssh -i $sshKey $ec2Host "docker rm -f promtail >/dev/null 2>&1 || true"
 # and from inside the container: `docker kill` marks it manually stopped, so it
 # wouldn't come back after a reboot (see docs/gotchas.md).
 # Airflow DAG root (ADR-0027, see scripts/hub/deploy-hub-stack.sh).
-ssh -i $sshKey $ec2Host "mkdir -p /home/ec2-user/airflow/dags/platform && cp -rT $remoteDir/airflow/dags/platform /home/ec2-user/airflow/dags/platform"
+# Also the app-job helper and .airflowignore at the DAG root (ADR-0031). App
+# connections (/home/ec2-user/airflow/connections.env) are only built by the
+# CI deploy, which reads the registry; a manual deploy leaves them as they are.
+ssh -i $sshKey $ec2Host "mkdir -p /home/ec2-user/airflow/dags/platform && cp -rT $remoteDir/airflow/dags/platform /home/ec2-user/airflow/dags/platform && cp $remoteDir/airflow/dags/home_platform_jobs.py $remoteDir/airflow/dags/.airflowignore /home/ec2-user/airflow/dags/"
 ssh -i $sshKey $ec2Host "cd $remoteDir && docker compose pull && docker compose build && t0=`$(date +%s) && docker compose up -d && s=`$(docker inspect -f '{{.State.StartedAt}}' prometheus) && if [ `"`$(date -d `"`$s`" +%s)`" -lt `"`$t0`" ]; then docker exec prometheus kill -HUP 1; fi"
 
 Write-Host "Installing host units (ADR-0024)..."
