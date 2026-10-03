@@ -20,7 +20,36 @@
       - git
       - dnf-plugins-core
       - pciutils
+      - unzip  # needed to unpack the AWS CLI installer below
     state: present
+
+# AWS CLI v2 has no dnf package -- Amazon only ships a zip installer, which
+# drops the binary at /usr/local/bin/aws. Install-if-missing only: updating an
+# existing install needs `./aws/install --update`, and it's not worth churning
+# a working CLI on every playbook run. nuc5 was missing it until 2026-10-03.
+- name: Check whether AWS CLI v2 is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/aws
+  register: awscli_bin
+
+- name: Install AWS CLI v2
+  when: not awscli_bin.stat.exists
+  block:
+    - name: Download and unpack the AWS CLI v2 installer
+      ansible.builtin.unarchive:
+        src: "https://awscli.amazonaws.com/awscli-exe-linux-{{ ansible_architecture }}.zip"
+        dest: /tmp
+        remote_src: true
+
+    - name: Run the AWS CLI v2 installer
+      ansible.builtin.command: /tmp/aws/install
+      args:
+        creates: /usr/local/bin/aws
+  always:
+    - name: Remove the AWS CLI installer files
+      ansible.builtin.file:
+        path: /tmp/aws
+        state: absent
 
 - name: Ensure firewalld is running and enabled
   ansible.builtin.systemd:
