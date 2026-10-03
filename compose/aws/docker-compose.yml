@@ -21,6 +21,37 @@ services:
     ports:
       - "9100:9100"
 
+  # Per-container CPU, memory and network (Milestone 21, ADR-0026). A week of
+  # this data sets each service's mem_limit (observed peak + headroom); the
+  # Containers dashboard shows the peaks. Privileged + /dev/kmsg is what
+  # cAdvisor needs to read every container's cgroup and to see kernel OOM
+  # kills (container_oom_events_total). No published host port: only
+  # Prometheus, on this stack's network, reaches it.
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.60.6
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=15s
+      # Only what the dashboard and ADR-0026's alerts use; the defaults add
+      # hundreds of per-CPU/process/tcp series per container.
+      - --enable_metrics=cpu,memory,network,diskIO,oom_event
+      # Keep the compose service label, drop the rest (image labels bloat
+      # every series).
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.service,com.docker.compose.project
+    mem_limit: 256m
+
   snmp-exporter:
     image: prom/snmp-exporter:v0.30.1
     container_name: snmp-exporter

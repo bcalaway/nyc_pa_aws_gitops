@@ -106,8 +106,8 @@ Tasks:
 Design: ADR-0026 (hub resize + memory limits), ADR-0027 (Airflow as a shared service), ADR-0028 (apps registry), ADR-0029 (split Compose file and Terraform state). The market data platform's own design lives in Bill's "Market Data Platform — Data Layer Architecture" doc; its repos (mkt-data, secmaster-svc, quote-svc, mkt-api, mkt-ui) are app repos per ADR-0014.
 
 Tasks:
-- [ ] 🧑 Review and accept ADR-0026 to ADR-0029
-- [ ] 🤖 cAdvisor + Prometheus scrape job; a week of per-container memory data
+- [x] 🧑 Review and accept ADR-0026 to ADR-0029 *(accepted 2026-10-03)*
+- [ ] 🤖 cAdvisor + Prometheus scrape job; a week of per-container memory data *(cAdvisor, `cadvisor` scrape job and the **Containers** Grafana dashboard added 2026-10-03; the week starts when the hub deploy lands — the dashboard's sizing table gives peak and suggested `mem_limit` per container)*
 - [ ] 🤖 Resize hub to `t3.large`; set `mem_limit` on every hub service; OOM-kill and memory-pressure Grafana alerts (ADR-0026)
 - [ ] 🤖 Hub deploy check rejects app Compose fragments without `mem_limit`; add the step to the `docs/app-platform.md` onboarding checklist
 - [ ] 🤖 Split `compose/aws/docker-compose.yml` into included files (ADR-0029); confirm Compose ≥ 2.20 on the hub first

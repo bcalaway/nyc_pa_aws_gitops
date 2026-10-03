@@ -125,7 +125,7 @@ ssh -i "$SSH_KEY" "$EC2_HOST" "sudo install -d -m 0755 /var/lib/home-platform/ex
 echo "Starting stack..."
 # Promtail -> Alloy (2026-10-02): remove the old container first; see deploy-hub-stack.sh.
 ssh -i "$SSH_KEY" "$EC2_HOST" "docker rm -f promtail >/dev/null 2>&1 || true"
-ssh -i "$SSH_KEY" "$EC2_HOST" "cd $REMOTE_DIR && docker compose pull && docker compose build && docker compose up -d"
+ssh -i "$SSH_KEY" "$EC2_HOST" "cd $REMOTE_DIR && docker compose pull && docker compose build && docker compose up -d && docker kill -s HUP prometheus >/dev/null"
 
 echo "Installing host units (ADR-0024)..."
 ssh -i "$SSH_KEY" "$EC2_HOST" "sudo bash $REMOTE_DIR/host/install.sh $REMOTE_DIR"

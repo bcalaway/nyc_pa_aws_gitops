@@ -1,7 +1,7 @@
 # ADR-0029: Split the Hub Compose File and the Terraform State
 
 Date: 2026-10-03
-Status: Proposed
+Status: Accepted (2026-10-03)
 
 ## Context
 
