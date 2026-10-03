@@ -251,16 +251,27 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
     resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/home-mcp-audit-token"]
   }
 
-  # ADR-0028: scripts/hub/onboard-app-dbs.sh reads each registry app's
-  # Postgres password and creates it on first onboarding (never with
-  # --overwrite). Write access to exactly these parameters, nothing broader.
+  # ADR-0028: scripts/hub/onboard-app-dbs.sh reads each registry app's (and
+  # platform database's) Postgres password and creates it on first
+  # onboarding (never with --overwrite); deploy-hub-stack.sh reads the
+  # platform ones into the stack's .env. Exactly these parameters.
   dynamic "statement" {
-    for_each = length(local.database_app_names) > 0 ? [1] : []
+    for_each = length(concat(local.database_app_names, local.platform_database_names)) > 0 ? [1] : []
     content {
       effect    = "Allow"
       actions   = ["ssm:GetParameter", "ssm:PutParameter"]
-      resources = [for n in local.database_app_names : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/postgres/${n}-password"]
+      resources = [for n in concat(local.database_app_names, local.platform_database_names) : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/postgres/${n}-password"]
     }
+  }
+
+  # ADR-0027: deploy-hub-stack.sh generates Airflow's own secrets on the
+  # first deploy that needs them (same pattern as the audit token above)
+  # and reads them into the stack's .env. These three parameters only.
+  statement {
+    effect  = "Allow"
+    actions = ["ssm:GetParameter", "ssm:PutParameter"]
+    resources = [for p in ["fernet-key", "api-secret-key", "jwt-secret"] :
+    "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/airflow/${p}"]
   }
 }
 
@@ -346,6 +357,16 @@ resource "aws_route53_record" "preview_wildcard" {
 resource "aws_route53_record" "todo_app" {
   zone_id = aws_route53_zone.main.zone_id
   name    = "todo-app.billandjessie.com"
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.hub.public_ip]
+}
+
+# Airflow UI (ADR-0027) -- behind Authentik forward-auth, like
+# status.billandjessie.com (compose/aws/data.yml).
+resource "aws_route53_record" "airflow" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "airflow.billandjessie.com"
   type    = "A"
   ttl     = 300
   records = [aws_eip.hub.public_ip]
