@@ -109,7 +109,7 @@ Tasks:
 - [x] 🧑 Review and accept ADR-0026 to ADR-0029 *(accepted 2026-10-03)*
 - [ ] 🤖 cAdvisor + Prometheus scrape job; a week of per-container memory data *(cAdvisor, `cadvisor` scrape job and the **Containers** Grafana dashboard added 2026-10-03; the week starts when the hub deploy lands — the dashboard's sizing table gives peak and suggested `mem_limit` per container)*
 - [ ] 🤖 Resize hub to `t3.large`; set `mem_limit` on every hub service; OOM-kill and memory-pressure Grafana alerts (ADR-0026)
-- [ ] 🤖 Hub deploy check rejects app Compose fragments without `mem_limit`; add the step to the `docs/app-platform.md` onboarding checklist
+- [x] 🤖 Hub deploy check rejects app Compose fragments without `mem_limit`; add the step to the `docs/app-platform.md` onboarding checklist *(2026-10-03: `scripts/hub/compose-mem-check.py`, run in `app-deploy.yml` and by `app-deploy.sh` on the hub; templates start at `256m`; todo-app and hue got interim limits in their own repos first)*
 - [ ] 🤖 Split `compose/aws/docker-compose.yml` into included files (ADR-0029); confirm Compose ≥ 2.20 on the hub first
 - [ ] 🤖 `apps/registry.yml` + Terraform `for_each`; migrate todo-app and hue with `moved {}` (plan must show moves only) (ADR-0028)
 - [ ] 🤖 Idempotent hub script for app database onboarding, run by `platform-deploy.yml` (ADR-0028)

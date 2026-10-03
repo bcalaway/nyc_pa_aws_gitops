@@ -76,17 +76,27 @@ jobs:
           role-to-assume: arn:aws:iam::147856894209:role/${{ inputs.app_name }}-github-actions
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Stage Compose file to S3
-        run: |
-          aws s3 cp "${{ inputs.compose_file }}" \
-            "s3://${DEPLOY_BUCKET}/apps/${{ inputs.app_name }}/docker-compose.yml"
-
       - name: Get the platform's hub scripts
         uses: actions/checkout@v7
         with:
           repository: bcalaway/nyc_pa_aws_gitops
           path: .platform
           sparse-checkout: scripts/hub
+
+      # Early feedback in the app's own run; the hub repeats the check before
+      # deploying (ADR-0026). The fragment's env_file (.env) only exists on
+      # the hub, so stand in an empty one for `config` here.
+      - name: Check memory limits
+        run: |
+          f="${{ inputs.compose_file }}"
+          [ -e "$(dirname "$f")/.env" ] || touch "$(dirname "$f")/.env"
+          docker compose -f "$f" config --no-interpolate --format json \
+            | python3 .platform/scripts/hub/compose-mem-check.py
+
+      - name: Stage Compose file to S3
+        run: |
+          aws s3 cp "${{ inputs.compose_file }}" \
+            "s3://${DEPLOY_BUCKET}/apps/${{ inputs.app_name }}/docker-compose.yml"
 
       # The deploy script itself is fixed in the <app>-deploy SSM document
       # (scripts/hub/app-deploy.sh, bundled by terraform/aws/ci-roles.tf); this

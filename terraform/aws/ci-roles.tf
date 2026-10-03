@@ -26,10 +26,11 @@ locals {
   # code. Scripts travel base64-encoded so nothing in them can be mistaken
   # for an SSM {{ parameter }}.
   hub_scripts = {
-    "app-deploy.sh"      = filebase64("${path.module}/../../scripts/hub/app-deploy.sh")
-    "preview-up.sh"      = filebase64("${path.module}/../../scripts/hub/preview-up.sh")
-    "preview-compose.py" = filebase64("${path.module}/../../scripts/hub/preview-compose.py")
-    "preview-down.sh"    = filebase64("${path.module}/../../scripts/hub/preview-down.sh")
+    "app-deploy.sh"        = filebase64("${path.module}/../../scripts/hub/app-deploy.sh")
+    "compose-mem-check.py" = filebase64("${path.module}/../../scripts/hub/compose-mem-check.py")
+    "preview-up.sh"        = filebase64("${path.module}/../../scripts/hub/preview-up.sh")
+    "preview-compose.py"   = filebase64("${path.module}/../../scripts/hub/preview-compose.py")
+    "preview-down.sh"      = filebase64("${path.module}/../../scripts/hub/preview-down.sh")
   }
 }
 
@@ -60,6 +61,7 @@ resource "aws_ssm_document" "app_deploy" {
         runCommand = [
           "d=$(mktemp -d) && chmod 700 \"$d\"",
           "echo ${local.hub_scripts["app-deploy.sh"]} | base64 -d > \"$d/app-deploy.sh\"",
+          "echo ${local.hub_scripts["compose-mem-check.py"]} | base64 -d > \"$d/compose-mem-check.py\"",
           "bash \"$d/app-deploy.sh\" ${local.deploy_bucket} ${each.key}; rc=$?",
           "rm -rf \"$d\"; exit $rc",
         ]
