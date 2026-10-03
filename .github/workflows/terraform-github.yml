@@ -74,6 +74,9 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
+        # shell: bash runs with -o pipefail, so `terraform ... | tee` fails the
+        # step when Terraform fails (the default shell let a failed apply show green).
+        shell: bash
         id: plan
         working-directory: terraform/github
         env:
@@ -140,6 +143,9 @@ jobs:
         run: terraform init
 
       - name: Terraform Apply
+        # shell: bash runs with -o pipefail, so `terraform ... | tee` fails the
+        # step when Terraform fails (the default shell let a failed apply show green).
+        shell: bash
         working-directory: terraform/github
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_ADMIN_TOKEN }}

@@ -64,6 +64,9 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
+        # shell: bash runs with -o pipefail, so `terraform ... | tee` fails the
+        # step when Terraform fails (the default shell let a failed apply show green).
+        shell: bash
         id: plan
         working-directory: terraform/aws
         run: terraform plan -lock=false -no-color -out=tfplan 2>&1 | tee plan.txt
@@ -120,6 +123,9 @@ jobs:
         run: terraform init
 
       - name: Terraform Apply
+        # shell: bash runs with -o pipefail, so `terraform ... | tee` fails the
+        # step when Terraform fails (the default shell let a failed apply show green).
+        shell: bash
         working-directory: terraform/aws
         run: terraform apply -auto-approve -no-color 2>&1 | tee apply.txt
 
