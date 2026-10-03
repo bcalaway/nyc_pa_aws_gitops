@@ -121,6 +121,16 @@ install -d -m 0755 /var/lib/home-platform/exposure
 
 echo "Starting stack..."
 cd "$REMOTE_DIR"
+# The stack file is a list of `include`s (ADR-0029), which needs Compose
+# >= 2.20. Check before touching anything, then make sure the merged config
+# resolves, so an older or broken Compose fails here with the stack running.
+compose_ver=$(docker compose version --short | sed 's/^v//')
+if [ "$(printf '%s\n' 2.20.0 "$compose_ver" | sort -V | head -1)" != 2.20.0 ]; then
+  echo "ERROR: Docker Compose $compose_ver on the hub; the stack needs >= 2.20 for include (ADR-0029)." >&2
+  exit 1
+fi
+echo "Docker Compose $compose_ver"
+docker compose config --quiet
 # Promtail was replaced by Alloy (2026-10-02). `compose up` leaves a removed
 # service's container running, which would ship every log twice; stop it
 # first so Alloy also starts from Promtail's final read positions. No-op

@@ -7,7 +7,7 @@ This is the interface between an app repo and this platform repo (`nyc_pa_aws_gi
 - **This repo**: network, Terraform, shared services (Postgres, Redis, Authentik, Traefik, the observability stack), and this doc.
 - **App repo**: application code, its own Dockerfile (with `lint` and `test` build stages ahead of its final runtime stage — see "CI/CD and deploy" below), its own CI/CD workflow (calling the reusable workflows described below), its own deploy-time Compose fragment at `deploy/docker-compose.yml`, and app-specific tests.
 
-An app repo never edits this repo's Terraform or `compose/aws/docker-compose.yml` directly. A platform-side change (new shared service, new IAM role, a network change) lands here first; app repos then adopt it.
+An app repo never edits this repo's Terraform or the hub stack's Compose files (`compose/aws/`) directly. A platform-side change (new shared service, new IAM role, a network change) lands here first; app repos then adopt it.
 
 ## Compute placement (ADR-0015)
 
