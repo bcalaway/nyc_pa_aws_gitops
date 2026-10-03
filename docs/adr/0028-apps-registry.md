@@ -33,15 +33,18 @@ Add `apps/registry.yml` to this repo:
 
 ```yaml
 apps:
-  todo-app:
+  - name: todo-app
+    github_repo_id: 1313063209
     database: true
     authentik: true
     preview: true
-  mkt-data:
+  - name: mkt-data
+    github_repo_id: <id>
     database: true
-    grpc: false
     preview: false
 ```
+
+*Implementation note (2026-10-03):* a list rather than the map first sketched here, because the Access Analyzer archive rule's role list is order-sensitive and a map would reorder it alphabetically; `github_repo_id` was added for GitHub's immutable-ID OIDC subject. Field reference is in the file's header. `grpc` waits for the Python template's gRPC work.
 
 - **Terraform** reads it with `yamldecode()` and creates the ECR repo, OIDC role, deploy document and staging prefix per app via `for_each`, plus the preview resources where `preview: true`. Existing hand-written blocks move into this form with `moved {}` blocks, so nothing is destroyed or recreated.
 - **Database onboarding**: a hub script (run by `platform-deploy.yml`, behind `production` approval) creates any missing database and role, sets ownership (including the Postgres 15+ `public` schema step), generates the password into `/home-platform/postgres/<app>-password` if absent, and verifies with a real `CREATE TABLE`/`DROP TABLE`. It never drops anything.

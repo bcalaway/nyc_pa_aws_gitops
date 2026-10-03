@@ -79,13 +79,14 @@ resource "aws_accessanalyzer_archive_rule" "github_oidc_roles" {
 
   filter {
     criteria = "resource"
-    eq = [
-      aws_iam_role.github_actions.arn,
-      aws_iam_role.github_plan.arn,
-      aws_iam_role.todo_app_github_actions.arn,
-      aws_iam_role.hue_github_actions.arn,
-      aws_iam_role.todo_app_preview.arn,
-    ]
+    # eq is an ordered list in the provider, so this keeps the pre-registry
+    # order exactly (platform roles, app roles, preview roles, each in
+    # apps/registry.yml order). Adding an app updates this rule in place.
+    eq = concat(
+      [aws_iam_role.github_actions.arn, aws_iam_role.github_plan.arn],
+      [for n in local.app_names : aws_iam_role.app_github_actions[n].arn],
+      [for n in local.preview_app_names : aws_iam_role.app_preview[n].arn],
+    )
   }
 
   filter {
