@@ -38,6 +38,8 @@ Today nothing stops one container from using all the memory. An Airflow task tha
 4. **Core services get the most headroom**: Postgres, Traefik, Authentik and WireGuard-adjacent pieces should be the last things to hit a limit.
 5. **Alert** on any container OOM kill and on host memory pressure, through the existing Grafana alerting.
 
+*Implementation note (2026-10-03):* the resize was done first, before the limits (PR #79), since sizing data is per container and the hub was already near 80% memory. The stop/start exposed a deploy bug that kept Prometheus down after the reboot (`docker kill -s HUP` marks a container manually stopped; fixed in PR #80, docs/gotchas.md). Limits and alerts follow once a week of cAdvisor data exists.
+
 ## Consequences
 
 - Monthly cost rises by roughly the price difference between t3.medium and t3.large.
