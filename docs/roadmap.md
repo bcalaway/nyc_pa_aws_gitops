@@ -123,9 +123,7 @@ Tasks:
 - [ ] 🤖 Data-quality metrics pattern documented in `docs/app-platform.md` (gauges → Prometheus → Grafana alert rules, like `postgres-backup-stale`)
 - [ ] 🤖 Lambda + S3 backup-capture resources and IAM, for sources that need a capture path independent of the hub and NUCs
 - [ ] 🤖 Split Terraform state into `network`, `hub`, `ci`, `edge`, one module per PR, each a no-change plan (ADR-0029) — last, after the above lands
-- [ ] 🤖 GitHub repos from the registry: `terraform/github/` stack + `terraform-github.yml`, importing todo-app and hue (ADR-0030) *(2026-10-03: PR #86)*
-  - [x] 🧑 Create the two fine-grained tokens and add them as secrets (docs/app-platform.md, GitHub repos) *(done 2026-10-03, also stored in SSM)*
-  - [ ] 🤖 After the first apply imports cleanly: delete `terraform/github/imports.tf`
+- [x] 🤖 GitHub repos from the registry: `terraform/github/` stack + `terraform-github.yml`, importing todo-app and hue (ADR-0030) *(done 2026-10-03, PR #86: 13 imported, 3 changed (two no-op repo re-saves, plus todo-app's `production` now gated, Bill's call). Tokens created and stored in SSM + Actions secrets. `imports.tf` removed afterwards)*
 - [ ] 🤖 home-mcp: market data status, open gaps and backfill as named tools/jobs, once mkt-data exists
 
 ## Future / Deferred
