@@ -51,6 +51,9 @@ resource "aws_ecr_repository" "app" {
   for_each = local.app_ecr_repos
 
   name = each.key
+  # The CI role grants itself CreateRepository on this ARN in the same apply
+  # (iam.tf); wait for that to propagate (ci-roles.tf).
+  depends_on = [time_sleep.wait_for_github_actions_m20_policy]
   # Mutable (the default) is required, not just tolerated -- ADR-0019's CD
   # step tags every push with both <git-sha> and `latest`, and `latest` has
   # to be overwritable on each push.
@@ -134,6 +137,9 @@ resource "aws_iam_role" "app_github_actions" {
 
   name               = "${each.key}-github-actions"
   assume_role_policy = data.aws_iam_policy_document.app_github_actions_assume[each.key].json
+  # Same as the ECR repos: the CI role's iam:CreateRole grant on this ARN
+  # lands in the same apply (ci-roles.tf's time_sleep).
+  depends_on = [time_sleep.wait_for_github_actions_m20_policy]
 
   tags = { Name = "${each.key}-github-actions" }
 

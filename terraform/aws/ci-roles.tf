@@ -43,9 +43,19 @@ locals {
 
 # Time for the CI role's new permissions (iam.tf) to propagate before it
 # creates the resources below -- same pattern as backup.tf / security.tf.
+# The triggers re-run the wait whenever the registry's app or ECR repo list
+# changes: the CI role grants itself per-app ARNs (iam.tf) in the same apply
+# that creates the new app's ECR repo and roles, and a time_sleep only waits
+# when it is (re)created. Without them, adding mkt-data (PR #93) raced the
+# grant and failed with AccessDenied on ecr:CreateRepository until a re-run.
 resource "time_sleep" "wait_for_github_actions_m20_policy" {
   depends_on      = [aws_iam_role_policy.github_actions]
   create_duration = "15s"
+  triggers = {
+    apps      = join(",", local.app_names)
+    ecr_repos = join(",", sort(keys(local.app_ecr_repos)))
+    previews  = join(",", local.preview_app_names)
+  }
 }
 
 # ---------------------------------------------------------------- documents
