@@ -8,7 +8,7 @@
 # frontend; same major as hue/hub/Dockerfile's node:24-slim build stage).
 # hue's C++ agent still can't be built here: vcpkg pulls sources from
 # GitHub, which the proxy deliberately blocks, so PR CI is its only check.
-FROM node:24-bookworm-slim AS node
+FROM node:26-bookworm-slim AS node
 
 FROM python:3.12-slim-bookworm
 
