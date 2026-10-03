@@ -136,7 +136,7 @@ Tasks:
 - [x] 🤖 Registry entry (PR #93): repo, ECR repo, roles and database created *(2026-10-03. The first AWS apply raced the CI role's own new grant, fixed by a re-run and by PR #94)*
 - [x] 🤖 mkt-data's first PR: `templates/python` plus the phase-1 plan in its README/docs *(mkt-data #1, merged 2026-10-03)*
 - [ ] 🤖 mkt-data's `github_repo_id` in the registry: its first CD run was refused by AWS because GitHub sends the immutable-ID OIDC subject despite ADR-0030's classic-format customization (docs/gotchas.md). Then re-run mkt-data's CD
-- [ ] 🤖 Decide and build how app DAGs reach Airflow's `dags/<app>/`, how app secrets reach Airflow, and DockerOperator/socket isolation (ADR-0027's open points)
+- [ ] 🤖 Decide and build how app DAGs reach Airflow's `dags/<app>/`, how app secrets reach Airflow, and DockerOperator/socket isolation (ADR-0027's open points) *(ADR-0031 proposed 2026-10-03: DAGs call the app's token-protected `/jobs` HTTP API, no Docker socket; DAGs ship with the app's deploy; registry `airflow: true`)*
 - [ ] 🤖 Calendar sourcing (raw, kept forever), processed calendar tables with short readable names, backfill as far back as each source allows
 - [ ] 🤖 Data-quality metrics and alerts; Grafana dashboard with per-dataset backfill coverage and storage/cost
 
