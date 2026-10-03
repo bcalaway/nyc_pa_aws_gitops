@@ -6,17 +6,22 @@
 # input is the app name, which the document hard-codes per app.
 #
 # Pulls the app's Compose file (staged by app-deploy.yml in S3), writes its
-# .env from SSM with the hub's own role, and brings it up.
+# .env from SSM with the hub's own role, checks every service has a memory
+# limit (ADR-0026, compose-mem-check.py beside this script), and brings it up.
 #
 # Usage: app-deploy.sh <bucket> <app>
 set -euo pipefail
 BUCKET="$1" APP="$2"
+HERE="$(cd "$(dirname "$0")" && pwd)"
 [[ "$APP" =~ ^[a-z][a-z0-9-]{0,30}$ ]] || { echo "RESULT: bad app name."; exit 1; }
 [[ "$BUCKET" =~ ^[a-z0-9.-]+$ ]] || { echo "RESULT: bad bucket."; exit 1; }
 
 DIR="/home/ec2-user/apps/${APP}"
 mkdir -p "$DIR"
-aws s3 cp "s3://${BUCKET}/apps/${APP}/docker-compose.yml" "$DIR/docker-compose.yml" --only-show-errors
+# Staged beside the live file and only moved into place once it passes the
+# memory-limit check, so a rejected fragment never replaces the running one.
+NEW="$DIR/docker-compose.yml.new"
+aws s3 cp "s3://${BUCKET}/apps/${APP}/docker-compose.yml" "$NEW" --only-show-errors
 aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin 147856894209.dkr.ecr.us-east-1.amazonaws.com >/dev/null
 
@@ -43,6 +48,13 @@ mv -f "$ENV_TMP" "$DIR/.env"
 chmod 600 "$DIR/.env"
 
 cd "$DIR"
+if ! check=$(docker compose -f "$NEW" config --format json | python3 "$HERE/compose-mem-check.py"); then
+  rm -f "$NEW"
+  echo "RESULT: ${APP} not deployed: ${check}"
+  exit 1
+fi
+echo "$check"
+mv -f "$NEW" docker-compose.yml
 docker compose pull --quiet
 docker compose up -d
 echo "RESULT: ${APP} deployed."
