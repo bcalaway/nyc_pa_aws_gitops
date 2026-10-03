@@ -125,7 +125,10 @@ ssh -i "$SSH_KEY" "$EC2_HOST" "sudo install -d -m 0755 /var/lib/home-platform/ex
 echo "Starting stack..."
 # Promtail -> Alloy (2026-10-02): remove the old container first; see deploy-hub-stack.sh.
 ssh -i "$SSH_KEY" "$EC2_HOST" "docker rm -f promtail >/dev/null 2>&1 || true"
-ssh -i "$SSH_KEY" "$EC2_HOST" "cd $REMOTE_DIR && docker compose pull && docker compose build && docker compose up -d && docker kill -s HUP prometheus >/dev/null"
+# HUP Prometheus (config reload) only if it was already running before `up`,
+# and from inside the container: `docker kill` marks it manually stopped, so it
+# wouldn't come back after a reboot (see docs/gotchas.md).
+ssh -i "$SSH_KEY" "$EC2_HOST" "cd $REMOTE_DIR && docker compose pull && docker compose build && t0=\$(date +%s) && docker compose up -d && s=\$(docker inspect -f '{{.State.StartedAt}}' prometheus) && if [ \"\$(date -d \"\$s\" +%s)\" -lt \"\$t0\" ]; then docker exec prometheus kill -HUP 1; fi"
 
 echo "Installing host units (ADR-0024)..."
 ssh -i "$SSH_KEY" "$EC2_HOST" "sudo bash $REMOTE_DIR/host/install.sh $REMOTE_DIR"
