@@ -22,7 +22,12 @@ command -v rsync >/dev/null 2>&1 || dnf install -y rsync
 
 echo "Syncing compose/aws from S3 to staging..."
 mkdir -p "$STAGING" "$REMOTE_DIR"
-aws s3 sync "s3://${BUCKET}/compose-aws/" "$STAGING/" --delete --only-show-errors
+# --exact-timestamps: without it, S3->local sync skips any file whose size
+# didn't change unless the local copy is newer, so a same-length edit (a
+# version bump like 1.43.105 -> 1.43.106) never reaches the hub
+# (docs/gotchas.md, 2026-10-03). rsync below still only touches files whose
+# content actually changed.
+aws s3 sync "s3://${BUCKET}/compose-aws/" "$STAGING/" --delete --exact-timestamps --only-show-errors
 
 # rsync --inplace, not a plain copy or `aws s3 sync` straight into
 # REMOTE_DIR: both of those replace files via a new inode, and a container

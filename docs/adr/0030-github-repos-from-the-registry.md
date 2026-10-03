@@ -35,4 +35,5 @@ A new Terraform stack, `terraform/github/`, reads `apps/registry.yml` and manage
 - A new app is one registry entry: both stacks plan its resources on the PR, and two approvals create everything. No `gh repo create`, no clicking through settings.
 - Settings drift on managed repos shows up in the next plan.
 - One setting isn't modelled by the provider: the ruleset's "require extra approval for unattributed changes" (on in all three existing rulesets). It survives as long as Terraform never rewrites a ruleset; a ruleset change in Terraform may turn it off.
+- Merge settings (allowed merge methods, delete-branch-on-merge, merge commit titles) are set when a repo is created but not compared afterwards (`ignore_changes`): GitHub hides them from the read-only plan token, which made every PR plan show a phantom change. Drift in those few settings isn't detected. Likewise `secret_scanning_non_provider_patterns` is left at GitHub's default (disabled) because the provider doesn't read it back.
 - Two long-lived PATs to rotate. Their expiry is GitHub's (fine-grained PATs expire); when one lapses, the plan or apply fails with an auth error naming it.

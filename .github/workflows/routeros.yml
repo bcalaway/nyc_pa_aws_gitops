@@ -93,8 +93,10 @@ jobs:
               "set -e",
               ("mkdir -p " + $dir + "/ansible " + $dir + "/routeros"),
               ("command -v ansible-playbook >/dev/null 2>&1 || sudo dnf install -y ansible-core"),
-              ("aws s3 sync s3://" + $bucket + "/ansible/ " + $dir + "/ansible/ --delete"),
-              ("aws s3 sync s3://" + $bucket + "/routeros/ " + $dir + "/routeros/ --delete"),
+              # --exact-timestamps: same-size changes are otherwise skipped
+              # (docs/gotchas.md), e.g. a one-character config edit.
+              ("aws s3 sync s3://" + $bucket + "/ansible/ " + $dir + "/ansible/ --delete --exact-timestamps"),
+              ("aws s3 sync s3://" + $bucket + "/routeros/ " + $dir + "/routeros/ --delete --exact-timestamps"),
               ("cd " + $dir + "/ansible && ansible-playbook routeros.yml " + $limit)
             ]}')
           CMD_ID=$(aws ssm send-command \

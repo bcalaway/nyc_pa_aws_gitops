@@ -22,8 +22,10 @@ command -v ansible-playbook >/dev/null 2>&1 || dnf install -y ansible-core
 
 echo "Syncing ansible/ and compose/nuc/ from S3..."
 mkdir -p "$REMOTE_DIR/ansible" "$REMOTE_DIR/compose/nuc"
-aws s3 sync "s3://${BUCKET}/ansible/" "$REMOTE_DIR/ansible/" --delete --only-show-errors
-aws s3 sync "s3://${BUCKET}/compose-nuc/" "$REMOTE_DIR/compose/nuc/" --delete --only-show-errors
+# --exact-timestamps: same-size changes are otherwise skipped (see
+# deploy-hub-stack.sh, docs/gotchas.md).
+aws s3 sync "s3://${BUCKET}/ansible/" "$REMOTE_DIR/ansible/" --delete --exact-timestamps --only-show-errors
+aws s3 sync "s3://${BUCKET}/compose-nuc/" "$REMOTE_DIR/compose/nuc/" --delete --exact-timestamps --only-show-errors
 chown -R ec2-user:ec2-user "$REMOTE_DIR"
 
 echo "Refreshing NUC SSH key from SSM..."

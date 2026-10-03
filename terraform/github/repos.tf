@@ -52,9 +52,9 @@ resource "github_repository" "app" {
     secret_scanning_push_protection {
       status = "enabled"
     }
-    secret_scanning_non_provider_patterns {
-      status = "disabled"
-    }
+    # Not set: secret_scanning_non_provider_patterns. It's disabled (GitHub's
+    # default) on every repo, and the provider doesn't read it back, so
+    # declaring it made every apply re-send it as a phantom change.
   }
 
   # Removing an app from the registry never deletes its repo or history.
@@ -62,8 +62,15 @@ resource "github_repository" "app" {
 
   lifecycle {
     prevent_destroy = true
-    # Set at creation only; the first PR brings the real content.
-    ignore_changes = [auto_init]
+    ignore_changes = [
+      # Set at creation only; the first PR brings the real content.
+      auto_init,
+      # Merge settings are set at creation but not compared afterwards: GitHub
+      # only shows them to write-capable tokens, so the read-only PR-plan token
+      # sees them as off and every plan would show a phantom change.
+      allow_merge_commit, allow_squash_merge, allow_rebase_merge, delete_branch_on_merge,
+      merge_commit_title, merge_commit_message, squash_merge_commit_title, squash_merge_commit_message,
+    ]
   }
 }
 
