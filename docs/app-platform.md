@@ -142,7 +142,9 @@ Live in this repo under `templates/<language>/`, not a separate GitHub template 
 | `TF_GITHUB_ADMIN_TOKEN` | Administration: **Read and write**; Environments: **Read and write**; Actions: **Read and write** (Metadata read is automatic) | nyc_pa_aws_gitops → Settings → Environments → **production** → Environment secrets |
 | `TF_GITHUB_READ_TOKEN` | Administration, Environments, Actions: **Read-only** | nyc_pa_aws_gitops → Settings → Secrets and variables → Actions → **Repository secrets** |
 
-When one expires, `terraform-github.yml` fails at its "Check the … token" step or with an auth error; make a new one with the same permissions and replace the secret.
+Both are also kept in SSM (`/home-platform/github/terraform-admin-token`, `/home-platform/github/terraform-read-token`) as the source of truth; the GitHub secrets are copies. From a workstation with the AWS CLI and gh: read the token into a variable without echoing it (PowerShell `Read-Host -AsSecureString`), then `aws ssm put-parameter --type SecureString --overwrite --name /home-platform/github/terraform-<admin|read>-token --value $t` and `gh secret set TF_GITHUB_ADMIN_TOKEN --repo bcalaway/nyc_pa_aws_gitops --env production --body $t` (or `TF_GITHUB_READ_TOKEN` without `--env`). Set up this way on 2026-10-03.
+
+When one expires, `terraform-github.yml` fails at its "Check the … token" step or with an auth error; make a new one with the same permissions and repeat the above.
 
 ## Onboarding checklist for a new app
 

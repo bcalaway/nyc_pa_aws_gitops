@@ -26,7 +26,9 @@ terraform {
 }
 
 # Token from the GITHUB_TOKEN environment variable: a read-only fine-grained
-# PAT for PR plans, an admin one for applies (ADR-0030).
+# PAT for PR plans, an admin one for applies (ADR-0030). Both are kept in SSM
+# (/home-platform/github/terraform-{read,admin}-token) and copied to Actions
+# secrets; the workflow reads the secrets, no AWS role reads the SSM copies.
 provider "github" {
   owner = "bcalaway"
 }

@@ -124,7 +124,7 @@ Tasks:
 - [ ] 🤖 Lambda + S3 backup-capture resources and IAM, for sources that need a capture path independent of the hub and NUCs
 - [ ] 🤖 Split Terraform state into `network`, `hub`, `ci`, `edge`, one module per PR, each a no-change plan (ADR-0029) — last, after the above lands
 - [ ] 🤖 GitHub repos from the registry: `terraform/github/` stack + `terraform-github.yml`, importing todo-app and hue (ADR-0030) *(2026-10-03: PR #86)*
-  - [ ] 🧑 Create the two fine-grained tokens and add them as secrets (docs/app-platform.md, GitHub repos) — the PR's plan needs the read one
+  - [x] 🧑 Create the two fine-grained tokens and add them as secrets (docs/app-platform.md, GitHub repos) *(done 2026-10-03, also stored in SSM)*
   - [ ] 🤖 After the first apply imports cleanly: delete `terraform/github/imports.tf`
 - [ ] 🤖 home-mcp: market data status, open gaps and backfill as named tools/jobs, once mkt-data exists
 
