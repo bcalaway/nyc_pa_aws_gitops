@@ -1,7 +1,7 @@
 # ADR-0031: How App Pipelines Run on the Shared Airflow
 
 Date: 2026-10-03
-Status: Proposed
+Status: Accepted (2026-10-03, Bill)
 
 ## Context
 
@@ -79,6 +79,13 @@ Option C.
 - Adding an Airflow app changes Airflow's environment, so the next hub deploy recreates the Airflow containers. Tasks running at that moment are retried.
 
 **Memory.** Job work counts against the app's `mem_limit`, not Airflow's. mkt-data starts at 256m and is raised when backfills need it, sized from the Containers dashboard (ADR-0026).
+
+*Implementation note (2026-10-03):*
+
+- The helper is `compose/aws/airflow/dags/home_platform_jobs.py` (`call_app_job`), installed at the DAG root and listed in `.airflowignore`. It reads `AIRFLOW_CONN_<APP>` from the environment instead of Airflow's connection API, so it depends only on the standard library.
+- `AIRFLOW_CONN_<APP>` lines go in `/home/ec2-user/airflow/connections.env`, the scheduler's optional `env_file`. Optional `env_file` needs Compose ≥ 2.24, which the hub deploy now checks.
+- A registry change now also redeploys the hub stack, so a new `airflow: true` app gets its connection without a separate run. The scheduler is recreated only when that file changes.
+- DAG archives are checked by `scripts/hub/app-dags.py`, which is bundled into each `<app>-deploy` SSM document.
 
 ## Consequences
 

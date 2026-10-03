@@ -73,4 +73,4 @@ Unlike the rest of this section's hand-made host config, these are installed fro
 | `web.yml` | Umami |
 | `data.yml` | Airflow (ADR-0027), once it lands |
 
-A new shared service goes in the group that matches its role; a new group is one more `include` line. Relative paths in an included file resolve from `compose/aws/`, as before. The stack still deploys as one project (`compose-aws`), so container and volume names are unchanged. `include` needs Compose ≥ 2.20, which `scripts/hub/deploy-hub-stack.sh` checks before every deploy.
+A new shared service goes in the group that matches its role; a new group is one more `include` line. Relative paths in an included file resolve from `compose/aws/`, as before. The stack still deploys as one project (`compose-aws`), so container and volume names are unchanged. `include` needs Compose ≥ 2.20 and the Airflow scheduler's optional `env_file` (ADR-0031) ≥ 2.24, which `scripts/hub/deploy-hub-stack.sh` checks before every deploy.

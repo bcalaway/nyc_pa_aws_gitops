@@ -38,6 +38,11 @@
 #                    /home-platform/authentik/<name>-client-id and -secret.
 #   preview          true: per-PR previews (ADR-0023). The app must run
 #                    without its Authentik secrets.
+#   airflow          true: the app's pipelines run on the shared Airflow
+#                    (ADR-0031). The platform generates a job token at
+#                    /home-platform/<name>/airflow-token (the app gets it as
+#                    AIRFLOW_TOKEN), gives Airflow AIRFLOW_CONN_<NAME>, and the
+#                    app's deploy delivers its dags/ into dags/<name>/.
 #   extra_ecr_repos  Optional. More ECR repos the app's CI pushes to and the
 #                    hub pulls from (hue's NUC agent image).
 #   required_check   Optional. The status check main's ruleset requires;
@@ -80,6 +85,7 @@ apps:
   - name: mkt-data
     github_repo_id: 1403692772
     database: true
+    airflow: true
     authentik: false
     preview: false
 
