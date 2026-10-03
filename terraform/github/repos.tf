@@ -52,9 +52,9 @@ resource "github_repository" "app" {
     secret_scanning_push_protection {
       status = "enabled"
     }
-    secret_scanning_non_provider_patterns {
-      status = "disabled"
-    }
+    # Not set: secret_scanning_non_provider_patterns. It's disabled (GitHub's
+    # default) on every repo, and the provider doesn't read it back, so
+    # declaring it made every apply re-send it as a phantom change.
   }
 
   # Removing an app from the registry never deletes its repo or history.
