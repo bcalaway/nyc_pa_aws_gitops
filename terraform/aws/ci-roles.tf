@@ -17,11 +17,14 @@ locals {
   ci_apps       = local.app_names
   preview_apps  = local.preview_app_names
   # GitHub sends the subject in both forms depending on the claim format.
+  # Repos created by terraform/github are set to the classic one (ADR-0030),
+  # so the immutable-ID form is only trusted for older repos that have a
+  # github_repo_id in the registry.
   repo_subjects = merge(
-    { for n, a in local.apps : n => [
-      "repo:${var.github_org}/${n}",
-      "repo:${var.github_org}@${local.github_owner_id}/${n}@${a.github_repo_id}",
-    ] },
+    { for n, a in local.apps : n => concat(
+      ["repo:${var.github_org}/${n}"],
+      a.github_repo_id != "" ? ["repo:${var.github_org}@${local.github_owner_id}/${n}@${a.github_repo_id}"] : [],
+    ) },
     { "nyc_pa_aws_gitops" = ["repo:${var.github_org}/${var.github_repo}"] },
   )
 
@@ -341,9 +344,13 @@ resource "aws_iam_role" "github_plan" {
 # no SSM parameters, no KMS.
 data "aws_iam_policy_document" "github_plan_permissions" {
   statement {
-    effect    = "Allow"
-    actions   = ["s3:GetObject"]
-    resources = ["arn:aws:s3:::home-platform-terraform-state-${var.aws_account_id}/aws/terraform.tfstate"]
+    effect  = "Allow"
+    actions = ["s3:GetObject"]
+    resources = [
+      "arn:aws:s3:::home-platform-terraform-state-${var.aws_account_id}/aws/terraform.tfstate",
+      # terraform/github's state (ADR-0030), for its PR plans.
+      "arn:aws:s3:::home-platform-terraform-state-${var.aws_account_id}/github/terraform.tfstate",
+    ]
   }
 
   statement {

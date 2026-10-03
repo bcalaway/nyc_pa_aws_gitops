@@ -109,7 +109,7 @@ updates:
         update-types: [minor, patch]
 
   - package-ecosystem: terraform
-    directory: "/terraform/aws"
+    directories: ["/terraform/aws", "/terraform/github"]
     schedule:
       interval: monthly
     labels: [dependencies]
