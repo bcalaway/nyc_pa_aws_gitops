@@ -85,7 +85,7 @@ Open a new shell after installing so PATH is updated.
 
 ### Linux
 
-Git and `dnf-plugins-core` are already present on Ansible-provisioned NUCs (installed by `ansible/roles/base`) — the `dnf install git` below is only needed on a machine that skipped that role. None of AWS CLI, gh, or Terraform are installed by Ansible; all three need doing manually here.
+Git, `dnf-plugins-core` and AWS CLI v2 are already present on Ansible-provisioned NUCs (installed by `ansible/roles/base`) — the `dnf install git` and AWS CLI steps below are only needed on a machine that skipped that role. gh and Terraform are not installed by Ansible; both need doing manually here.
 
 **AWS CLI v2** (no dnf package — Amazon ships it as a zip installer):
 ```bash
