@@ -111,7 +111,7 @@ Tasks:
 - [ ] 🤖 cAdvisor + Prometheus scrape job; a week of per-container memory data *(cAdvisor, `cadvisor` scrape job and the **Containers** Grafana dashboard added 2026-10-03; the week starts when the hub deploy lands — the dashboard's sizing table gives peak and suggested `mem_limit` per container)*
 - [ ] 🤖 Resize hub to `t3.large`; set `mem_limit` on every hub service; OOM-kill and memory-pressure Grafana alerts (ADR-0026)
 - [x] 🤖 Hub deploy check rejects app Compose fragments without `mem_limit`; add the step to the `docs/app-platform.md` onboarding checklist *(2026-10-03: `scripts/hub/compose-mem-check.py`, run in `app-deploy.yml` and by `app-deploy.sh` on the hub; templates start at `256m`; todo-app and hue got interim limits in their own repos first)*
-- [ ] 🤖 Split `compose/aws/docker-compose.yml` into included files (ADR-0029); confirm Compose ≥ 2.20 on the hub first
+- [x] 🤖 Split `compose/aws/docker-compose.yml` into included files (ADR-0029); confirm Compose ≥ 2.20 on the hub first *(2026-10-03: `core.yml`, `observability.yml`, `web.yml`; `data.yml` arrives with Airflow. The resolved config is identical before and after, so no container recreates. `deploy-hub-stack.sh` refuses Compose < 2.20 before touching the stack and prints the hub's version on every deploy. home-mcp's `update_status` follows the includes)*
 - [ ] 🤖 `apps/registry.yml` + Terraform `for_each`; migrate todo-app and hue with `moved {}` (plan must show moves only) (ADR-0028)
 - [ ] 🤖 Idempotent hub script for app database onboarding, run by `platform-deploy.yml` (ADR-0028)
 - [ ] 🤖 Airflow service: LocalExecutor, own database, Traefik + Authentik forward-auth, metrics and logs, per-app DAG folders (ADR-0027)

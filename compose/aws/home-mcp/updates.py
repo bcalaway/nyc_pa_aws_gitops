@@ -23,6 +23,7 @@ line, never a failed tool call.
 import asyncio
 import datetime
 import os
+import posixpath
 import re
 import time
 
@@ -109,6 +110,17 @@ def split_image(ref: str):
     else:
         registry, repo = "docker.io", name if "/" in name else f"library/{name}"
     return registry, repo, tag
+
+
+def includes_in_compose(text: str, path: str) -> list[str]:
+    """Repo paths of a Compose file's `include:` entries (string or {path: ...})."""
+    base = posixpath.dirname(path)
+    out = []
+    for item in (yaml.safe_load(text) or {}).get("include") or []:
+        rel = item if isinstance(item, str) else (item or {}).get("path")
+        for r in ([rel] if isinstance(rel, str) else rel or []):
+            out.append(posixpath.normpath(posixpath.join(base, r)))
+    return out
 
 
 def images_in_compose(text: str) -> list[str]:
@@ -325,11 +337,19 @@ async def _network(client: httpx.AsyncClient, today: datetime.date) -> tuple[lis
 async def _images(client: httpx.AsyncClient, today: datetime.date) -> tuple[list[str], list[str], list[str]]:
     urgent, other, couldnt = [], [], []
     refs: set[str] = set()
-    for path in COMPOSE_FILES:
+    # The hub's file is a list of `include`s since ADR-0029; follow them
+    # (relative to the including file) so new groups are picked up as added.
+    queue, seen = list(COMPOSE_FILES), set()
+    while queue:
+        path = queue.pop(0)
+        if path in seen:
+            continue
+        seen.add(path)
         try:
             r = await client.get(f"https://raw.githubusercontent.com/{OWNER}/{REPO}/main/{path}", timeout=10)
             r.raise_for_status()
             refs.update(images_in_compose(r.text))
+            queue.extend(includes_in_compose(r.text, path))
         except (httpx.HTTPError, yaml.YAMLError):
             couldnt.append(f"image list from {path}")
 

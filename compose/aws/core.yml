@@ -1,0 +1,348 @@
+# Core: ingress, auth, data stores and the voice MCP server -- what every app
+# and the WireGuard-reachable platform depend on. ADR-0026: these get the
+# most memory headroom.
+#
+# Included by docker-compose.yml (ADR-0029). Volumes and networks are
+# defined there, once, for the whole stack; relative paths here resolve
+# from this directory, same as before the split.
+
+services:
+  traefik:
+    image: traefik:v3.7
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      # Only containers with an explicit traefik.enable=true label get
+      # routed -- avoids accidentally exposing an internal-only service
+      # (Postgres, Redis, Prometheus, etc.) just because it's on the same
+      # compose network.
+      - --providers.docker.exposedByDefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # Metrics entrypoint is deliberately not published to the host --
+      # only reachable by other containers on the compose network (i.e.
+      # Prometheus), same "internal-only" posture as postgres-exporter/
+      # redis-exporter.
+      - --entrypoints.metrics.address=:8082
+      - --metrics.prometheus=true
+      - --metrics.prometheus.entrypoint=metrics
+      # Access log for failed/refused requests only (Milestone 19, ADR-0024):
+      # JSON to stdout, so it reaches Loki like every other container log
+      # and home-mcp's security_events can count 401/403/404s per app and
+      # source. 4xx/5xx only keeps volume tiny; request headers (cookies,
+      # Authorization) are dropped by Traefik's default and listed again
+      # here so that can't silently change.
+      - --accesslog=true
+      - --accesslog.format=json
+      - --accesslog.filters.statuscodes=400-599
+      - --accesslog.fields.headers.defaultmode=drop
+      - --certificatesresolvers.route53.acme.dnschallenge=true
+      - --certificatesresolvers.route53.acme.dnschallenge.provider=route53
+      - --certificatesresolvers.route53.acme.email=bcalaway@gmail.com
+      - --certificatesresolvers.route53.acme.storage=/letsencrypt/acme.json
+    environment:
+      # No AWS_ACCESS_KEY_ID/SECRET -- lego's route53 provider falls back
+      # to the hub's own IMDS instance-role credentials (same pattern as
+      # certbot-dns-route53 and postgres-backup's S3 upload), no static
+      # keys anywhere. AWS_HOSTED_ZONE_ID pins the zone explicitly instead
+      # of relying on auto-detection.
+      AWS_REGION: us-east-1
+      AWS_HOSTED_ZONE_ID: Z0138104TDGCUTG6KYQI
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-letsencrypt:/letsencrypt
+    # Cutover to 80/443 confirmed 2026-07-18 (Milestone 11, ADR-0018) --
+    # verified on alternate ports 8080/8443 first (real Let's Encrypt certs
+    # issued and routing to all three domains confirmed via curl --resolve)
+    # before nginx was stopped and this took over the real ports.
+    ports:
+      - "80:80"
+      - "443:443"
+    labels:
+      # traefik.enable=true is required here even though this container has
+      # no router of its own -- with providers.docker.exposedByDefault=false,
+      # the Docker provider ignores ALL labels on a non-enabled container,
+      # not just router creation. Confirmed live: the hsts middleware
+      # defined below silently failed to register ("middleware
+      # \"hsts@docker\" does not exist") until this was added.
+      - "traefik.enable=true"
+      # Shared HSTS middleware, referenced by each routed service's own
+      # labels below as hsts@docker -- Traefik's Docker provider makes any
+      # middleware defined on any container globally referenceable by
+      # name, doesn't need to live on the container it's applied to.
+      - "traefik.http.middlewares.hsts.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.hsts.headers.stsIncludeSubdomains=true"
+      # Authentik forward-auth gate for Uptime Kuma (Milestone 11 --
+      # kuma-proxy.yaml blueprint). trustForwardHeader lets Authentik see
+      # the real client IP/host via X-Forwarded-* rather than Traefik's
+      # own. authResponseHeaders passes the authenticated user's identity
+      # through to the protected app (Kuma doesn't currently read these,
+      # but they're harmless to forward and match Authentik's documented
+      # Traefik integration exactly).
+      - "traefik.http.middlewares.authentik-forward-auth.forwardauth.address=http://authentik-server:9000/outpost.goauthentik.io/auth/traefik"
+      - "traefik.http.middlewares.authentik-forward-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authentik-forward-auth.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-entitlements,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version"
+    # Additional attachment to the shared external network (Milestone 11,
+    # app-platform.md's Networking section) so Traefik's Docker provider can
+    # discover app containers -- they join home-platform, not this stack's
+    # own default network. Keeps its existing default-network membership too
+    # (still needs to reach authentik-server, grafana, etc. by hostname), so
+    # this is additive, not a replacement.
+    # `preview` (ADR-0023): per-PR preview containers live only on that
+    # internal network, so Traefik joins it to route to them.
+    networks:
+      - default
+      - home-platform
+      - preview
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2026.8.3
+    container_name: authentik-server
+    restart: unless-stopped
+    command: server
+    depends_on:
+      - postgres
+    environment:
+      AUTHENTIK_SECRET_KEY: "${AUTHENTIK_SECRET_KEY}"
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: "${AUTHENTIK_DB_PASSWORD}"
+      # No AUTHENTIK_REDIS__* -- removed upstream in release 2025.10, see
+      # ADR-0017's "Revisited 2026-07-18" note. Everything (cache, tasks,
+      # sessions, websockets) now lives in Postgres.
+      AUTHENTIK_BOOTSTRAP_EMAIL: "bcalaway@gmail.com"
+      AUTHENTIK_BOOTSTRAP_PASSWORD: "${AUTHENTIK_BOOTSTRAP_PASSWORD}"
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      # 2026.5 changed the default listen address from 0.0.0.0 to [::].
+      # Docker networks here are IPv4-only, so pin IPv4 explicitly.
+      AUTHENTIK_LISTEN__HTTP: "0.0.0.0:9000"
+      AUTHENTIK_LISTEN__HTTPS: "0.0.0.0:9443"
+      AUTHENTIK_LISTEN__METRICS: "0.0.0.0:9300"
+      # 2026.8 only honours X-Forwarded-* from these networks. Pinned to the
+      # private ranges (the default) so Traefik's Docker networks stay
+      # trusted even if a future release narrows the default.
+      AUTHENTIK_LISTEN__TRUSTED_PROXY_CIDRS: "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+      # Grafana OIDC client (blueprints/grafana-oidc.yaml reads these via
+      # !Env) -- not consumed directly by authentik-server itself, but both
+      # server and worker get the same env since blueprint discovery/apply
+      # isn't strictly worker-only across versions.
+      AUTHENTIK_GRAFANA_CLIENT_ID: "${AUTHENTIK_GRAFANA_CLIENT_ID}"
+      AUTHENTIK_GRAFANA_CLIENT_SECRET: "${AUTHENTIK_GRAFANA_CLIENT_SECRET}"
+      # todo-app OIDC client (blueprints/todo-app-oidc.yaml), same pattern.
+      AUTHENTIK_TODO_APP_CLIENT_ID: "${AUTHENTIK_TODO_APP_CLIENT_ID}"
+      AUTHENTIK_TODO_APP_CLIENT_SECRET: "${AUTHENTIK_TODO_APP_CLIENT_SECRET}"
+      # hue OIDC client (blueprints/hue-oidc.yaml), same pattern.
+      AUTHENTIK_HUE_CLIENT_ID: "${AUTHENTIK_HUE_CLIENT_ID}"
+      AUTHENTIK_HUE_CLIENT_SECRET: "${AUTHENTIK_HUE_CLIENT_SECRET}"
+      # home-mcp OAuth client (blueprints/home-mcp-oauth.yaml), same pattern.
+      AUTHENTIK_HOME_MCP_CLIENT_ID: "${AUTHENTIK_HOME_MCP_CLIENT_ID}"
+      AUTHENTIK_HOME_MCP_CLIENT_SECRET: "${AUTHENTIK_HOME_MCP_CLIENT_SECRET}"
+      # home-mcp-audit service account token (blueprints/home-mcp-audit.yaml).
+      AUTHENTIK_HOME_MCP_AUDIT_TOKEN: "${AUTHENTIK_HOME_MCP_AUDIT_TOKEN}"
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - ./authentik/blueprints:/blueprints/local:ro
+    # Also published directly over WireGuard (10.0.3.0/24, security-group
+    # scoped) for debugging -- same pattern as Postgres/Redis. Public access
+    # is via Traefik (labels below), not this port directly.
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=Host(`auth.billandjessie.com`)"
+      - "traefik.http.routers.auth.entrypoints=websecure"
+      - "traefik.http.routers.auth.tls.certresolver=route53"
+      - "traefik.http.routers.auth.middlewares=hsts@docker"
+      - "traefik.http.services.auth.loadbalancer.server.port=9000"
+      # Authentik's own outpost callback/logout endpoints on the *protected*
+      # domain (status.billandjessie.com) must reach authentik-server
+      # directly, not go through the authentik-forward-auth middleware
+      # itself -- this router's PathPrefix makes it more specific than the
+      # status router's bare Host rule, so Traefik prefers it automatically
+      # for these paths without needing an explicit priority override.
+      - "traefik.http.routers.kuma-outpost.rule=Host(`status.billandjessie.com`) && PathPrefix(`/outpost.goauthentik.io/`)"
+      - "traefik.http.routers.kuma-outpost.entrypoints=websecure"
+      - "traefik.http.routers.kuma-outpost.tls.certresolver=route53"
+      - "traefik.http.routers.kuma-outpost.service=auth"
+      # Domain-level forward-auth for per-PR previews (ADR-0023,
+      # blueprints/preview-proxy.yaml): login callbacks land on
+      # auth.preview, which sets a cookie for all of .preview.billandjessie.com.
+      # This router also obtains the one wildcard certificate every preview
+      # host reuses (no per-preview Let's Encrypt issuance).
+      - "traefik.http.routers.auth-preview.rule=Host(`auth.preview.billandjessie.com`)"
+      - "traefik.http.routers.auth-preview.entrypoints=websecure"
+      - "traefik.http.routers.auth-preview.tls.certresolver=route53"
+      - "traefik.http.routers.auth-preview.tls.domains[0].main=*.preview.billandjessie.com"
+      - "traefik.http.routers.auth-preview.middlewares=hsts@docker"
+      - "traefik.http.routers.auth-preview.service=auth"
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2026.8.3
+    container_name: authentik-worker
+    restart: unless-stopped
+    command: worker
+    depends_on:
+      - postgres
+    environment:
+      AUTHENTIK_SECRET_KEY: "${AUTHENTIK_SECRET_KEY}"
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: "${AUTHENTIK_DB_PASSWORD}"
+      AUTHENTIK_BOOTSTRAP_EMAIL: "bcalaway@gmail.com"
+      AUTHENTIK_BOOTSTRAP_PASSWORD: "${AUTHENTIK_BOOTSTRAP_PASSWORD}"
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      # 2026.5 changed the default listen address from 0.0.0.0 to [::].
+      # Docker networks here are IPv4-only, so pin IPv4 explicitly.
+      AUTHENTIK_LISTEN__HTTP: "0.0.0.0:9000"
+      AUTHENTIK_LISTEN__HTTPS: "0.0.0.0:9443"
+      AUTHENTIK_LISTEN__METRICS: "0.0.0.0:9300"
+      # 2026.8 only honours X-Forwarded-* from these networks. Pinned to the
+      # private ranges (the default) so Traefik's Docker networks stay
+      # trusted even if a future release narrows the default.
+      AUTHENTIK_LISTEN__TRUSTED_PROXY_CIDRS: "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+      AUTHENTIK_GRAFANA_CLIENT_ID: "${AUTHENTIK_GRAFANA_CLIENT_ID}"
+      AUTHENTIK_GRAFANA_CLIENT_SECRET: "${AUTHENTIK_GRAFANA_CLIENT_SECRET}"
+      AUTHENTIK_TODO_APP_CLIENT_ID: "${AUTHENTIK_TODO_APP_CLIENT_ID}"
+      AUTHENTIK_TODO_APP_CLIENT_SECRET: "${AUTHENTIK_TODO_APP_CLIENT_SECRET}"
+      AUTHENTIK_HUE_CLIENT_ID: "${AUTHENTIK_HUE_CLIENT_ID}"
+      AUTHENTIK_HUE_CLIENT_SECRET: "${AUTHENTIK_HUE_CLIENT_SECRET}"
+      AUTHENTIK_HOME_MCP_CLIENT_ID: "${AUTHENTIK_HOME_MCP_CLIENT_ID}"
+      AUTHENTIK_HOME_MCP_CLIENT_SECRET: "${AUTHENTIK_HOME_MCP_CLIENT_SECRET}"
+      AUTHENTIK_HOME_MCP_AUDIT_TOKEN: "${AUTHENTIK_HOME_MCP_AUDIT_TOKEN}"
+    # Deliberately NOT mounting /var/run/docker.sock (Authentik's official
+    # compose does, root + full docker socket access) -- that's only needed
+    # for auto-deployed Docker-based outposts, which we're not using; we
+    # only need the built-in embedded OIDC provider. Skipping it avoids an
+    # unnecessary privilege-escalation surface, matching this repo's general
+    # pattern of scoping container mounts to what's actually used.
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - authentik-certs:/certs
+      - ./authentik/blueprints:/blueprints/local:ro
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # Published for client access (pgAdmin, etc.) -- gated by the security
+    # group to WireGuard peers only (10.0.3.0/24), same pattern as
+    # Prometheus/Loki/Uptime Kuma above.
+    ports:
+      - "5432:5432"
+    # Additional attachment to the shared external network -- app containers
+    # (e.g. todo-app) join home-platform and need to reach postgres by
+    # hostname from there. See traefik's networks: comment above.
+    # `preview` (ADR-0023): previews reach Postgres (as a role that owns
+    # only its own <app>-pr<n> database) and nothing else on the hub.
+    networks:
+      - default
+      - home-platform
+      - preview
+
+  postgres-backup:
+    build: ./postgres-backup
+    container_name: postgres-backup
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      # Uses the hub's own IMDS instance-role credentials for the S3
+      # upload (terraform/aws/tls.tf's hub_postgres_backup_write policy) --
+      # no AWS keys in the container.
+      BACKUP_BUCKET: "home-platform-logs-147856894209"
+    volumes:
+      - backup-metrics:/textfile_collector
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    # General shared cache/session store, not tied to any one app. Originally
+    # added for Authentik (ADR-0017), but upstream Authentik removed its
+    # Redis dependency in release 2025.10 (moved to Postgres) before we
+    # deployed it -- see ADR-0017's "Revisited 2026-07-18" note. Kept
+    # anyway: negligible footprint, RedisInsight already set up for it, and
+    # a future app may still want one.
+    command: --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    # Published for client access (RedisInsight, etc.) -- gated by the
+    # security group to WireGuard peers only (10.0.3.0/24), same pattern
+    # as Postgres above.
+    ports:
+      - "6379:6379"
+    # Additional attachment to the shared external network -- same reasoning
+    # as postgres above, for any app that wants a shared cache/session store.
+    networks:
+      - default
+      - home-platform
+
+  # Remote MCP server for voice Claude (Milestone 18, ADR-0021). Claude's
+  # custom connector reaches it from Anthropic's cloud, so it's public --
+  # but its router only admits Anthropic's published egress range
+  # (160.79.104.0/21, per Claude's connector auth docs; update here if that
+  # reference ever changes). Bill signs in to Authentik from his own browser,
+  # which never touches this host, so the allowlist doesn't affect login.
+  # No published host port: Traefik is the only way in.
+  home-mcp:
+    build: ./home-mcp
+    container_name: home-mcp
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      PUBLIC_URL: "https://mcp.billandjessie.com"
+      OIDC_ISSUER: "https://auth.billandjessie.com/application/o/home-mcp/"
+      OIDC_JWKS_URL: "http://authentik-server:9000/application/o/home-mcp/jwks/"
+      OIDC_CLIENT_ID: "${AUTHENTIK_HOME_MCP_CLIENT_ID}"
+      ALLOWED_USERNAMES: "bcalaway"
+      # Voice coding tasks (phase 3). VOICE_TASKS_ENABLED is the kill
+      # switch: "false" refuses new tasks, status stays readable. The key
+      # only works for nuc4's voiceworker forced command, from this hub's
+      # WireGuard IP; the host key below pins nuc4 (ssh-keyscan, 2026-09-30).
+      VOICE_TASKS_ENABLED: "true"
+      VOICE_ALLOWED_REPOS: "todo-app,hue"
+      VOICE_WORKER_HOST: "voiceworker@10.0.1.34"
+      VOICE_WORKER_HOST_KEY: "10.0.1.34 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILDVXkIip39pHoUg8bi3BJrKAIcPq7tQFeesoalyT3yv"
+      VOICE_WORKER_SSH_KEY_B64: "${VOICE_WORKER_SSH_KEY_B64}"
+      SMTP_PASSWORD: "${GRAFANA_SMTP_PASSWORD}"
+      # Voice jobs (phase 4, ADR-0022). VOICE_JOBS_ENABLED is the kill
+      # switch: "false" refuses new jobs, list/status stay readable. The
+      # token is Actions-only on nyc_pa_aws_gitops ("none" until created).
+      VOICE_JOBS_ENABLED: "true"
+      VOICE_JOBS_GITHUB_TOKEN: "${VOICE_JOBS_GITHUB_TOKEN}"
+      # Security and update visibility (Milestone 19, ADR-0024), all
+      # read-only. GITHUB_SECURITY_TOKEN: alerts-read-only fine-grained
+      # token ("none" until created). The Authentik audit token belongs to
+      # the view-only home-mcp-audit service account. AWS checks use the
+      # hub instance role (home-platform-hub-security-read policy).
+      GITHUB_SECURITY_TOKEN: "${GITHUB_SECURITY_TOKEN}"
+      AUTHENTIK_HOME_MCP_AUDIT_TOKEN: "${AUTHENTIK_HOME_MCP_AUDIT_TOKEN}"
+      AWS_REGION: us-east-1
+      LOKI_URL: "http://loki:3100"
+    volumes:
+      # Weekly exposure-check results, written by a root host unit
+      # (compose/aws/host/exposure-check.py).
+      - /var/lib/home-platform/exposure:/exposure:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mcp.rule=Host(`mcp.billandjessie.com`)"
+      - "traefik.http.routers.mcp.entrypoints=websecure"
+      - "traefik.http.routers.mcp.tls.certresolver=route53"
+      - "traefik.http.routers.mcp.middlewares=hsts@docker,anthropic-only@docker"
+      - "traefik.http.middlewares.anthropic-only.ipallowlist.sourcerange=160.79.104.0/21"
+      - "traefik.http.services.mcp.loadbalancer.server.port=8000"

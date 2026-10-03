@@ -1,0 +1,269 @@
+# Observability: metrics, logs, dashboards, status page and every exporter.
+#
+# Included by docker-compose.yml (ADR-0029). Volumes and networks are
+# defined there, once, for the whole stack; relative paths here resolve
+# from this directory, same as before the split.
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=5y
+      - --storage.tsdb.retention.size=160GB
+    ports:
+      - "9090:9090"
+
+  loki:
+    image: grafana/loki:3.7.8
+    container_name: loki
+    restart: unless-stopped
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/loki-config.yaml
+    ports:
+      - "3100:3100"
+
+  # Log shipper (replaced Promtail 2026-10-02; config and handoff notes in
+  # alloy/config.alloy). Reads the network-device syslog files and the
+  # hub's journal (which carries every container's output) and pushes to
+  # Loki. Its UI/metrics port (12345) is deliberately not published.
+  alloy:
+    image: grafana/alloy:v1.20.1
+    container_name: alloy
+    restart: unless-stopped
+    depends_on:
+      - loki
+    # Root (the image's default user) to read the host journal
+    # (root:systemd-journal, 640). Every host mount is read-only. No Docker
+    # socket: container logs come through the journal, not the socket.
+    user: root
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # Read positions (journal cursor, syslog file offsets). Must survive
+      # recreation, or every restart re-sends old lines (the 2026-07-11
+      # "entry too old" incident, back when this was Promtail).
+      - alloy-data:/var/lib/alloy/data
+      # Promtail's old positions, read once on Alloy's first start so it
+      # resumes where Promtail stopped. Safe to drop with the volume later.
+      - promtail-positions:/promtail-positions:ro
+      - /var/log/network-devices:/var/log/network-devices:ro
+      - /var/log/journal:/var/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+
+  grafana:
+    image: grafana/grafana-oss:11.4.0
+    container_name: grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - loki
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      # Anonymous access retired (Milestone 11, ADR-0017) -- Grafana was
+      # previously reachable read-only by anyone on the internet who knew
+      # the URL (grafana.billandjessie.com's 443 is public in the security
+      # group). OIDC login via Authentik replaces it below. The native
+      # username/password login form is deliberately left enabled (not
+      # GF_AUTH_DISABLE_LOGIN_FORM) so the existing local admin account
+      # (/home-platform/grafana/admin-password) stays available as a
+      # break-glass fallback if OIDC ever breaks.
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: "https://grafana.billandjessie.com"
+      # Bill wants to never see a login prompt again unless he explicitly
+      # logs out -- Grafana's own session cookie defaults to a 7d inactive /
+      # 30d absolute lifetime regardless of how long Authentik's own SSO
+      # session lasts (see authentik/blueprints/session-duration.yaml),
+      # since Grafana keeps its own separate session on top of the OIDC
+      # login. ~10 years is "effectively never".
+      GF_AUTH_LOGIN_MAXIMUM_INACTIVE_LIFETIME_DURATION: "3650d"
+      GF_AUTH_LOGIN_MAXIMUM_LIFETIME_DURATION: "3650d"
+      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+      GF_AUTH_GENERIC_OAUTH_NAME: "Authentik"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: "${AUTHENTIK_GRAFANA_CLIENT_ID}"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: "${AUTHENTIK_GRAFANA_CLIENT_SECRET}"
+      GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://auth.billandjessie.com/application/o/authorize/"
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://auth.billandjessie.com/application/o/token/"
+      GF_AUTH_GENERIC_OAUTH_API_URL: "https://auth.billandjessie.com/application/o/userinfo/"
+      # Without this, Grafana sometimes can't find the email in Authentik's
+      # userinfo response and falls back to a GitHub-specific
+      # "{api_url}/emails" endpoint Authentik doesn't implement at all --
+      # confirmed live in Grafana's own logs (a 404 on
+      # ".../userinfo//emails", intermittent, which is exactly the
+      # "sometimes have to log in twice" symptom Bill hit 2026-08-22).
+      # Pointing this at the plain "email" claim makes Grafana find it
+      # directly and never need that fallback.
+      GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH: "email"
+      GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: "true"
+      # Grafana links an OAuth login to a Grafana user by the IdP's stable
+      # external ID (auth_id, from the sub claim), not by email -- if that
+      # ID doesn't match what's already linked, it refuses to fall back to
+      # an existing user and errors "user already exists" instead, even
+      # though the email matches. Hit for real 2026-08-24: an earlier login
+      # via the akadmin bootstrap account (which also has email
+      # bcalaway@gmail.com set) got linked to the bcalaway@gmail.com
+      # Grafana user first, storing akadmin's uid as the auth_id. Every
+      # later real login via the actual bcalaway account presents a
+      # different uid and fails with "Login failed, User sync failed" --
+      # confirmed via Grafana's own logs (logger=user.sync msg="Failed to
+      # create user" error="user already exists") and cross-checked against
+      # both Authentik users' .uid values via `ak shell`. This setting
+      # makes Grafana re-link by email instead of hard-failing when the
+      # external ID drifts, which also just correctly reflects that
+      # akadmin/bcalaway are the same person here.
+      GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP: "true"
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: "smtp.gmail.com:587"
+      GF_SMTP_USER: "bcalaway@gmail.com"
+      GF_SMTP_PASSWORD: "${GRAFANA_SMTP_PASSWORD}"
+      GF_SMTP_FROM_ADDRESS: "bcalaway@gmail.com"
+      GF_SMTP_FROM_NAME: "Home Platform Grafana"
+    ports:
+      - "3000:3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.billandjessie.com`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=route53"
+      - "traefik.http.routers.grafana.middlewares=hsts@docker"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - uptime-kuma-data:/app/data
+    ports:
+      - "3001:3001"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.status.rule=Host(`status.billandjessie.com`)"
+      - "traefik.http.routers.status.entrypoints=websecure"
+      - "traefik.http.routers.status.tls.certresolver=route53"
+      # hsts first, then the Authentik gate -- order matters for a
+      # middleware chain, though HSTS/forward-auth don't actually interact.
+      - "traefik.http.routers.status.middlewares=hsts@docker,authentik-forward-auth@docker"
+      - "traefik.http.services.status.loadbalancer.server.port=3001"
+
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    container_name: node-exporter
+    restart: unless-stopped
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      # postgres-backup writes postgres_backup_last_success_timestamp_seconds
+      # here after each successful backup -- node-exporter's textfile
+      # collector exposes it like any other metric, no pushgateway needed.
+      - backup-metrics:/textfile_collector:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+      - --collector.textfile.directory=/textfile_collector
+    ports:
+      - "9100:9100"
+
+  # Per-container CPU, memory and network (Milestone 21, ADR-0026). A week of
+  # this data sets each service's mem_limit (observed peak + headroom); the
+  # Containers dashboard shows the peaks. Privileged + /dev/kmsg is what
+  # cAdvisor needs to read every container's cgroup and to see kernel OOM
+  # kills (container_oom_events_total). No published host port: only
+  # Prometheus, on this stack's network, reaches it.
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.60.6
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=15s
+      # Only what the dashboard and ADR-0026's alerts use; the defaults add
+      # hundreds of per-CPU/process/tcp series per container.
+      - --enable_metrics=cpu,memory,network,diskIO,oom_event
+      # Keep the compose service label, drop the rest (image labels bloat
+      # every series).
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.service,com.docker.compose.project
+    mem_limit: 256m
+
+  snmp-exporter:
+    image: prom/snmp-exporter:v0.30.1
+    container_name: snmp-exporter
+    restart: unless-stopped
+    # Built-in snmp.yml (if_mib etc.) plus our hand-written printer and
+    # version modules (versions.yml: RouterOS, DSM, SG300 firmware -- ADR-0024).
+    command:
+      - --config.file=/etc/snmp_exporter/snmp.yml
+      - --config.file=/etc/snmp_exporter/printer.yml
+      - --config.file=/etc/snmp_exporter/versions.yml
+    volumes:
+      - ./snmp-exporter/printer.yml:/etc/snmp_exporter/printer.yml:ro
+      - ./snmp-exporter/versions.yml:/etc/snmp_exporter/versions.yml:ro
+    ports:
+      - "9116:9116"
+
+  cost-exporter:
+    build: ./cost-exporter
+    container_name: cost-exporter
+    restart: unless-stopped
+    ports:
+      - "9199:9199"
+
+  rachio-exporter:
+    build: ./rachio-exporter
+    container_name: rachio-exporter
+    restart: unless-stopped
+    environment:
+      RACHIO_API_KEY: ${RACHIO_API_KEY}
+    ports:
+      - "9200:9200"
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.20.1
+    container_name: postgres-exporter
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres?sslmode=disable"
+    ports:
+      - "9187:9187"
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.92.1
+    container_name: redis-exporter
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    ports:
+      - "9121:9121"
