@@ -200,6 +200,18 @@ jobs:
           EOF
           chmod +x "$RUNNER_TEMP/run-on-hub.sh"
 
+      # Before the hub stack: a platform service's database password (e.g.
+      # Airflow's, ADR-0027) must exist before the stack's .env is built.
+      # Needs the Postgres container already running, which it is on any
+      # deploy after the first. Creates missing databases/roles/passwords;
+      # never drops or overwrites anything (scripts/hub/onboard-app-dbs.sh,
+      # ADR-0028).
+      - name: Onboard app databases
+        if: needs.plan.outputs.dbs == 'true'
+        env:
+          HUB_ID: ${{ steps.hub.outputs.id }}
+        run: $RUNNER_TEMP/run-on-hub.sh "App database onboarding" onboard-app-dbs.sh
+
       # Hub first: a change like a new voice-worker repo spans both
       # home-mcp (hub) and the nuc4 worker, and the hub side is the one
       # that gates new requests.
@@ -208,15 +220,6 @@ jobs:
         env:
           HUB_ID: ${{ steps.hub.outputs.id }}
         run: $RUNNER_TEMP/run-on-hub.sh "Hub stack deploy" deploy-hub-stack.sh
-
-      # After the hub stack (Postgres must be up), before the NUCs. Creates
-      # missing app databases/roles/passwords; never drops or overwrites
-      # anything (scripts/hub/onboard-app-dbs.sh, ADR-0028).
-      - name: Onboard app databases
-        if: needs.plan.outputs.dbs == 'true'
-        env:
-          HUB_ID: ${{ steps.hub.outputs.id }}
-        run: $RUNNER_TEMP/run-on-hub.sh "App database onboarding" onboard-app-dbs.sh
 
       - name: Deploy NUCs
         if: needs.plan.outputs.nucs == 'true'

@@ -43,6 +43,14 @@ Run Airflow on the hub as a platform service:
 
 Existing GitHub Actions schedules and voice jobs stay as they are. Airflow is for data pipelines, not platform operations.
 
+*Implementation note (2026-10-03):* Airflow 3.3.2 in `compose/aws/data.yml`: scheduler (runs `db migrate` on start and the LocalExecutor's tasks; `parallelism` 4), API server, DAG processor, triggerer, plus a statsd exporter. Changes from the decision above:
+
+- **UI**: `airflow.billandjessie.com` behind Authentik forward-auth, like Uptime Kuma, rather than internal-only. Bill's call, so it works from his phone; Airflow's own login is off (`simple_auth_manager_all_admins`) because Authentik is the gate.
+- **Network**: Airflow joins only `home-platform`, like the apps, so the IMDS guard keeps it (and the app code its tasks will run) off the hub's instance-role credentials. Only the statsd exporter is on the stack's default network, for Prometheus.
+- **Database**: a new `platform_databases:` list in `apps/registry.yml`, onboarded by the same script as app databases; platform-deploy.yml now runs that onboarding before the hub stack.
+- **Secrets**: Fernet key, API secret and JWT secret are generated once into SSM by `deploy-hub-stack.sh`.
+- **DAG delivery and DockerOperator** wait for mkt-data, as planned. Only `dags/platform/platform_heartbeat.py` ships now; it drives the "Airflow heartbeat stale" alert. There is no Docker socket mount yet.
+
 ## Consequences
 
 - One more shared service to upgrade and back up (its metadata DB is covered by the existing Postgres backups).

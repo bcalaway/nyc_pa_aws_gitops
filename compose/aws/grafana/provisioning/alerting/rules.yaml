@@ -350,3 +350,103 @@ groups:
         annotations:
           summary: "NYC printer needs attention: {{ $labels.hrPrinterDetectedErrorState }}"
           description: "The NYC HP M455dn is reporting {{ $labels.hrPrinterDetectedErrorState }}. Printing is blocked until it is cleared at the printer. The front-panel message is on the Printer dashboard in Grafana."
+
+  # Airflow (ADR-0027). Metrics come from airflow-statsd-exporter (Prometheus
+  # job "airflow", names in compose/aws/airflow/statsd-mapping.yml).
+  - orgId: 1
+    name: airflow
+    folder: Alerts
+    interval: 5m
+    rules:
+      - uid: airflow-heartbeat-stale
+        title: Airflow heartbeat stale
+        # End-to-end check: dags/platform/platform_heartbeat.py succeeds
+        # hourly, which needs the DAG processor, scheduler, executor and
+        # Execution API all working. `or vector(0)` turns "metric missing"
+        # (Airflow or the exporter down) into 0, so that alerts too. The 90m
+        # `for` covers a fresh deploy, where increase() needs a second
+        # success (about an hour) before it reads above 0.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: sum(increase(airflow_ti_finish{dag_id="platform_heartbeat",state="success"}[2h])) or vector(0)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: Alerting
+        execErrState: Error
+        for: 90m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Airflow's hourly platform_heartbeat hasn't succeeded in 2 hours"
+          description: "No successful platform_heartbeat task in the last 2 hours: Airflow's scheduler, DAG processor or API server may be down or stuck. Check https://airflow.billandjessie.com and `docker ps --filter name=airflow` on the hub."
+
+      - uid: airflow-task-failed
+        title: Airflow task failed
+        # Any task that ended in state "failed" (after its retries). The
+        # `unless ... offset` half catches a dag/task's first failure since
+        # the exporter started, where the counter appears already at 1 and
+        # increase() alone would read 0.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: (sum by (dag_id, task_id) (increase(airflow_ti_finish{state="failed"}[30m])) > 0) or (count by (dag_id, task_id) (airflow_ti_finish{state="failed"} unless airflow_ti_finish{state="failed"} offset 30m))
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        # No failures = no series = fine.
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Airflow task failed: {{ $labels.dag_id }}.{{ $labels.task_id }}"
+          description: "Task {{ $labels.task_id }} in DAG {{ $labels.dag_id }} failed after its retries. Logs are in the Airflow UI (https://airflow.billandjessie.com) under the failed run."

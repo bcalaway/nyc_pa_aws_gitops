@@ -61,6 +61,15 @@ if ! AUTHENTIK_HOME_MCP_AUDIT_TOKEN=$(ssm "/home-platform/authentik/home-mcp-aud
   aws ssm put-parameter --name "/home-platform/authentik/home-mcp-audit-token" --type SecureString \
     --value "$AUTHENTIK_HOME_MCP_AUDIT_TOKEN" --region us-east-1 >/dev/null
 fi
+# Airflow (ADR-0027). Created by the CI platform deploy (onboard-app-dbs.sh
+# for the database password, deploy-hub-stack.sh for the rest); a manual
+# deploy only reads them, so run the CI deploy once first.
+for v in "AIRFLOW_DB_PASSWORD postgres/airflow-password" "AIRFLOW_FERNET_KEY airflow/fernet-key" \
+         "AIRFLOW_API_SECRET_KEY airflow/api-secret-key" "AIRFLOW_JWT_SECRET airflow/jwt-secret"; do
+  read -r name param <<<"$v"
+  val=$(ssm "/home-platform/$param") || { echo "ERROR: /home-platform/$param missing -- run the CI platform deploy first" >&2; exit 1; }
+  printf -v "$name" '%s' "$val"
+done
 
 cat > "$LOCAL_DIR/.env" <<EOF
 GRAFANA_SMTP_PASSWORD=$GRAFANA_SMTP_PASSWORD
@@ -85,6 +94,10 @@ UMAMI_TWO_FACTOR_KEY=$UMAMI_TWO_FACTOR_KEY
 VOICE_JOBS_GITHUB_TOKEN=$VOICE_JOBS_GITHUB_TOKEN
 GITHUB_SECURITY_TOKEN=$GITHUB_SECURITY_TOKEN
 AUTHENTIK_HOME_MCP_AUDIT_TOKEN=$AUTHENTIK_HOME_MCP_AUDIT_TOKEN
+AIRFLOW_DB_PASSWORD=$AIRFLOW_DB_PASSWORD
+AIRFLOW_FERNET_KEY=$AIRFLOW_FERNET_KEY
+AIRFLOW_API_SECRET_KEY=$AIRFLOW_API_SECRET_KEY
+AIRFLOW_JWT_SECRET=$AIRFLOW_JWT_SECRET
 EOF
 
 echo "Copying compose stack to EC2..."
@@ -128,6 +141,8 @@ ssh -i "$SSH_KEY" "$EC2_HOST" "docker rm -f promtail >/dev/null 2>&1 || true"
 # HUP Prometheus (config reload) only if it was already running before `up`,
 # and from inside the container: `docker kill` marks it manually stopped, so it
 # wouldn't come back after a reboot (see docs/gotchas.md).
+# Airflow DAG root (ADR-0027, see scripts/hub/deploy-hub-stack.sh).
+ssh -i "$SSH_KEY" "$EC2_HOST" "mkdir -p /home/ec2-user/airflow/dags/platform && cp -rT $REMOTE_DIR/airflow/dags/platform /home/ec2-user/airflow/dags/platform"
 ssh -i "$SSH_KEY" "$EC2_HOST" "cd $REMOTE_DIR && docker compose pull && docker compose build && t0=\$(date +%s) && docker compose up -d && s=\$(docker inspect -f '{{.State.StartedAt}}' prometheus) && if [ \"\$(date -d \"\$s\" +%s)\" -lt \"\$t0\" ]; then docker exec prometheus kill -HUP 1; fi"
 
 echo "Installing host units (ADR-0024)..."

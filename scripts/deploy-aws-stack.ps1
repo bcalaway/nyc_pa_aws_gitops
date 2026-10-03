@@ -58,8 +58,19 @@ if (-not $auditToken) {
     & $aws ssm put-parameter --name "/home-platform/authentik/home-mcp-audit-token" --type SecureString --value $auditToken --region us-east-1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Couldn't read or create /home-platform/authentik/home-mcp-audit-token" }
 }
+# Airflow (ADR-0027). Created by the CI platform deploy; a manual deploy only
+# reads them, so run the CI deploy once first.
+function Get-Required($param) {
+    $v = (& $aws ssm get-parameter --name "/home-platform/$param" --with-decryption --region us-east-1 --output json 2>$null | ConvertFrom-Json).Parameter.Value
+    if (-not $v) { throw "/home-platform/$param missing -- run the CI platform deploy first" }
+    return $v
+}
+$airflowDbPassword = Get-Required "postgres/airflow-password"
+$airflowFernetKey = Get-Required "airflow/fernet-key"
+$airflowApiSecretKey = Get-Required "airflow/api-secret-key"
+$airflowJwtSecret = Get-Required "airflow/jwt-secret"
 
-"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nRACHIO_API_KEY=$rachioApiKey`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret`nAUTHENTIK_TODO_APP_CLIENT_ID=$authentikTodoAppClientId`nAUTHENTIK_TODO_APP_CLIENT_SECRET=$authentikTodoAppClientSecret`nAUTHENTIK_HUE_CLIENT_ID=$authentikHueClientId`nAUTHENTIK_HUE_CLIENT_SECRET=$authentikHueClientSecret`nAUTHENTIK_HOME_MCP_CLIENT_ID=$authentikHomeMcpClientId`nAUTHENTIK_HOME_MCP_CLIENT_SECRET=$authentikHomeMcpClientSecret`nVOICE_WORKER_SSH_KEY_B64=$voiceWorkerSshKeyB64`nUMAMI_DB_PASSWORD=$umamiDbPassword`nUMAMI_APP_SECRET=$umamiAppSecret`nUMAMI_TWO_FACTOR_KEY=$umamiTwoFactorKey`nVOICE_JOBS_GITHUB_TOKEN=$voiceJobsToken`nGITHUB_SECURITY_TOKEN=$githubSecurityToken`nAUTHENTIK_HOME_MCP_AUDIT_TOKEN=$auditToken" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
+"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nRACHIO_API_KEY=$rachioApiKey`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret`nAUTHENTIK_TODO_APP_CLIENT_ID=$authentikTodoAppClientId`nAUTHENTIK_TODO_APP_CLIENT_SECRET=$authentikTodoAppClientSecret`nAUTHENTIK_HUE_CLIENT_ID=$authentikHueClientId`nAUTHENTIK_HUE_CLIENT_SECRET=$authentikHueClientSecret`nAUTHENTIK_HOME_MCP_CLIENT_ID=$authentikHomeMcpClientId`nAUTHENTIK_HOME_MCP_CLIENT_SECRET=$authentikHomeMcpClientSecret`nVOICE_WORKER_SSH_KEY_B64=$voiceWorkerSshKeyB64`nUMAMI_DB_PASSWORD=$umamiDbPassword`nUMAMI_APP_SECRET=$umamiAppSecret`nUMAMI_TWO_FACTOR_KEY=$umamiTwoFactorKey`nVOICE_JOBS_GITHUB_TOKEN=$voiceJobsToken`nGITHUB_SECURITY_TOKEN=$githubSecurityToken`nAUTHENTIK_HOME_MCP_AUDIT_TOKEN=$auditToken`nAIRFLOW_DB_PASSWORD=$airflowDbPassword`nAIRFLOW_FERNET_KEY=$airflowFernetKey`nAIRFLOW_API_SECRET_KEY=$airflowApiSecretKey`nAIRFLOW_JWT_SECRET=$airflowJwtSecret" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
 
 Write-Host "Copying compose stack to EC2..."
 ssh -i $sshKey $ec2Host "mkdir -p $remoteDir"
@@ -104,6 +115,8 @@ ssh -i $sshKey $ec2Host "docker rm -f promtail >/dev/null 2>&1 || true"
 # HUP Prometheus (config reload) only if it was already running before `up`,
 # and from inside the container: `docker kill` marks it manually stopped, so it
 # wouldn't come back after a reboot (see docs/gotchas.md).
+# Airflow DAG root (ADR-0027, see scripts/hub/deploy-hub-stack.sh).
+ssh -i $sshKey $ec2Host "mkdir -p /home/ec2-user/airflow/dags/platform && cp -rT $remoteDir/airflow/dags/platform /home/ec2-user/airflow/dags/platform"
 ssh -i $sshKey $ec2Host "cd $remoteDir && docker compose pull && docker compose build && t0=`$(date +%s) && docker compose up -d && s=`$(docker inspect -f '{{.State.StartedAt}}' prometheus) && if [ `"`$(date -d `"`$s`" +%s)`" -lt `"`$t0`" ]; then docker exec prometheus kill -HUP 1; fi"
 
 Write-Host "Installing host units (ADR-0024)..."

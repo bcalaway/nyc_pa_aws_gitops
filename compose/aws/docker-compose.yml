@@ -3,7 +3,7 @@
 #   core.yml           Traefik, Authentik, Postgres, Redis, home-mcp
 #   observability.yml  Prometheus, Loki, Alloy, Grafana, Uptime Kuma, exporters, cAdvisor
 #   web.yml            Umami
-# data.yml (Airflow, ADR-0027) joins this list when it lands.
+#   data.yml           Airflow (ADR-0027) and its statsd exporter
 #
 # `include` needs Docker Compose >= 2.20; scripts/hub/deploy-hub-stack.sh
 # checks the hub's version before deploying.
@@ -11,6 +11,7 @@ include:
   - core.yml
   - observability.yml
   - web.yml
+  - data.yml
 
 volumes:
   prometheus-data:
@@ -26,6 +27,7 @@ volumes:
   authentik-templates:
   authentik-certs:
   traefik-letsencrypt:
+  airflow-logs:
 
 networks:
   # Created once on the hub via `docker network create home-platform` --

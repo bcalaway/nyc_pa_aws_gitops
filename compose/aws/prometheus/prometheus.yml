@@ -33,6 +33,14 @@ scrape_configs:
         labels:
           instance: aws-hub
 
+  # Airflow (ADR-0027): StatsD metrics via airflow-statsd-exporter
+  # (compose/aws/data.yml, names from airflow/statsd-mapping.yml).
+  - job_name: airflow
+    static_configs:
+      - targets: ["airflow-statsd-exporter:9102"]
+        labels:
+          instance: aws-hub
+
   # Authentik exposes Prometheus metrics on :9300 by default, no config
   # needed on its side -- server and worker both expose their own.
   - job_name: authentik
