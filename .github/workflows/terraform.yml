@@ -78,6 +78,13 @@ jobs:
               body,
             });
 
+      - name: Summarize plan
+        if: always()
+        working-directory: terraform/aws
+        run: |
+          line=$(grep -hE '^(Plan: |No changes\.)' plan.txt 2>/dev/null | tail -1)
+          echo "::notice title=result::${line:-plan produced no summary}"
+
       - name: Check plan status
         if: steps.plan.outcome == 'failure'
         run: exit 1
@@ -108,4 +115,15 @@ jobs:
 
       - name: Terraform Apply
         working-directory: terraform/aws
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -no-color 2>&1 | tee apply.txt
+
+      # One-line `result` annotation (home-mcp's last_deploys reads it back;
+      # the full log isn't reachable from Claude's sessions).
+      - name: Summarize apply
+        if: always()
+        working-directory: terraform/aws
+        run: |
+          line=$(grep -hE '^(Apply complete!|No changes\.)' apply.txt 2>/dev/null | tail -1)
+          err=$(grep -hE '^Error: ' apply.txt 2>/dev/null | head -1)
+          if [ -n "$err" ]; then echo "::error title=result::apply failed: ${err#Error: }"
+          else echo "::notice title=result::${line:-apply produced no summary}"; fi

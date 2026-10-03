@@ -63,4 +63,4 @@ echo "Running site.yml on: $REACHABLE"
 as_ec2 "ansible-playbook site.yml --limit '$REACHABLE'"
 
 [ -n "$SKIPPED" ] && echo "NOTE: not deployed to $SKIPPED (unreachable) -- run again when it's back."
-echo "Done."
+echo "RESULT: NUCs deployed: ${REACHABLE}${SKIPPED:+; skipped (unreachable): $SKIPPED}."

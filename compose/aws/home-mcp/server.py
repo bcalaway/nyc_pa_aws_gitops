@@ -30,9 +30,11 @@ from starlette.responses import JSONResponse
 import authentik_audit as authentik_audit_mod
 import aws_posture as aws_posture_mod
 import context
+import deploys
 import exposure
 import github_security as github_security_mod
 import github_status as github_status_mod
+import hub_view
 import jobs
 import logs
 import security_events as security_events_mod
@@ -209,6 +211,42 @@ async def recent_logs(container: str, minutes: int = 30, contains: str = "") -> 
     Read-only; secrets are redacted and at most 40 lines come back. Summarize
     what the lines show rather than reading them out verbatim."""
     return await logs.recent_logs(container, minutes, contains)
+
+
+# --- Hub visibility (Milestone 21). All read-only.
+
+
+@mcp.tool()
+@audited
+async def containers(detail: bool = False) -> str:
+    """Every container on the hub from cAdvisor: how many, total memory
+    against the hub's RAM, which started in the last hour (did a deploy
+    restart anything?), kernel OOM kills in 24 hours, and any above 80% of
+    its memory limit. detail=true adds one line per container (memory vs
+    limit, CPU, uptime). Read-only."""
+    return await hub_view.containers(detail)
+
+
+@mcp.tool()
+@audited
+async def scrape_targets(detail: bool = False) -> str:
+    """Prometheus scrape health: how many targets are up, and for each one
+    that's down its job, instance and last scrape error (Rambles targets are
+    marked expected while the site is closed, November to April).
+    detail=true adds up/total per job. Read-only. Use to check a new
+    exporter or scrape job is working."""
+    return await hub_view.scrape_targets(detail)
+
+
+@mcp.tool()
+@audited
+async def last_deploys(repo: str = "") -> str:
+    """What the latest deploys did, from each run's result line: the hub
+    stack (Compose version, what restarted, anything not running) or the
+    NUCs, the last Terraform apply ("Apply complete! Resources: ..."), and
+    the todo-app and hue CD deploys. Optional repo ("platform repo",
+    "todo-app", "hue"). Read-only."""
+    return await deploys.last_deploys(repo)
 
 
 # --- Security and update visibility (Milestone 19, ADR-0024). All read-only.
