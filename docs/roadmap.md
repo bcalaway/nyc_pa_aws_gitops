@@ -100,6 +100,26 @@ Tasks:
 - [x] 🧑 Tested 2026-10-02: todo-app deploy (before and after #63), hue deploy, todo-app PR #7 preview up and removed on close, Terraform PR plan under the read-only role
 - [ ] 🧑 Expire the Terraform state bucket's noncurrent versions from before #61 (they still contain the secret values), or rotate those secrets over time
 
+### Milestone 21 — Platform prep for the market data platform (its "phase 0")
+**Goal:** The hub can host Airflow and several new apps safely, and onboarding an app is a registry entry instead of copied blocks and manual SQL.
+
+Design: ADR-0026 (hub resize + memory limits), ADR-0027 (Airflow as a shared service), ADR-0028 (apps registry), ADR-0029 (split Compose file and Terraform state). The market data platform's own design lives in Bill's "Market Data Platform — Data Layer Architecture" doc; its repos (mkt-data, secmaster-svc, quote-svc, mkt-api, mkt-ui) are app repos per ADR-0014.
+
+Tasks:
+- [ ] 🧑 Review and accept ADR-0026 to ADR-0029
+- [ ] 🤖 cAdvisor + Prometheus scrape job; a week of per-container memory data
+- [ ] 🤖 Resize hub to `t3.large`; set `mem_limit` on every hub service; OOM-kill and memory-pressure Grafana alerts (ADR-0026)
+- [ ] 🤖 Hub deploy check rejects app Compose fragments without `mem_limit`; add the step to the `docs/app-platform.md` onboarding checklist
+- [ ] 🤖 Split `compose/aws/docker-compose.yml` into included files (ADR-0029); confirm Compose ≥ 2.20 on the hub first
+- [ ] 🤖 `apps/registry.yml` + Terraform `for_each`; migrate todo-app and hue with `moved {}` (plan must show moves only) (ADR-0028)
+- [ ] 🤖 Idempotent hub script for app database onboarding, run by `platform-deploy.yml` (ADR-0028)
+- [ ] 🤖 Airflow service: LocalExecutor, own database, Traefik + Authentik forward-auth, metrics and logs, per-app DAG folders (ADR-0027)
+- [ ] 🤖 Python template: Alembic migrations and a gRPC server with `grpc.health.v1` (ADR-0020's "add when a real caller needs it")
+- [ ] 🤖 Data-quality metrics pattern documented in `docs/app-platform.md` (gauges → Prometheus → Grafana alert rules, like `postgres-backup-stale`)
+- [ ] 🤖 Lambda + S3 backup-capture resources and IAM, for sources that need a capture path independent of the hub and NUCs
+- [ ] 🤖 Split Terraform state into `network`, `hub`, `ci`, `edge`, one module per PR, each a no-change plan (ADR-0029) — last, after the above lands
+- [ ] 🤖 home-mcp: market data status, open gaps and backfill as named tools/jobs, once mkt-data exists
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*
