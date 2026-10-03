@@ -112,6 +112,17 @@ An app repo composes these itself to pick its mode: call `app-build-push.yml` th
 
 **Environment**: production only — no staging tier, per Bill's explicit call in ADR-0019. Since 2026-10-01, opted-in apps also get **per-PR previews** (ADR-0023): a thin `preview.yml` (workflow name `Preview`) calling `app-preview.yml` on `pull_request`, which deploys each same-repo PR automatically to `<app>-pr<n>.preview.billandjessie.com` behind forward-auth, with a copy of the app's database and no production secrets, and removes it on close. Opting in needs: the app runs (open) without its Authentik secrets, `preview: true` on the app's entry in `apps/registry.yml`, which gives it its own `<app>-github-preview` role and `<app>-preview` ECR repo (ADR-0025, ADR-0028), and the caller granting `id-token: write`, `contents: read`, `pull-requests: write`.
 
+## Scheduled pipelines: Airflow (ADR-0027)
+
+A shared Airflow 3 on the hub (`compose/aws/data.yml`), UI at `https://airflow.billandjessie.com` behind Authentik. It's for data pipelines: dependencies, retries, backfills, per-run history. Platform operations stay as GitHub Actions schedules and voice jobs.
+
+- **DAG folders**: `/home/ec2-user/airflow/dags/<project>/` on the hub, mounted read-only. `dags/platform/` comes from this repo (`compose/aws/airflow/dags/platform/`) and holds only platform health DAGs; each app's DAGs go in `dags/<app>/`, delivered by the app's own deploy. **How an app delivers them is decided when mkt-data onboards** and gets written up here.
+- **DAG ids**: lowercase with underscores, no dots (`mkt_data_treasury_eod`). The metrics mapping (`compose/aws/airflow/statsd-mapping.yml`) splits StatsD names on dots, so a dotted id would land in the wrong labels.
+- **New DAGs start paused** (`dags_are_paused_at_creation`); unpause in the UI once it parses cleanly.
+- **Concurrency**: LocalExecutor, at most 4 task processes at once across all DAGs; tasks run inside the scheduler container (1 GiB limit, ADR-0026), so heavy work belongs in the app's own image once DockerOperator lands.
+- **Credentials**: Airflow can't reach the hub's AWS instance role (it's on `home-platform`, behind the IMDS guard). A project's own keys live under `/home-platform/<app>/*` and reach Airflow at deploy time (ADR-0005), mechanism also settled with mkt-data.
+- **Monitoring**: StatsD → `airflow-statsd-exporter` → Prometheus job `airflow`. Grafana alerts: **Airflow heartbeat stale** (the hourly `platform_heartbeat` DAG hasn't succeeded in 2 h) and **Airflow task failed** (any task that failed after its retries, labelled with DAG and task). Container logs go to Loki like everything else; task logs are in the UI (`airflow-logs` volume).
+
 ## Starter templates
 
 Live in this repo under `templates/<language>/`, not a separate GitHub template repository — same rationale as the reusable CI/CD workflows above (ADR-0014's "no business logic in the platform repo" is about apps, not platform-provided scaffolding). To use one: copy its contents into a new app repo and follow its own README.

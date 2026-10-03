@@ -44,20 +44,27 @@ ssm() {
 # deploy that needs it and kept in SSM, so the blueprint and home-mcp
 # always agree and nobody has to create it by hand. The hub role can write
 # only this one parameter (terraform/aws/tls.tf, hub_platform_deploy).
-audit_token() {
-  local p=/home-platform/authentik/home-mcp-audit-token v err
-  if v=$(ssm "$p" 2>/tmp/audit-token.err) && [ -n "$v" ]; then
+#
+# generated_secret <parameter> <generator command...>: same generate-once
+# pattern for any platform-owned secret (Airflow's, ADR-0027, below). The
+# hub role can write only the parameters terraform/aws/tls.tf lists.
+generated_secret() {
+  local p="$1" v err; shift
+  if v=$(ssm "$p" 2>/tmp/gen-secret.err) && [ -n "$v" ]; then
     echo "$v"
     return
   fi
-  err=$(cat /tmp/audit-token.err); rm -f /tmp/audit-token.err
+  err=$(cat /tmp/gen-secret.err); rm -f /tmp/gen-secret.err
   # Only create it when it genuinely doesn't exist -- never replace an
-  # existing token because of a transient read error. An empty result
+  # existing secret because of a transient read error. An empty result
   # trips the empty-value check below and stops the deploy.
   grep -q ParameterNotFound <<<"$err" || return 0
-  v=$(openssl rand -hex 32)
+  v=$("$@")
   aws ssm put-parameter --name "$p" --type SecureString --value "$v" --region "$REGION" >/dev/null && echo "$v"
 }
+audit_token() { generated_secret /home-platform/authentik/home-mcp-audit-token openssl rand -hex 32; }
+# Fernet keys are 32 random bytes, URL-safe base64 (with padding).
+fernet_key() { openssl rand -base64 32 | tr '+/' '-_'; }
 
 echo "Building .env from SSM..."
 ENV_TMP=$(mktemp "${REMOTE_DIR}/.env.XXXXXX")
@@ -91,6 +98,13 @@ chmod 600 "$ENV_TMP"
   # alerts. Until Bill creates it, github_security reports "not set up".
   echo "GITHUB_SECURITY_TOKEN=$(ssm /home-platform/github/security-read-token 2>/dev/null || echo none)"
   echo "AUTHENTIK_HOME_MCP_AUDIT_TOKEN=$(audit_token)"
+  # Airflow (ADR-0027, data.yml). The database password comes from the
+  # registry's platform_databases onboarding (onboard-app-dbs.sh, which
+  # platform-deploy.yml runs before this script).
+  echo "AIRFLOW_DB_PASSWORD=$(ssm /home-platform/postgres/airflow-password)"
+  echo "AIRFLOW_FERNET_KEY=$(generated_secret /home-platform/airflow/fernet-key fernet_key)"
+  echo "AIRFLOW_API_SECRET_KEY=$(generated_secret /home-platform/airflow/api-secret-key openssl rand -hex 32)"
+  echo "AIRFLOW_JWT_SECRET=$(generated_secret /home-platform/airflow/jwt-secret openssl rand -hex 32)"
 } > "$ENV_TMP"
 # A failed lookup inside $(...) doesn't trip set -e (echo's own status
 # wins), so check explicitly: an empty value would silently break a service.
@@ -118,6 +132,15 @@ docker network inspect preview >/dev/null 2>&1 || docker network create --intern
 # home-mcp through a read-only bind mount. Must exist before compose
 # creates the mount, or Docker would create it as an empty root dir anyway.
 install -d -m 0755 /var/lib/home-platform/exposure
+
+# Airflow's DAG root (ADR-0027): one folder per project, bind-mounted
+# read-only into the Airflow containers. App deploys own dags/<app>/; this
+# repo ships only dags/platform/ (platform health DAGs, never app DAGs).
+# Must exist before `up`, or Docker would create it root-owned.
+AIRFLOW_DAGS=/home/ec2-user/airflow/dags
+install -d -m 0755 -o ec2-user -g ec2-user /home/ec2-user/airflow "$AIRFLOW_DAGS" "$AIRFLOW_DAGS/platform"
+rsync -rlt --checksum --delete --chmod=D755,F644 "$REMOTE_DIR/airflow/dags/platform/" "$AIRFLOW_DAGS/platform/"
+chown -R ec2-user:ec2-user "$AIRFLOW_DAGS/platform"
 
 echo "Starting stack..."
 cd "$REMOTE_DIR"

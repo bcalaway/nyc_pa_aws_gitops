@@ -3,7 +3,8 @@
 # .github/workflows/platform-deploy.yml, behind `production` approval).
 #
 # App database onboarding (ADR-0028): for every app in apps/registry.yml
-# with `database: true`, make sure it has
+# with `database: true`, and every entry under `platform_databases:` (shared
+# services such as Airflow, ADR-0027), make sure it has
 #   - a password in SSM at /home-platform/postgres/<app>-password
 #     (generated here only if the parameter genuinely doesn't exist)
 #   - a LOGIN role named <app>
@@ -33,18 +34,22 @@ trap 'rm -rf "$WORK"' EXIT
 
 aws s3 cp "s3://${BUCKET}/apps-registry/registry.json" "$WORK/registry.json" --only-show-errors
 
-# Names of apps with database: true. The same name check as Terraform's
-# precondition (apps.tf), so nothing odd ever reaches a SQL identifier.
+# Names of apps with database: true, then platform databases. The same name
+# check as Terraform's precondition (apps.tf), so nothing odd ever reaches a
+# SQL identifier.
 # Written to a file first: a failure inside <(...) wouldn't stop the script.
 if ! python3 - "$WORK/registry.json" >"$WORK/apps.txt" <<'PY'
 import json, re, sys
-apps = json.load(open(sys.argv[1]))["apps"]
-for a in apps:
-    name = a["name"]
+reg = json.load(open(sys.argv[1]))
+names = [a["name"] for a in reg["apps"] if a.get("database", False) is True]
+names += [d["name"] for d in reg.get("platform_databases") or []]
+for name in names:
     if not re.fullmatch(r"[a-z][a-z0-9-]{1,30}[a-z0-9]", name):
-        sys.exit(f"bad app name in registry: {name!r}")
-    if a.get("database", False) is True:
-        print(name)
+        sys.exit(f"bad name in registry: {name!r}")
+if len(set(names)) != len(names):
+    sys.exit("a database name appears twice in the registry")
+for name in names:
+    print(name)
 PY
 then
   echo "RESULT: app databases not onboarded: apps/registry.yml failed the name check."
@@ -53,7 +58,7 @@ fi
 mapfile -t APPS <"$WORK/apps.txt"
 
 if [ "${#APPS[@]}" -eq 0 ]; then
-  echo "RESULT: app databases: no registry app has database: true."
+  echo "RESULT: app databases: no registry app has database: true and there are no platform databases."
   exit 0
 fi
 

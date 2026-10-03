@@ -1,0 +1,154 @@
+# Data services (ADR-0027): Airflow as a shared platform scheduler.
+#
+# Airflow 3, LocalExecutor -- no Celery/Redis queue. Four processes from one
+# image: the API server (UI + REST + the Execution API that task processes
+# report to), the scheduler (which also runs the tasks, as subprocesses),
+# the DAG processor and the triggerer.
+#
+# Networks: Airflow joins only `home-platform`, like the apps -- it reaches
+# Postgres and Traefik there, and the IMDS guard (compose/aws/host/) keeps it
+# off the hub's instance-role credentials, which matters once DAGs run app
+# code. Only the statsd exporter also joins the stack's default network, so
+# Prometheus can scrape it.
+#
+# Secrets come from the stack's .env (scripts/hub/deploy-hub-stack.sh):
+# AIRFLOW_DB_PASSWORD (registry platform_databases onboarding), and the
+# Fernet key, API secret and JWT secret, generated once into SSM.
+#
+# DAGs: /home/ec2-user/airflow/dags on the hub, one folder per project
+# (dags/<app>/, delivered by that app's deploy; dags/platform/ from this
+# repo). Mounted read-only.
+#
+# Login: Authentik forward-auth in front (blueprints/airflow-proxy.yaml), so
+# Airflow's own simple auth manager treats every request as admin.
+
+x-airflow: &airflow
+  image: apache/airflow:3.3.2
+  restart: unless-stopped
+  user: "50000:0"
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    # A small hub: at most 4 task processes at once across all DAGs.
+    AIRFLOW__CORE__PARALLELISM: "4"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "True"
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "True"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD}@postgres:5432/airflow
+    AIRFLOW__API__BASE_URL: https://airflow.billandjessie.com
+    AIRFLOW__API__SECRET_KEY: ${AIRFLOW_API_SECRET_KEY}
+    AIRFLOW__API__EXPOSE_CONFIG: "False"
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET}
+    AIRFLOW__API_AUTH__JWT_ISSUER: airflow
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "True"
+    # StatsD -> airflow-statsd-exporter -> Prometheus (job airflow).
+    AIRFLOW__METRICS__STATSD_ON: "True"
+    AIRFLOW__METRICS__STATSD_HOST: airflow-statsd-exporter
+    AIRFLOW__METRICS__STATSD_PORT: "9125"
+    AIRFLOW__METRICS__STATSD_PREFIX: airflow
+  volumes:
+    - /home/ec2-user/airflow/dags:/opt/airflow/dags:ro
+    - airflow-logs:/opt/airflow/logs
+  networks:
+    - home-platform
+
+services:
+  # Runs the database migration on start (the image's _AIRFLOW_DB_MIGRATE),
+  # so it comes up first; the others wait until it's healthy.
+  airflow-scheduler:
+    <<: *airflow
+    container_name: airflow-scheduler
+    command: scheduler
+    environment:
+      <<: *airflow-env
+      _AIRFLOW_DB_MIGRATE: "true"
+    # Tasks run inside this container (LocalExecutor), so their memory
+    # counts here. Initial limits per ADR-0026, resized from the
+    # Containers dashboard after a week.
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 3m
+
+  airflow-api-server:
+    <<: *airflow
+    container_name: airflow-api-server
+    command: api-server
+    mem_limit: 1g
+    depends_on:
+      airflow-scheduler:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 1m
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=home-platform"
+      - "traefik.http.routers.airflow.rule=Host(`airflow.billandjessie.com`)"
+      - "traefik.http.routers.airflow.entrypoints=websecure"
+      - "traefik.http.routers.airflow.tls.certresolver=route53"
+      - "traefik.http.routers.airflow.middlewares=hsts@docker,authentik-forward-auth@docker"
+      - "traefik.http.routers.airflow.service=airflow"
+      - "traefik.http.services.airflow.loadbalancer.server.port=8080"
+      # Authentik's outpost callback/logout paths on this host go straight
+      # to authentik-server, not through the forward-auth middleware --
+      # same as umami-outpost (web.yml) and kuma-outpost (core.yml).
+      - "traefik.http.routers.airflow-outpost.rule=Host(`airflow.billandjessie.com`) && PathPrefix(`/outpost.goauthentik.io/`)"
+      - "traefik.http.routers.airflow-outpost.entrypoints=websecure"
+      - "traefik.http.routers.airflow-outpost.tls.certresolver=route53"
+      - "traefik.http.routers.airflow-outpost.service=auth@docker"
+
+  airflow-dag-processor:
+    <<: *airflow
+    container_name: airflow-dag-processor
+    command: dag-processor
+    mem_limit: 768m
+    depends_on:
+      airflow-scheduler:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 1m
+
+  airflow-triggerer:
+    <<: *airflow
+    container_name: airflow-triggerer
+    command: triggerer
+    mem_limit: 512m
+    depends_on:
+      airflow-scheduler:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 1m
+
+  # Airflow emits StatsD; this turns it into Prometheus metrics
+  # (airflow/statsd-mapping.yml names the ones the alerts use).
+  airflow-statsd-exporter:
+    image: prom/statsd-exporter:v0.31.0
+    container_name: airflow-statsd-exporter
+    restart: unless-stopped
+    command:
+      - --statsd.mapping-config=/etc/statsd/mapping.yml
+      - --statsd.listen-udp=:9125
+      - --statsd.listen-tcp=:9125
+      - --web.listen-address=:9102
+    volumes:
+      - ./airflow/statsd-mapping.yml:/etc/statsd/mapping.yml:ro
+    mem_limit: 128m
+    networks:
+      - default
+      - home-platform
