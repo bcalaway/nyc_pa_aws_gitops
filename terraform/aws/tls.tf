@@ -250,6 +250,18 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
     actions   = ["ssm:PutParameter"]
     resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/home-mcp-audit-token"]
   }
+
+  # ADR-0028: scripts/hub/onboard-app-dbs.sh reads each registry app's
+  # Postgres password and creates it on first onboarding (never with
+  # --overwrite). Write access to exactly these parameters, nothing broader.
+  dynamic "statement" {
+    for_each = length(local.database_app_names) > 0 ? [1] : []
+    content {
+      effect    = "Allow"
+      actions   = ["ssm:GetParameter", "ssm:PutParameter"]
+      resources = [for n in local.database_app_names : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/postgres/${n}-password"]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "hub_platform_deploy" {

@@ -1,7 +1,7 @@
 name: Platform deploy
 
-# Deploys this repo's hub stack (compose/aws/) and NUC config (ansible/,
-# compose/nuc/) on merge to main -- the CI version of
+# Deploys this repo's hub stack (compose/aws/), NUC config (ansible/,
+# compose/nuc/) and app databases (apps/registry.yml, ADR-0028) on merge to main -- the CI version of
 # scripts/deploy-aws-stack.* and scripts/deploy-nucs.*, which still work for
 # manual runs.
 #
@@ -22,6 +22,7 @@ on:
       - 'compose/nuc/**'
       - 'ansible/**'
       - 'scripts/hub/**'
+      - 'apps/registry.yml'
   workflow_dispatch:
     inputs:
       target:
@@ -32,6 +33,7 @@ on:
           - hub
           - nucs
           - both
+          - app-dbs
 
 permissions:
   id-token: write
@@ -54,6 +56,7 @@ jobs:
     outputs:
       hub: ${{ steps.scope.outputs.hub }}
       nucs: ${{ steps.scope.outputs.nucs }}
+      dbs: ${{ steps.scope.outputs.dbs }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -67,9 +70,10 @@ jobs:
           BEFORE: ${{ github.event.before }}
         run: |
           if [ "$EVENT" = "workflow_dispatch" ]; then
-            HUB=false; NUCS=false
+            HUB=false; NUCS=false; DBS=false
             [[ "$TARGET" == hub || "$TARGET" == both ]] && HUB=true
             [[ "$TARGET" == nucs || "$TARGET" == both ]] && NUCS=true
+            [[ "$TARGET" == app-dbs ]] && DBS=true
             RANGE=""
           else
             if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
@@ -77,21 +81,24 @@ jobs:
             fi
             RANGE="$BEFORE..HEAD"
             CHANGED=$(git diff --name-only "$RANGE")
-            HUB=false; NUCS=false
+            HUB=false; NUCS=false; DBS=false
             # scripts/hub/<script> only triggers the part that script deploys.
             grep -qE '^(compose/aws/|scripts/hub/deploy-hub-stack\.sh$)' <<<"$CHANGED" && HUB=true
             grep -qE '^(ansible/|compose/nuc/|scripts/hub/deploy-nucs-on-hub\.sh$)' <<<"$CHANGED" && NUCS=true
+            grep -qE '^(apps/registry\.yml|scripts/hub/onboard-app-dbs\.sh)$' <<<"$CHANGED" && DBS=true
           fi
           echo "hub=$HUB" >> "$GITHUB_OUTPUT"
           echo "nucs=$NUCS" >> "$GITHUB_OUTPUT"
+          echo "dbs=$DBS" >> "$GITHUB_OUTPUT"
           {
             echo "## Platform deploy plan"
             echo "- Hub stack (compose/aws): **$HUB**"
             echo "- NUCs (ansible, compose/nuc): **$NUCS**"
+            echo "- App databases (apps/registry.yml): **$DBS**"
             if [ -n "$RANGE" ]; then
               echo
               echo '```'
-              git diff --stat "$RANGE" -- compose/aws compose/nuc ansible scripts/hub
+              git diff --stat "$RANGE" -- compose/aws compose/nuc ansible scripts/hub apps
               echo '```'
             fi
           } | tee "$GITHUB_STEP_SUMMARY"
@@ -100,7 +107,7 @@ jobs:
     name: Deploy (needs approval)
     runs-on: ubuntu-24.04
     needs: plan
-    if: needs.plan.outputs.hub == 'true' || needs.plan.outputs.nucs == 'true'
+    if: needs.plan.outputs.hub == 'true' || needs.plan.outputs.nucs == 'true' || needs.plan.outputs.dbs == 'true'
     environment: production
     timeout-minutes: 45
     steps:
@@ -116,6 +123,7 @@ jobs:
         env:
           HUB: ${{ needs.plan.outputs.hub }}
           NUCS: ${{ needs.plan.outputs.nucs }}
+          DBS: ${{ needs.plan.outputs.dbs }}
         run: |
           aws s3 sync scripts/hub/ "s3://${DEPLOY_BUCKET}/scripts-hub/" --delete
           if [ "$HUB" = "true" ]; then
@@ -125,6 +133,11 @@ jobs:
           if [ "$NUCS" = "true" ]; then
             aws s3 sync ansible/ "s3://${DEPLOY_BUCKET}/ansible/" --delete
             aws s3 sync compose/nuc/ "s3://${DEPLOY_BUCKET}/compose-nuc/" --delete
+          fi
+          if [ "$DBS" = "true" ]; then
+            # JSON for the hub, which has python3 but no YAML parser.
+            yq -o=json apps/registry.yml > "$RUNNER_TEMP/registry.json"
+            aws s3 cp "$RUNNER_TEMP/registry.json" "s3://${DEPLOY_BUCKET}/apps-registry/registry.json" --only-show-errors
           fi
 
       - name: Look up hub instance ID
@@ -195,6 +208,15 @@ jobs:
         env:
           HUB_ID: ${{ steps.hub.outputs.id }}
         run: $RUNNER_TEMP/run-on-hub.sh "Hub stack deploy" deploy-hub-stack.sh
+
+      # After the hub stack (Postgres must be up), before the NUCs. Creates
+      # missing app databases/roles/passwords; never drops or overwrites
+      # anything (scripts/hub/onboard-app-dbs.sh, ADR-0028).
+      - name: Onboard app databases
+        if: needs.plan.outputs.dbs == 'true'
+        env:
+          HUB_ID: ${{ steps.hub.outputs.id }}
+        run: $RUNNER_TEMP/run-on-hub.sh "App database onboarding" onboard-app-dbs.sh
 
       - name: Deploy NUCs
         if: needs.plan.outputs.nucs == 'true'
