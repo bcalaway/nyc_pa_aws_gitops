@@ -25,7 +25,8 @@ locals {
     extra_ecr_repos = try(a.extra_ecr_repos, [])
   } }
 
-  preview_app_names = [for n in local.app_names : n if local.apps[n].preview]
+  preview_app_names  = [for n in local.app_names : n if local.apps[n].preview]
+  database_app_names = [for n in local.app_names : n if local.apps[n].database]
 
   # Every production ECR repository: each app's own, plus its extras.
   app_ecr_repos = { for r in flatten([

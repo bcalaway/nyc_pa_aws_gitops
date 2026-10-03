@@ -19,15 +19,17 @@ A NUC (`nuc4` in NYC, `nuc5` in Rambles) is only used when an app has a hard loc
 
 One shared Postgres instance on the hub. Each app gets its own logical database and a least-privilege role — never the shared admin credential (`/home-platform/postgres/admin-password`).
 
-**Onboarding a new app's database** (a platform-side action, done once against the live instance — not something the app's own CI/CD does):
+**Onboarding a new app's database** is automatic since 2026-10-03 (ADR-0028): set `database: true` on the app's entry in `apps/registry.yml`. Merging that runs `scripts/hub/onboard-app-dbs.sh` from `platform-deploy.yml` (behind `production` approval, after the hub stack), which for each such app makes sure that:
 
-1. `CREATE DATABASE <app>;`
-2. `CREATE ROLE <app> WITH LOGIN PASSWORD '...';`
-3. `GRANT ALL PRIVILEGES ON DATABASE <app> TO <app>;`
-4. `ALTER DATABASE <app> OWNER TO <app>;` then, connected to that database specifically (not the default `postgres` database), `ALTER SCHEMA public OWNER TO <app>;` — **required**, not optional, on Postgres 15+: granting database privileges alone doesn't let a non-owner role `CREATE TABLE` in the `public` schema anymore (the default changed; see CLAUDE.md's gotcha on this, hit for real onboarding `todo-app`'s database)
-5. Store the password in SSM at `/home-platform/postgres/<app>-password`
-6. The app connects to `postgres:5432` by Docker network hostname (see "Networking" below), `sslmode=disable` — matches the existing internal-only pattern (`postgres-exporter`, Authentik); the instance is never exposed beyond WireGuard peers
-7. Verify with a real `CREATE TABLE`/`DROP TABLE` test as the app's own role before considering onboarding done — don't just trust the grants
+1. `/home-platform/postgres/<app>-password` exists in SSM — generated if absent, never overwritten
+2. a `LOGIN` role named `<app>` exists (`NOSUPERUSER NOCREATEDB NOCREATEROLE`) — an existing role's password is only set when SSM had none
+3. a database named `<app>` exists, owned by that role
+4. the database's `public` schema is owned by the role — **required** on Postgres 15+: database privileges alone no longer let a non-owner `CREATE TABLE` in `public` (docs/gotchas.md; hit for real onboarding `todo-app`)
+5. the app can actually log in with the SSM password over TCP and `CREATE TABLE`/`DROP TABLE` — if the password doesn't log in, the run fails and changes nothing
+
+It never drops a database or role; removing an app stays manual. Run it by hand from the Actions tab (`Platform deploy`, target `app-dbs`). Its `RESULT` line (read back by home-mcp's `last_deploys`) lists what was unchanged, what it changed, and anything that failed.
+
+The app connects to `postgres:5432` by Docker network hostname (see "Networking" below), user and database `<app>`, `sslmode=disable` — matches the existing internal-only pattern (`postgres-exporter`, Authentik); the instance is never exposed beyond WireGuard peers. `app-deploy.sh` injects the password as `POSTGRES_PASSWORD`.
 
 **Schema changes after initial onboarding:** the Python template's `create_tables()` (`app/db.py`) calls SQLAlchemy's `Base.metadata.create_all()` on every boot, which only creates tables that don't exist yet — it never alters an existing table. Adding a column/table to an app's models after it's already deployed needs a manual `ALTER TABLE`/`CREATE TABLE` against the live database (same access pattern as onboarding above), applied *before* or alongside the deploy that ships the new model — otherwise every request touching the changed table 500s with `UndefinedColumn` until it's applied. Hit for real adding `todo-app`'s `category_id` column (2026-08-15): `categories` (a wholly new table) got created automatically, `todos` (pre-existing) didn't get the new column and broke `/api/todos` in production for a few minutes until patched manually. No migration framework (e.g. Alembic) is wired up yet — until one is, treat every schema change as a two-step manual operation, not just a code change.
 
@@ -121,7 +123,7 @@ Live in this repo under `templates/<language>/`, not a separate GitHub template 
 ## Onboarding checklist for a new app
 
 1. [ ] Create the app's GitHub repo from a starter template (once templates exist)
-2. [ ] Platform side: create the app's Postgres database + role, store the credential in SSM
+2. [ ] Platform side: `database: true` in the app's `apps/registry.yml` entry — the platform deploy creates the database, role and SSM password (see Database above)
 3. [ ] Platform side: add the app's Authentik OIDC blueprint (or forward-auth middleware), store client credentials in SSM
 4. [ ] Platform side: add the app's `aws_route53_record` in `terraform/aws/tls.tf`
 5. [ ] Platform side: add the app to `apps/registry.yml` (ADR-0028) — name, `github_repo_id` (`gh api repos/bcalaway/<app> --jq .id`), `database`, `authentik`, `preview`, any `extra_ecr_repos`. Terraform builds the rest from it: ECR repo, `<app>-github-actions` role (trusts `main` + `production` only), `<app>-deploy` document, the hub role's ECR-pull/SSM-read grants and the CI role's ARNs. Check the PR's plan only adds that app's resources, merge, approve
