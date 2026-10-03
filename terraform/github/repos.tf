@@ -62,8 +62,15 @@ resource "github_repository" "app" {
 
   lifecycle {
     prevent_destroy = true
-    # Set at creation only; the first PR brings the real content.
-    ignore_changes = [auto_init]
+    ignore_changes = [
+      # Set at creation only; the first PR brings the real content.
+      auto_init,
+      # Merge settings are set at creation but not compared afterwards: GitHub
+      # only shows them to write-capable tokens, so the read-only PR-plan token
+      # sees them as off and every plan would show a phantom change.
+      allow_merge_commit, allow_squash_merge, allow_rebase_merge, delete_branch_on_merge,
+      merge_commit_title, merge_commit_message, squash_merge_commit_title, squash_merge_commit_message,
+    ]
   }
 }
 
