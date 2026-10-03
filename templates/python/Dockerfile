@@ -9,6 +9,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ app/
+COPY proto/ proto/
+COPY gen_proto.sh alembic.ini start.sh ./
+COPY migrations/ migrations/
+# gRPC stubs (ADR-0020) are generated here, never committed.
+RUN ./gen_proto.sh
 
 FROM base AS dev
 COPY requirements-dev.txt .
@@ -17,15 +22,13 @@ COPY tests/ tests/
 COPY ruff.toml .
 
 FROM dev AS lint
-RUN ruff check app/ tests/
+RUN ruff check app/ tests/ migrations/
 
 FROM dev AS test
 RUN pytest
 
 FROM base AS final
-EXPOSE 8000
-# --proxy-headers/--forwarded-allow-ips: Traefik terminates TLS and proxies
-# to the app over plain HTTP on the internal Docker network. Without this,
-# uvicorn ignores Traefik's X-Forwarded-Proto and builds http:// redirect
-# URIs (e.g. for OIDC), which Authentik's strict-match redirect_uris reject.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+# 8000: HTTP, routed by Traefik. 9090: gRPC, internal to home-platform only.
+EXPOSE 8000 9090
+# Applies migrations (when a database is configured), then runs uvicorn.
+CMD ["./start.sh"]

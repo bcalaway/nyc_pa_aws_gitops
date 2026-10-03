@@ -4,3 +4,7 @@ __pycache__/
 .ruff_cache/
 .env
 .venv/
+
+# Generated gRPC code (gen_proto.sh)
+app/grpc_gen/*_pb2*.py
+app/grpc_gen/*_pb2*.pyi

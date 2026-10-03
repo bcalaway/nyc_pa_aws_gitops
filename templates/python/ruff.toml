@@ -1,2 +1,4 @@
 line-length = 110
 target-version = "py312"
+# Generated gRPC code (gen_proto.sh / Dockerfile), not committed or hand-edited.
+extend-exclude = ["app/grpc_gen/*_pb2*.py", "app/grpc_gen/*_pb2*.pyi"]
