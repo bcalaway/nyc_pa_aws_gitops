@@ -81,8 +81,18 @@ elif [ "$n" -gt 0 ]; then
     dags_note="${n} DAG files NOT delivered: no Airflow DAG folder on the hub"
   else
     install -d -m 0755 -o ec2-user -g ec2-user "$DAGS_ROOT/$APP"
-    rsync -r --checksum --delete --chmod=D755,F644 "$DAG_STAGE/" "$DAGS_ROOT/$APP/"
+    # --perms: without it, rsync's --chmod is masked by this script's umask
+    # 077 (set for .env above), leaving files 0600 and the staging dir's
+    # 0700 -- unreadable to Airflow's uid 50000, which then silently finds
+    # no DAGs (2026-10-03, mkt-data's first DAG). The chmod and the check
+    # below make sure of it either way.
+    rsync -r --perms --checksum --delete --chmod=D755,F644 "$DAG_STAGE/" "$DAGS_ROOT/$APP/"
     chown -R ec2-user:ec2-user "$DAGS_ROOT/$APP"
+    chmod -R u=rwX,go=rX "$DAGS_ROOT/$APP"
+    if unreadable=$(find "$DAGS_ROOT/$APP" ! -perm -o=r -printf '%P ' | head -c 500) && [ -n "$unreadable" ]; then
+      echo "RESULT: ${APP} deployed, but some DAG files aren't readable by Airflow: ${unreadable}"
+      exit 1
+    fi
     dags_note="${n} DAG files delivered to dags/${APP}/"
   fi
 elif [ -d "$DAGS_ROOT/$APP" ]; then
