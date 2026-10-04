@@ -68,7 +68,10 @@ async def mkt_data_captures(calendar: str = "", limit: int = 10) -> str:
         return f"No captures{' for ' + calendar if calendar else ''} yet."
     lines = []
     for c in caps:
-        state = "applied" if c["applied"] else "NOT applied (parse failed, or since replaced)"
+        if c.get("parsed", True) is False:
+            state = "kept raw (no parser for this source yet)"
+        else:
+            state = "applied" if c["applied"] else "NOT applied (parse failed, or since replaced)"
         lines.append(
             f"- #{c['id']} {c['source']}, fetched {c['fetched_at'][:16].replace('T', ' ')} UTC, "
             f"{_kb(c['size_bytes'])}, {state}"

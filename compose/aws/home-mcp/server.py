@@ -284,8 +284,9 @@ async def mkt_data_captures(calendar: str = "", limit: int = 10) -> str:
     """The market data platform's raw captures (pages mkt-data fetched and
     keeps byte for byte), newest first: id, source, when, size, and whether
     its parse was applied. A newest capture that's NOT applied usually means
-    the parser rejected the page. Optional calendar ("FED", "SIFMA-US",
-    "NYSE"). Read-only."""
+    the parser rejected the page; "kept raw" means its source has no parser
+    yet (e.g. a new document captured before its parser is written).
+    Optional calendar ("FED", "SIFMA-US", "NYSE"). Read-only."""
     return await mkt_data.mkt_data_captures(calendar, limit)
 
 
