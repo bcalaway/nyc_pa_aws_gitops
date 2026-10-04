@@ -122,7 +122,10 @@ resource "aws_guardduty_filter" "exposure_scan" {
 
   detector_id = aws_guardduty_detector.main.id
   name        = "exposure-check-self-scan"
-  description = "The hub's weekly exposure check scanning its own and the sites' public IPs (compose/aws/host/exposure-check.py)."
+  # GuardDuty rejects many characters here (CreateFilter refused the first
+  # version, with an apostrophe, 2026-10-04): keep it to letters, digits,
+  # spaces, hyphens and periods.
+  description = "Weekly exposure check from the hub scanning the hub and site public IPs. See exposure-check.py in compose aws host."
   action      = "ARCHIVE"
   rank        = 1
 
