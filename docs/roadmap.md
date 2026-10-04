@@ -133,13 +133,20 @@ Tasks:
 Scope (Bill, 2026-10-03): SIFMA US bond market, Federal Reserve (FedWire/FRB holidays), NYSE. CME later.
 
 Tasks:
-- [ ] 🤖 Registry entry for `mkt-data` (`database: true`, no Authentik or previews) — creates the repo (terraform/github), its ECR repo and roles (terraform/aws) and its database (platform deploy). 🧑 Approve in order: Terraform (AWS) → Terraform (GitHub) → Platform deploy (onboarding needs the hub role's grant on `postgres/mkt-data-password` from the AWS apply)
-- [x] 🤖 Registry entry (PR #93): repo, ECR repo, roles and database created *(2026-10-03. The first AWS apply raced the CI role's own new grant, fixed by a re-run and by PR #94)*
-- [x] 🤖 mkt-data's first PR: `templates/python` plus the phase-1 plan in its README/docs *(mkt-data #1, merged 2026-10-03)*
-- [ ] 🤖 mkt-data's `github_repo_id` in the registry: its first CD run was refused by AWS because GitHub sends the immutable-ID OIDC subject despite ADR-0030's classic-format customization (docs/gotchas.md). Then re-run mkt-data's CD
-- [ ] 🤖 Decide and build how app DAGs reach Airflow's `dags/<app>/`, how app secrets reach Airflow, and DockerOperator/socket isolation (ADR-0027's open points) *(ADR-0031 accepted 2026-10-03: DAGs call the app's token-protected `/jobs` HTTP API, no Docker socket; DAGs ship with the app's deploy; registry `airflow: true`. Platform side built in the same PR; mkt-data's first job and DAG next)*
-- [ ] 🤖 Calendar sourcing (raw, kept forever), processed calendar tables with short readable names, backfill as far back as each source allows
-- [ ] 🤖 Data-quality metrics and alerts; Grafana dashboard with per-dataset backfill coverage and storage/cost
+- [x] 🤖 Registry entry (PR #93): repo, ECR repo, roles and database created *(2026-10-03. The first AWS apply raced the CI role's own new grant: fixed by a re-run and, for future apps, by PR #94)*
+- [x] 🤖 mkt-data's first PR: `templates/python` plus the phase-1 plan *(mkt-data #1, 2026-10-03)*
+- [x] 🤖 mkt-data's `github_repo_id` in the registry *(PR #95: GitHub sends the immutable-ID OIDC subject despite ADR-0030's customization, so every app now records its repo ID in a follow-up PR; docs/gotchas.md)*
+- [x] 🤖 App pipelines on Airflow (ADR-0031, PR #96, accepted 2026-10-03): DAGs call the app's token-protected `/jobs` HTTP API, with no Docker socket. DAGs ship with the app's deploy into `dags/<app>/`, and a registry `airflow: true` field turns it on. PR #97 fixed the DAG file permissions (umask 077 made them unreadable to Airflow; docs/gotchas.md)
+- [x] 🤖 Calendar schema and the Fed calendar end to end *(mkt-data #2 and #3, 2026-10-03/04)*:
+  - Migration 0002: raw `source`/`capture` (append-only trigger)/`source_check`, plus processed `calendar`/`calendar_year`/`calendar_day` with `valid_from`/`valid_to` history.
+  - FED from the Board's K.8 page.
+  - DAG `mkt_data__fed_calendar`, weekly. Its first run on 2026-10-04 loaded 5 years and 50 closed weekdays.
+- [x] 🤖 Airflow visibility *(PR #98, 2026-10-04)*: the Grafana **Airflow** dashboard, plus home-mcp `airflow_status`, `prometheus_query` and `prometheus_metrics` (read-only)
+- [ ] 🤖 Check the Airflow dashboard's metric names against live Prometheus (`prometheus_metrics("airflow")`); several came from Airflow's docs, not the live data. Fix any empty panels and `airflow_status` queries (heartbeat, `pool_*_slots`, `dag_processing_import_errors`, `dagrun_*`)
+- [ ] 🤖 SIFMA-US calendar (full closes and recommended early closes, so `early_close` with a close time), then NYSE. One mkt-data PR each, same pattern as FED (`app/calendars/<name>.py` parser + `CALENDARS` entry + DAG + fixture tests)
+- [ ] 🤖 Backfill per calendar as far back as sources allow; FED needs federal-holiday rules or archived K.8 pages before 2026
+- [ ] 🤖 Data-quality metrics (mkt-data exposes gauges: last capture, years covered, parse failures) and Grafana alerts; a market-data dashboard with per-calendar coverage and storage/cost; home-mcp market-data tools
+- [ ] 🤖 Small follow-ups: the Python template's Authlib/httpx deprecation warning (httpx2)
 
 ## Future / Deferred
 
