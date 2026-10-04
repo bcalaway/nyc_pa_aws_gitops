@@ -175,7 +175,7 @@
     {
       "id": 3,
       "title": "Task slots busy",
-      "description": "Tasks running now, of the hub's 4 (parallelism, data.yml).",
+      "description": "Tasks running now, of the hub's 4 (LocalExecutor parallelism, data.yml).",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -189,7 +189,7 @@
       },
       "targets": [
         {
-          "expr": "sum(airflow_pool_running_slots)",
+          "expr": "max(airflow_executor_running_tasks)",
           "refId": "A",
           "instant": true
         }
@@ -229,7 +229,7 @@
     {
       "id": 4,
       "title": "Tasks queued",
-      "description": "Tasks waiting for a free slot.",
+      "description": "Tasks waiting for a free executor slot.",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -243,7 +243,7 @@
       },
       "targets": [
         {
-          "expr": "sum(airflow_pool_queued_slots)",
+          "expr": "max(airflow_executor_queued_tasks)",
           "refId": "A",
           "instant": true
         }
@@ -660,7 +660,7 @@
     {
       "id": 11,
       "title": "Task slots",
-      "description": "The default pool's slots: the hub runs at most 4 tasks at once.",
+      "description": "The executor's slots: the hub runs at most 4 tasks at once (parallelism). Airflow's default_pool reports 128 slots, which isn't the real limit.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -674,17 +674,17 @@
       },
       "targets": [
         {
-          "expr": "sum(airflow_pool_running_slots)",
+          "expr": "max(airflow_executor_running_tasks)",
           "legendFormat": "running",
           "refId": "A"
         },
         {
-          "expr": "sum(airflow_pool_queued_slots)",
+          "expr": "max(airflow_executor_queued_tasks)",
           "legendFormat": "queued",
           "refId": "B"
         },
         {
-          "expr": "sum(airflow_pool_open_slots)",
+          "expr": "max(airflow_executor_open_slots)",
           "legendFormat": "open",
           "refId": "C"
         }
@@ -724,8 +724,8 @@
     },
     {
       "id": 12,
-      "title": "DAG file parse time",
-      "description": "How long each DAG file took to load on its last parse. DAG files should be cheap: a slow one delays every DAG.",
+      "title": "DAG file parsing",
+      "description": "Seconds since each DAG file was last parsed (it should stay under a minute or two), and the DAG processor's total time for one pass over all files. Airflow 3's per-file parse timers come through in inconsistent units, so they aren't charted.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -739,9 +739,14 @@
       },
       "targets": [
         {
-          "expr": "max by (file) (airflow_dag_processing_last_duration)",
-          "legendFormat": "{{file}}",
-          "refId": "A"
+          "refId": "A",
+          "expr": "max by (file) (airflow_dag_processing_last_run_seconds_ago{file!=\"\"})",
+          "legendFormat": "{{file}} since last parse"
+        },
+        {
+          "refId": "B",
+          "expr": "max(airflow_dag_processing_total_parse_time)",
+          "legendFormat": "total parse time"
         }
       ],
       "fieldConfig": {

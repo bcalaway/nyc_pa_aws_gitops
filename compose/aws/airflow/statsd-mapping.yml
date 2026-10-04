@@ -8,6 +8,12 @@
 # Grafana "Airflow" dashboard (dashboards/airflow.json); and by home-mcp's
 # airflow_status tool (home-mcp/airflow_view.py). Renaming a metric or label
 # here breaks all three.
+#
+# Checked against live Prometheus 2026-10-04 (Airflow 3): every mapped metric
+# also arrives once more with no labels (Airflow's untagged aggregate), so
+# queries must filter on a label (dag_id=~".+", state="...") or use max(), not
+# a bare sum(). Task slots come from airflow_executor_* (the real limit of 4),
+# not airflow_pool_* (default_pool reports 128).
 mappings:
   # Task instance finished: airflow.ti.finish.<dag_id>.<task_id>.<state>
   - match: "airflow.ti.finish.*.*.*"
@@ -29,9 +35,23 @@ mappings:
     name: "airflow_dagrun_schedule_delay"
     labels:
       dag_id: "$1"
-  # Per-file parse time: airflow.dag_processing.last_duration.<file>
+  # Per-file parse time: airflow.dag_processing.last_duration.<file> (Airflow 2)
+  # and airflow.dag_processing.last_duration.<bundle>.<file> (Airflow 3, bundle
+  # "dags-folder"). Airflow 3's values arrive in inconsistent units, so the
+  # dashboard doesn't chart them.
   - match: "airflow.dag_processing.last_duration.*"
     name: "airflow_dag_processing_last_duration"
+    labels:
+      file: "$1"
+  - match: "airflow.dag_processing.last_duration.*.*"
+    name: "airflow_dag_processing_last_duration"
+    labels:
+      bundle: "$1"
+      file: "$2"
+  # Seconds since a file was last parsed:
+  # airflow.dag_processing.last_run.seconds_ago.<file>
+  - match: "airflow.dag_processing.last_run.seconds_ago.*"
+    name: "airflow_dag_processing_last_run_seconds_ago"
     labels:
       file: "$1"
   # Pool slots: airflow.pool.<kind>_slots.<pool>

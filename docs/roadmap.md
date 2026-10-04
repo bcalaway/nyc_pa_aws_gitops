@@ -142,7 +142,7 @@ Tasks:
   - FED from the Board's K.8 page.
   - DAG `mkt_data__fed_calendar`, weekly. Its first run on 2026-10-04 loaded 5 years and 50 closed weekdays.
 - [x] 🤖 Airflow visibility *(PR #98, 2026-10-04)*: the Grafana **Airflow** dashboard, plus home-mcp `airflow_status`, `prometheus_query` and `prometheus_metrics` (read-only)
-- [ ] 🤖 Check the Airflow dashboard's metric names against live Prometheus (`prometheus_metrics("airflow")`); several came from Airflow's docs, not the live data. Fix any empty panels and `airflow_status` queries (heartbeat, `pool_*_slots`, `dag_processing_import_errors`, `dagrun_*`)
+- [x] 🤖 Airflow metric names checked against live Prometheus *(2026-10-04)*: all names the dashboard, alerts and `airflow_status` use exist. Fixed: task slots now come from `airflow_executor_*` (the real limit of 4; `default_pool` reports 128, and `sum()` double-counted because Airflow 3 also sends each metric unlabelled); the parse-time panel now shows seconds since each file's last parse (new mapping) and total parse time, since Airflow 3's per-file timers come in inconsistent units; `airflow_status` no longer lists a blank DAG
 - [ ] 🤖 SIFMA-US calendar (full closes and recommended early closes, so `early_close` with a close time), then NYSE. One mkt-data PR each, same pattern as FED (`app/calendars/<name>.py` parser + `CALENDARS` entry + DAG + fixture tests)
 - [ ] 🤖 Backfill per calendar as far back as sources allow; FED needs federal-holiday rules or archived K.8 pages before 2026
 - [ ] 🤖 Data-quality metrics (mkt-data exposes gauges: last capture, years covered, parse failures) and Grafana alerts; a market-data dashboard with per-calendar coverage and storage/cost; home-mcp market-data tools

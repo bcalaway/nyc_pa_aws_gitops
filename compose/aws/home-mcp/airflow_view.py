@@ -50,14 +50,17 @@ async def airflow_status(dag: str = "", detail: bool = False) -> str:
     queries = {
         "heartbeat": "sum(rate(airflow_scheduler_heartbeat[5m])) * 60",
         "import_errors": "max(airflow_dag_processing_import_errors)",
-        "running": "sum(airflow_pool_running_slots)",
-        "queued": "sum(airflow_pool_queued_slots)",
+        # Executor slots are the real limit (parallelism 4); default_pool
+        # reports 128. max(), not sum(): metrics also arrive unlabelled.
+        "running": "max(airflow_executor_running_tasks)",
+        "queued": "max(airflow_executor_queued_tasks)",
+        "open": "max(airflow_executor_open_slots)",
         "ok24": f'sum by (dag_id) (increase({TI}{{state="success"}}[24h]))',
         "fail24": f'sum by (dag_id) (increase({TI}{{state="failed"}}[24h]))',
         "fail7d": f'sum by (dag_id) (increase({TI}{{state="failed"}}[7d]))',
         "last_ok": _last_event("success"),
         "last_fail": _last_event("failed"),
-        "dags": f"count by (dag_id) ({TI})",
+        "dags": f'count by (dag_id) ({TI}{{dag_id!=""}})',
     }
     try:
         async with httpx.AsyncClient() as client:
@@ -77,7 +80,8 @@ async def airflow_status(dag: str = "", detail: bool = False) -> str:
     now = time.time()
     heartbeat = _one(d["heartbeat"])
     errors = _one(d["import_errors"])
-    running, queued = _one(d["running"]), _one(d["queued"])
+    running, queued, open_ = _one(d["running"]), _one(d["queued"]), _one(d["open"])
+    slots = round(running + open_) if running is not None and open_ is not None else 4
     ok24, fail24, fail7d = _by(d["ok24"], "dag_id"), _by(d["fail24"], "dag_id"), _by(d["fail7d"], "dag_id")
     last_ok, last_fail = _by(d["last_ok"], "dag_id"), _by(d["last_fail"], "dag_id")
     dags = sorted(_by(d["dags"], "dag_id"))
@@ -96,7 +100,7 @@ async def airflow_status(dag: str = "", detail: bool = False) -> str:
         elif errors is not None:
             extras.append("no DAG load errors")
         if running is not None:
-            extras.append(f"{running:.0f} of 4 task slots busy" + (f", {queued:.0f} queued" if queued else ""))
+            extras.append(f"{running:.0f} of {slots} task slots busy" + (f", {queued:.0f} queued" if queued else ""))
         lines.append(health + (": " + ", ".join(extras) if extras else "") + ".")
         total_ok, total_fail = sum(ok24.values()), sum(fail24.values())
         lines.append(
