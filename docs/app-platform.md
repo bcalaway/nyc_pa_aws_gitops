@@ -140,6 +140,20 @@ A shared Airflow 3 on the hub (`compose/aws/data.yml`), UI at `https://airflow.b
 
 - **Monitoring**: StatsD → `airflow-statsd-exporter` → Prometheus job `airflow`. The Grafana **Airflow** dashboard shows scheduler health, task outcomes and run times per DAG, slots and memory. home-mcp's `airflow_status` answers the same by voice ("did the Fed calendar job run?"). Grafana alerts: **Airflow heartbeat stale** (the hourly `platform_heartbeat` DAG hasn't succeeded in 2 h) and **Airflow task failed** (any task that failed after its retries, labelled with DAG and task). Container logs go to Loki like everything else; task logs are in the UI (`airflow-logs` volume).
 
+## Data-quality metrics
+
+How an app reports the health of its data, so Grafana can alert on it. First used by mkt-data (2026-10-04). It's the same shape as `postgres-backup-stale`: gauges, then Prometheus, then Grafana alert rules.
+
+- **Expose `GET /metrics`** on the app's internal HTTP port, in Prometheus's text format. No auth, like the platform's other scrape targets, so keep it to counts, timestamps and labels that aren't sensitive. Exempt it from the app's login middleware.
+- **Gauges, computed at scrape time** from the app's database, with readable names as labels (`calendar="SIFMA-US"`), never internal IDs:
+  - `<app>_..._last_success_timestamp_seconds` for staleness, which catches "ran and failed" and "never ran" alike;
+  - 1/0 gauges for "is this OK" (`<app>_source_parse_ok`), with the logic in the app, so alert rules stay a threshold.
+- **Scrape:** add a job to `compose/aws/prometheus/prometheus.yml` with target `<app>:<port>` and labels `instance: aws-hub` and `app: <app>`. Prometheus joins the `home-platform` network for this; apps aren't on the stack's default network.
+- **Alerts:** a group named after the app in `compose/aws/grafana/provisioning/alerting/rules.yaml`. On the staleness rule, set `noDataState: Alerting`: no data means the app or the scrape is broken. On the 1/0 rules, set `OK`, since a missing series is covered by the staleness rule. Each annotation says what to check, and which home-mcp tool helps.
+- **Order:** deploy the app's `/metrics` before the platform change. Otherwise the staleness rule fires on no data.
+
+mkt-data's gauges and rules are the worked example: `app/metrics.py` there, and the `mkt-data` alert group here (stale capture, parse failed, next year not published).
+
 ## Starter templates
 
 Live in this repo under `templates/<language>/`, not a separate GitHub template repository — same rationale as the reusable CI/CD workflows above (ADR-0014's "no business logic in the platform repo" is about apps, not platform-provided scaffolding). To use one: copy its contents into a new app repo and follow its own README.
