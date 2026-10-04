@@ -144,11 +144,12 @@ Tasks:
 - [x] 🤖 Airflow visibility *(PR #98, 2026-10-04)*: the Grafana **Airflow** dashboard, plus home-mcp `airflow_status`, `prometheus_query` and `prometheus_metrics` (read-only)
 - [x] 🤖 Airflow metric names checked against live Prometheus *(2026-10-04)*: all names the dashboard, alerts and `airflow_status` use exist. Fixed: task slots now come from `airflow_executor_*` (the real limit of 4; `default_pool` reports 128, and `sum()` double-counted because Airflow 3 also sends each metric unlabelled); the parse-time panel now shows seconds since each file's last parse (new mapping) and total parse time, since Airflow 3's per-file timers come in inconsistent units; `airflow_status` no longer lists a blank DAG
 - [x] 🤖 SIFMA-US and NYSE calendars *(mkt-data #4 and #5, 2026-10-04)*: same pattern as FED. SIFMA-US (DAG `mkt_data__sifma_calendar`) stores full closes and recommended early closes with their Eastern close time; its first run loaded 19 days (2026 covered; 2027 not published yet). NYSE (DAG `mkt_data__nyse_calendar`) stores holidays and early closes at the equities 1:00 p.m. close; its first run loaded 34 days over 2026–2028. Both parsed the real pages first time. Follow-up: swap the stand-in test fixtures for the first real captures (done: SIFMA-US in mkt-data #13, NYSE in #16)
-- [ ] 🤖 Backfill per calendar (agreed 2026-10-04: SIFMA-US to 1996, FED to 1986, NYSE to 1990; sources and plan in mkt-data `docs/backfill.md`, status in `docs/phase-1.md` step 5). Calendars can have several sources now (mkt-data #10). SIFMA-US now covers 1996 onward, applied on the hub 2026-10-04:
-  - the archive for 2015–2025 (mkt-data #12);
-  - SIFMA's 1996–2019 PDF, captured raw first and then parsed by position with `pdfplumber` (mkt-data #15, #17). It includes the Sandy and Bush closes.
+- [x] 🤖 Backfill per calendar *(done 2026-10-04, all applied on the hub; sources and plan in mkt-data `docs/backfill.md`)*:
+  - **SIFMA-US from 1996:** the archive for 2015–2025 (mkt-data #12), the 1996–2019 PDF parsed by position (#15, #17), and Carter 2025 as a cited exception (#19).
+  - **FED from 1986:** `FED-RULES`, which matches the NY Fed circulars for 2003–2009 and reproduces K.8 (#19).
+  - **NYSE from 1990:** `NYSE-RULES`, with 25 cited exceptions; it reproduces the hours page and ICE's 2023–2025 announcement (#20).
 
-  Next: Carter (Jan 9, 2025) as a cited exception, then `FED-RULES`, `NYSE-RULES`
+  Rules are versioned JSON files read as `repo:` sources, so each version is kept as a raw capture.
 - [x] 🤖 home-mcp `mkt_data_captures` and `mkt_data_capture_text` *(platform #102 + mkt-data #9, 2026-10-04)*: read-only views of mkt-data's raw captures (list with an `applied` flag; one HTML capture's visible text, filtered by a phrase) through a read-only token (`/home-platform/mkt-data/read-token`, GET endpoints only). home-mcp joined `home-platform` to reach `mkt-data:8000`
 - [ ] 🤖 Data-quality metrics (mkt-data exposes gauges: last capture, years covered, parse failures) and Grafana alerts; a market-data dashboard with per-calendar coverage and storage/cost; home-mcp market-data tools
 - [ ] 🤖 Small follow-ups: the Python template's Authlib/httpx deprecation warning (httpx2)
