@@ -13,7 +13,7 @@
     "from": "now-30d",
     "to": "now"
   },
-  "description": "mkt-data's holiday calendars (phase 1, Milestone 22): upcoming closes, backfill coverage, capture history and storage. From mkt-data's /metrics (scrape job mkt-data), postgres-exporter and the cost-exporter.",
+  "description": "The market data platform's holiday calendars: upcoming closes and coverage from calendar-svc's golden calendars (scrape job calendar-svc, since phase 2), capture history from mkt-data's sources (scrape job mkt-data), storage from postgres-exporter and the cost-exporter.",
   "links": [
     {
       "title": "Phase 1 status",
@@ -42,10 +42,10 @@
           "uid": "PBFA97CFB590B2093"
         },
         "query": {
-          "query": "label_values(mkt_data_calendar_days, calendar)",
+          "query": "label_values(calendar_svc_calendar_days, calendar)",
           "refId": "vars"
         },
-        "definition": "label_values(mkt_data_calendar_days, calendar)",
+        "definition": "label_values(calendar_svc_calendar_days, calendar)",
         "multi": true,
         "includeAll": true,
         "allValue": ".+",
@@ -279,7 +279,7 @@
       },
       "targets": [
         {
-          "expr": "sum(mkt_data_calendar_gap_years{calendar=~\"$calendar\"})",
+          "expr": "sum(calendar_svc_calendar_gap_years{calendar=~\"$calendar\"})",
           "refId": "A",
           "instant": true
         }
@@ -339,7 +339,7 @@
       },
       "targets": [
         {
-          "expr": "max by (calendar) (mkt_data_calendar_next_year_published{calendar=~\"$calendar\"})",
+          "expr": "max by (calendar) (calendar_svc_calendar_next_year_published{calendar=~\"$calendar\"})",
           "refId": "A",
           "instant": true,
           "legendFormat": "{{calendar}}"
@@ -427,7 +427,7 @@
       },
       "targets": [
         {
-          "expr": "mkt_data_calendar_upcoming_day{calendar=~\"$calendar\"}",
+          "expr": "calendar_svc_calendar_upcoming_day{calendar=~\"$calendar\"}",
           "refId": "A",
           "instant": true,
           "format": "table"
@@ -589,19 +589,19 @@
       },
       "targets": [
         {
-          "expr": "mkt_data_calendar_first_year{calendar=~\"$calendar\"}",
+          "expr": "calendar_svc_calendar_first_year{calendar=~\"$calendar\"}",
           "refId": "A",
           "instant": true,
           "format": "table"
         },
         {
-          "expr": "mkt_data_calendar_last_year{calendar=~\"$calendar\"}",
+          "expr": "calendar_svc_calendar_last_year{calendar=~\"$calendar\"}",
           "refId": "B",
           "instant": true,
           "format": "table"
         },
         {
-          "expr": "mkt_data_calendar_years{calendar=~\"$calendar\"}",
+          "expr": "calendar_svc_calendar_years{calendar=~\"$calendar\"}",
           "refId": "C",
           "instant": true,
           "format": "table"
@@ -686,7 +686,7 @@
     {
       "id": 10,
       "title": "Gaps and stored days per calendar",
-      "description": "Uncovered years inside each calendar's range (gap years are listed by mkt_data_calendar_gap_year), and the current closed and early-close weekdays stored.",
+      "description": "Uncovered years inside each calendar's range (gap years are listed by calendar_svc_calendar_gap_year), and the current closed and early-close weekdays stored.",
       "type": "table",
       "datasource": {
         "type": "prometheus",
@@ -700,19 +700,19 @@
       },
       "targets": [
         {
-          "expr": "mkt_data_calendar_gap_years{calendar=~\"$calendar\"}",
+          "expr": "calendar_svc_calendar_gap_years{calendar=~\"$calendar\"}",
           "refId": "A",
           "instant": true,
           "format": "table"
         },
         {
-          "expr": "sum by (calendar) (mkt_data_calendar_days{calendar=~\"$calendar\",status=\"closed\"})",
+          "expr": "sum by (calendar) (calendar_svc_calendar_days{calendar=~\"$calendar\",status=\"closed\"})",
           "refId": "B",
           "instant": true,
           "format": "table"
         },
         {
-          "expr": "sum by (calendar) (mkt_data_calendar_days{calendar=~\"$calendar\",status=\"early_close\"})",
+          "expr": "sum by (calendar) (calendar_svc_calendar_days{calendar=~\"$calendar\",status=\"early_close\"})",
           "refId": "C",
           "instant": true,
           "format": "table"
@@ -1095,7 +1095,7 @@
       },
       "targets": [
         {
-          "expr": "max(pg_database_size_bytes{datname=\"mkt-data\"})",
+          "expr": "sum(max by (datname) (pg_database_size_bytes{datname=~\"mkt-data|calendar-svc\"}))",
           "refId": "A",
           "instant": true
         }
@@ -1207,7 +1207,7 @@
       },
       "targets": [
         {
-          "expr": "sum(mkt_data_calendar_days{calendar=~\"$calendar\"})",
+          "expr": "sum(calendar_svc_calendar_days{calendar=~\"$calendar\"})",
           "refId": "A",
           "instant": true
         }
@@ -1383,9 +1383,9 @@
       },
       "targets": [
         {
-          "expr": "max(pg_database_size_bytes{datname=\"mkt-data\"})",
+          "expr": "max by (datname) (pg_database_size_bytes{datname=~\"mkt-data|calendar-svc\"})",
           "refId": "A",
-          "legendFormat": "database"
+          "legendFormat": "{{datname}} database"
         },
         {
           "expr": "sum(mkt_data_source_capture_bytes{calendar=~\"$calendar\"})",

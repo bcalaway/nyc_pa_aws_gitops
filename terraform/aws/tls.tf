@@ -318,13 +318,17 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
     }
   }
 
-  # deploy-hub-stack.sh generates home-mcp's read-only token for mkt-data's
-  # GET job endpoints once (MKT_DATA_READ_TOKEN); mkt-data reads the same
-  # parameter as READ_TOKEN through its own deploy. Exactly this parameter.
+  # deploy-hub-stack.sh generates home-mcp's read-only tokens for mkt-data's
+  # and calendar-svc's GET job endpoints once (MKT_DATA_READ_TOKEN,
+  # CALENDAR_SVC_READ_TOKEN); each app reads its own as READ_TOKEN through its
+  # own deploy. Exactly these parameters.
   statement {
     effect    = "Allow"
     actions   = ["ssm:GetParameter", "ssm:PutParameter"]
-    resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/mkt-data/read-token"]
+    resources = [
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/mkt-data/read-token",
+      "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/calendar-svc/read-token",
+    ]
   }
 }
 
