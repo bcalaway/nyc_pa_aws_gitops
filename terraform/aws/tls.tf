@@ -273,6 +273,17 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
     resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/authentik/home-mcp-audit-token"]
   }
 
+  # deploy-hub-stack.sh generates an Authentik OIDC client's id and secret
+  # once for the registry apps it lists with generated_secret (mkt-ui since
+  # Milestone 23; todo-app's and hue's were made by hand and are only read).
+  # Write access to registry apps' client parameters only; the read is above.
+  statement {
+    effect  = "Allow"
+    actions = ["ssm:PutParameter"]
+    resources = [for p in flatten([for n in local.app_names : local.apps[n].authentik ? ["authentik/${n}-client-id", "authentik/${n}-client-secret"] : []]) :
+    "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${p}"]
+  }
+
   # ADR-0028: scripts/hub/onboard-app-dbs.sh reads each registry app's (and
   # platform database's) Postgres password and creates it on first
   # onboarding (never with --overwrite); deploy-hub-stack.sh reads the
@@ -432,6 +443,16 @@ resource "aws_route53_record" "airflow" {
 resource "aws_route53_record" "hue" {
   zone_id = aws_route53_zone.main.zone_id
   name    = "hue.billandjessie.com"
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.hub.public_ip]
+}
+
+# mkt-ui, the market data UI (Milestone 23), at mkt.billandjessie.com rather
+# than mkt-ui.billandjessie.com (Bill, 2026-10-04).
+resource "aws_route53_record" "mkt" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "mkt.billandjessie.com"
   type    = "A"
   ttl     = 300
   records = [aws_eip.hub.public_ip]

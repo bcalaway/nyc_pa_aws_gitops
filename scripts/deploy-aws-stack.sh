@@ -65,11 +65,13 @@ if ! AUTHENTIK_HOME_MCP_AUDIT_TOKEN=$(ssm "/home-platform/authentik/home-mcp-aud
   aws ssm put-parameter --name "/home-platform/authentik/home-mcp-audit-token" --type SecureString \
     --value "$AUTHENTIK_HOME_MCP_AUDIT_TOKEN" --region us-east-1 >/dev/null
 fi
-# Airflow (ADR-0027). Created by the CI platform deploy (onboard-app-dbs.sh
-# for the database password, deploy-hub-stack.sh for the rest); a manual
-# deploy only reads them, so run the CI deploy once first.
+# Airflow (ADR-0027) and mkt-ui's Authentik client. Created by the CI
+# platform deploy (onboard-app-dbs.sh for the database password,
+# deploy-hub-stack.sh for the rest); a manual deploy only reads them, so run
+# the CI deploy once first.
 for v in "AIRFLOW_DB_PASSWORD postgres/airflow-password" "AIRFLOW_FERNET_KEY airflow/fernet-key" \
-         "AIRFLOW_API_SECRET_KEY airflow/api-secret-key" "AIRFLOW_JWT_SECRET airflow/jwt-secret"; do
+         "AIRFLOW_API_SECRET_KEY airflow/api-secret-key" "AIRFLOW_JWT_SECRET airflow/jwt-secret" \
+         "AUTHENTIK_MKT_UI_CLIENT_ID authentik/mkt-ui-client-id" "AUTHENTIK_MKT_UI_CLIENT_SECRET authentik/mkt-ui-client-secret"; do
   read -r name param <<<"$v"
   val=$(ssm "/home-platform/$param") || { echo "ERROR: /home-platform/$param missing -- run the CI platform deploy first" >&2; exit 1; }
   printf -v "$name" '%s' "$val"
@@ -89,6 +91,8 @@ AUTHENTIK_TODO_APP_CLIENT_ID=$AUTHENTIK_TODO_APP_CLIENT_ID
 AUTHENTIK_TODO_APP_CLIENT_SECRET=$AUTHENTIK_TODO_APP_CLIENT_SECRET
 AUTHENTIK_HUE_CLIENT_ID=$AUTHENTIK_HUE_CLIENT_ID
 AUTHENTIK_HUE_CLIENT_SECRET=$AUTHENTIK_HUE_CLIENT_SECRET
+AUTHENTIK_MKT_UI_CLIENT_ID=$AUTHENTIK_MKT_UI_CLIENT_ID
+AUTHENTIK_MKT_UI_CLIENT_SECRET=$AUTHENTIK_MKT_UI_CLIENT_SECRET
 AUTHENTIK_HOME_MCP_CLIENT_ID=$AUTHENTIK_HOME_MCP_CLIENT_ID
 AUTHENTIK_HOME_MCP_CLIENT_SECRET=$AUTHENTIK_HOME_MCP_CLIENT_SECRET
 VOICE_WORKER_SSH_KEY_B64=$VOICE_WORKER_SSH_KEY_B64

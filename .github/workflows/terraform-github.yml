@@ -83,8 +83,16 @@ jobs:
           script: |
             const fs = require('fs');
             const plan = fs.readFileSync('terraform/github/plan.txt', 'utf8');
-            const truncated = plan.length > 60000 ? plan.slice(-60000) + '\n\n[truncated]' : plan;
-            const body = `## Terraform Plan (GitHub)\n\`\`\`\n${truncated}\n\`\`\``;
+            // Every resource's action first, one line each, so a long plan
+            // (one that adds SSM documents, say) still shows what changes;
+            // then as much of the plan as fits, keeping its end.
+            const actions = plan.split('\n')
+              .filter(l => /^\s+# \S.* (will be|must be|has moved)/.test(l))
+              .map(l => l.trim().replace(/^# /, ''));
+            const summary = actions.length ? `Resources (${actions.length}):\n${actions.join('\n')}\n\n` : '';
+            const room = 60000 - summary.length;
+            const shown = plan.length > room ? '[start truncated]\n' + plan.slice(-room) : plan;
+            const body = `## Terraform Plan (GitHub)\n\`\`\`\n${summary}${shown}\n\`\`\``;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

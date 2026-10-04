@@ -119,6 +119,11 @@ chmod 600 "$ENV_TMP"
   echo "AUTHENTIK_TODO_APP_CLIENT_SECRET=$(ssm /home-platform/authentik/todo-app-client-secret)"
   echo "AUTHENTIK_HUE_CLIENT_ID=$(ssm /home-platform/authentik/hue-client-id)"
   echo "AUTHENTIK_HUE_CLIENT_SECRET=$(ssm /home-platform/authentik/hue-client-secret)"
+  # mkt-ui's client (blueprints/mkt-ui-oidc.yaml): generated on the first
+  # deploy that needs it; mkt-ui reads the same parameters through its own
+  # deploy (app-deploy.sh's authentik lookups).
+  echo "AUTHENTIK_MKT_UI_CLIENT_ID=$(generated_secret /home-platform/authentik/mkt-ui-client-id openssl rand -hex 20)"
+  echo "AUTHENTIK_MKT_UI_CLIENT_SECRET=$(generated_secret /home-platform/authentik/mkt-ui-client-secret openssl rand -hex 48)"
   echo "AUTHENTIK_HOME_MCP_CLIENT_ID=$(ssm /home-platform/authentik/home-mcp-client-id)"
   echo "AUTHENTIK_HOME_MCP_CLIENT_SECRET=$(ssm /home-platform/authentik/home-mcp-client-secret)"
   # Multi-line private key -> base64 so it survives the .env file as one line.
