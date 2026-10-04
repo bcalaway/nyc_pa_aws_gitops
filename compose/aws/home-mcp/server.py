@@ -27,6 +27,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+import airflow_view
 import authentik_audit as authentik_audit_mod
 import aws_posture as aws_posture_mod
 import context
@@ -236,6 +237,21 @@ async def scrape_targets(detail: bool = False) -> str:
     detail=true adds up/total per job. Read-only. Use to check a new
     exporter or scrape job is working."""
     return await hub_view.scrape_targets(detail)
+
+
+@mcp.tool()
+@audited
+async def airflow_status(dag: str = "", detail: bool = False) -> str:
+    """The shared Airflow's health and its DAGs' recent results, from
+    Prometheus: whether the scheduler is heartbeating, DAG files failing to
+    load, task slots in use, tasks succeeded and failed in the last 24 hours,
+    and for each DAG its last success and any failures in 7 days. dag filters
+    to DAGs whose id contains it (e.g. "fed_calendar", "mkt_data").
+    detail=true also lists the Airflow metric names Prometheus has.
+    Read-only. Use for "is Airflow OK?" or "did the Fed calendar job run?".
+    Paused state and next run times aren't in metrics; they're in the
+    Airflow UI."""
+    return await airflow_view.airflow_status(dag, detail)
 
 
 @mcp.tool()
