@@ -132,37 +132,21 @@ Tasks:
 
 Scope (Bill, 2026-10-03): SIFMA US bond market, Federal Reserve (FedWire/FRB holidays), NYSE. CME later.
 
-Tasks:
-- [x] 🤖 Registry entry (PR #93): repo, ECR repo, roles and database created *(2026-10-03. The first AWS apply raced the CI role's own new grant: fixed by a re-run and, for future apps, by PR #94)*
-- [x] 🤖 mkt-data's first PR: `templates/python` plus the phase-1 plan *(mkt-data #1, 2026-10-03)*
-- [x] 🤖 mkt-data's `github_repo_id` in the registry *(PR #95: GitHub sends the immutable-ID OIDC subject despite ADR-0030's customization, so every app now records its repo ID in a follow-up PR; docs/gotchas.md)*
-- [x] 🤖 App pipelines on Airflow (ADR-0031, PR #96, accepted 2026-10-03): DAGs call the app's token-protected `/jobs` HTTP API, with no Docker socket. DAGs ship with the app's deploy into `dags/<app>/`, and a registry `airflow: true` field turns it on. PR #97 fixed the DAG file permissions (umask 077 made them unreadable to Airflow; docs/gotchas.md)
-- [x] 🤖 Calendar schema and the Fed calendar end to end *(mkt-data #2 and #3, 2026-10-03/04)*:
-  - Migration 0002: raw `source`/`capture` (append-only trigger)/`source_check`, plus processed `calendar`/`calendar_year`/`calendar_day` with `valid_from`/`valid_to` history.
-  - FED from the Board's K.8 page.
-  - DAG `mkt_data__fed_calendar`, weekly. Its first run on 2026-10-04 loaded 5 years and 50 closed weekdays.
-- [x] 🤖 Airflow visibility *(PR #98, 2026-10-04)*: the Grafana **Airflow** dashboard, plus home-mcp `airflow_status`, `prometheus_query` and `prometheus_metrics` (read-only)
-- [x] 🤖 Airflow metric names checked against live Prometheus *(2026-10-04)*: all names the dashboard, alerts and `airflow_status` use exist. Fixed: task slots now come from `airflow_executor_*` (the real limit of 4; `default_pool` reports 128, and `sum()` double-counted because Airflow 3 also sends each metric unlabelled); the parse-time panel now shows seconds since each file's last parse (new mapping) and total parse time, since Airflow 3's per-file timers come in inconsistent units; `airflow_status` no longer lists a blank DAG
-- [x] 🤖 SIFMA-US and NYSE calendars *(mkt-data #4 and #5, 2026-10-04)*: same pattern as FED. SIFMA-US (DAG `mkt_data__sifma_calendar`) stores full closes and recommended early closes with their Eastern close time; its first run loaded 19 days (2026 covered; 2027 not published yet). NYSE (DAG `mkt_data__nyse_calendar`) stores holidays and early closes at the equities 1:00 p.m. close; its first run loaded 34 days over 2026–2028. Both parsed the real pages first time. Follow-up: swap the stand-in test fixtures for the first real captures (done: SIFMA-US in mkt-data #13, NYSE in #16)
-- [x] 🤖 Backfill per calendar *(done 2026-10-04, all applied on the hub; sources and plan in mkt-data `docs/backfill.md`)*:
-  - **SIFMA-US from 1996:** the archive for 2015–2025 (mkt-data #12), the 1996–2019 PDF parsed by position (#15, #17), and Carter 2025 as a cited exception (#19).
-  - **FED from 1986:** `FED-RULES`, which matches the NY Fed circulars for 2003–2009 and reproduces K.8 (#19).
-  - **NYSE from 1990:** `NYSE-RULES`, with 25 cited exceptions; it reproduces the hours page and ICE's 2023–2025 announcement (#20).
+**Step-by-step status lives in mkt-data's [`docs/phase-1.md`](https://github.com/bcalaway/mkt-data/blob/main/docs/phase-1.md)**, the one place for it (Bill, 2026-10-04). This section changes only when the milestone opens, closes or changes shape, plus the platform-side tasks below.
 
-  Rules are versioned JSON files read as `repo:` sources, so each version is kept as a raw capture.
-- [x] 🤖 Calendars projected to 2100 for bond and swap payment schedules (Bill, 2026-10-04; mkt-data #22, applied on the hub 2026-10-04). FED gives New York banking days and SIFMA-US gives U.S. Government Securities Business Days. Each calendar's rules run forward as its last source: full closes only, filling only years no publisher covers, and giving a year up whole once it's published. Answers from projected years are flagged `"projected": true`.
-- [x] 🤖 home-mcp `mkt_data_captures` and `mkt_data_capture_text` *(platform #102 + mkt-data #9, 2026-10-04)*: read-only views of mkt-data's raw captures (list with an `applied` flag; one HTML capture's visible text, filtered by a phrase) through a read-only token (`/home-platform/mkt-data/read-token`, GET endpoints only). home-mcp joined `home-platform` to reach `mkt-data:8000`
-- [x] 🤖 Data-quality metrics and Grafana alerts *(mkt-data #23, #24 + PR #110; verified live 2026-10-04: target up, all 11 sources parse OK):*
-  - gauges for last capture, parse OK, years by kind (published, rules, projected) and next year published or overdue;
-  - alerts for a stale capture (8 days), a failed parse, and next year not published (always due for FED and NYSE, from Dec 20 for SIFMA-US).
-- [ ] 🤖 A market-data dashboard with per-calendar coverage and storage/cost
-- [ ] 🤖 home-mcp market-data tools. Asked by Bill 2026-10-04, so Claude can debug and run things without a hub session:
-  - **Visibility:**
-    - Grafana alert state (rules, firing or pending, last evaluation);
-    - Airflow DAG runs and task logs;
-    - mkt-data's business-day answers and capture-job summaries.
-  - **Run things:** trigger Airflow DAGs, limited to the `mkt_data__*` ones.
-  - **No more manual capture pulls:** get a raw capture's exact bytes to Claude without Bill copying files. For example, a tool that pushes the capture to a branch of `bcalaway/mkt-data`, never `main`, for Claude to fetch with git.
+Done (details in `phase-1.md` and the PRs):
+- **Platform:** the registry entry, Airflow app pipelines (ADR-0031), Airflow visibility, home-mcp capture views, the data-quality metrics pattern and alerts, and capture export for Claude (#113).
+- **Calendars:** FED, SIFMA-US and NYSE, weekly.
+  - Backfilled: SIFMA-US from 1996, FED from 1986, NYSE from 1990.
+  - Projected to 2100 for bond and swap payment schedules.
+  - Monitored by Grafana alerts: stale capture, parse failed, next year not published.
+
+Platform-side tasks:
+- [ ] 🤖 home-mcp market-data tools (Bill, 2026-10-04): trigger `mkt_data__*` DAGs; Airflow runs and task logs; Grafana alert state; mkt-data business-day answers, capture checks and the embedded-data capture view
+- [ ] 🤖 Market-data Grafana dashboard (phase-1 step 8): per-calendar coverage, upcoming closes, capture history, storage
+- [ ] 🤖 Airflow API auth (found 2026-10-04):
+  - **The problem:** with `SIMPLE_AUTH_MANAGER_ALL_ADMINS`, `GET /auth/token` on `airflow-api-server:8080` hands an admin token to anything on the `home-platform` network. Only the UI is behind Authentik.
+  - **The fix:** give API callers (home-mcp) a real credential, and stop issuing anonymous admin tokens.
 - [ ] 🤖 Small follow-ups: the Python template's Authlib/httpx deprecation warning (httpx2)
 
 ## Future / Deferred

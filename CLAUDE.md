@@ -30,7 +30,7 @@ After setup, use `gh run list --repo bcalaway/nyc_pa_aws_gitops` to check Action
 
 ## Git
 
-`main` is protected (ruleset, 2026-09-30): no direct pushes, deletion or force-push — every change goes through a PR. Work on a branch, and always `git push` it immediately after every `git commit` without asking, then open a PR (or update the open one). Bill merges.
+`main` is protected (ruleset, 2026-09-30): no direct pushes, deletion or force-push — every change goes through a PR. Work on a branch, and always `git push` it immediately after every `git commit` without asking, then open a PR (or update the open one). Bill merges, with one exception: for a PR that changes only docs (`docs/**`, `*.md`), Claude turns on auto-merge, so it merges once its checks pass (Bill, 2026-10-04). Status updates go in one place: an app's own plan doc (e.g. mkt-data's `docs/phase-1.md`), with the roadmap milestone linking to it.
 
 Merging to `main` can deploy: Terraform (`terraform/**`), the hub stack and NUCs (`compose/aws/**`, `ansible/**`, `compose/nuc/**`, `scripts/hub/**`, via `platform-deploy.yml`) and RouterOS all run in the `production` environment, which waits for Bill's approval before applying.
 

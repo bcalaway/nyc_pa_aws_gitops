@@ -36,7 +36,9 @@ resource "github_repository" "app" {
   allow_merge_commit     = true
   allow_squash_merge     = true
   allow_rebase_merge     = true
-  allow_auto_merge       = false
+  # Auto-merge on: Claude turns it on for docs-only PRs, which merge once CI
+  # passes; everything else still waits for Bill (2026-10-04).
+  allow_auto_merge       = true
   allow_update_branch    = false
   delete_branch_on_merge = true
 
