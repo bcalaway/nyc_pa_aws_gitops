@@ -25,12 +25,15 @@ locals {
     preview         = try(a.preview, false)
     extra_ecr_repos = try(a.extra_ecr_repos, [])
     airflow         = try(a.airflow, false)
+    capture_export  = try(a.capture_export, false)
   } }
 
   preview_app_names  = [for n in local.app_names : n if local.apps[n].preview]
   database_app_names = [for n in local.app_names : n if local.apps[n].database]
   # Apps whose pipelines run on the shared Airflow (ADR-0031).
   airflow_app_names = [for n in local.app_names : n if local.apps[n].airflow]
+  # Apps whose raw captures their own workflow can export (capture-export.sh).
+  capture_export_app_names = [for n in local.app_names : n if local.apps[n].capture_export]
   # Shared platform services' databases (registry platform_databases).
   platform_database_names = [for d in try(local.registry.platform_databases, []) : d.name]
 

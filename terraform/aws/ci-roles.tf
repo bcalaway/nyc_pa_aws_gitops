@@ -41,6 +41,7 @@ locals {
     "preview-up.sh"        = filebase64("${path.module}/../../scripts/hub/preview-up.sh")
     "preview-compose.py"   = filebase64("${path.module}/../../scripts/hub/preview-compose.py")
     "preview-down.sh"      = filebase64("${path.module}/../../scripts/hub/preview-down.sh")
+    "capture-export.sh"    = filebase64("${path.module}/../../scripts/hub/capture-export.sh")
   }
 }
 
@@ -157,14 +158,53 @@ resource "aws_ssm_document" "preview_down" {
   tags = { Name = "${each.key}-preview-down" }
 }
 
-# Permission for each app's deploy role to run its own deploy document.
+# Export one raw capture to the deploy bucket (scripts/hub/capture-export.sh),
+# for apps with `capture_export: true`. The app's own workflow starts it from
+# `main` (no approval: it only reads), downloads the result and commits it to
+# a capture/<id> branch, so Claude can fetch captures with git (2026-10-04).
+resource "aws_ssm_document" "capture_export" {
+  for_each   = toset(local.capture_export_app_names)
+  depends_on = [time_sleep.wait_for_github_actions_m20_policy]
+
+  name            = "${each.key}-capture-export"
+  document_type   = "Command"
+  document_format = "JSON"
+  content = jsonencode({
+    schemaVersion = "2.2"
+    description   = "Copy one ${each.key} raw capture to s3://${local.deploy_bucket}/apps/${each.key}/exports/ (scripts/hub/capture-export.sh)"
+    parameters = {
+      captureId = { type = "String", description = "Capture id", allowedPattern = "^[0-9]{1,9}$" }
+    }
+    mainSteps = [{
+      action = "aws:runShellScript"
+      name   = "captureExport"
+      inputs = {
+        timeoutSeconds = "300"
+        runCommand = [
+          "d=$(mktemp -d) && chmod 700 \"$d\"",
+          "echo ${local.hub_scripts["capture-export.sh"]} | base64 -d > \"$d/capture-export.sh\"",
+          "bash \"$d/capture-export.sh\" ${local.deploy_bucket} ${each.key} '{{ captureId }}'; rc=$?",
+          "rm -rf \"$d\"; exit $rc",
+        ]
+      }
+    }]
+  })
+
+  tags = { Name = "${each.key}-capture-export" }
+}
+
+# Permission for each app's deploy role to run its own deploy document, and
+# its capture-export document if it has one.
 data "aws_iam_policy_document" "app_deploy_document" {
   for_each = toset(local.ci_apps)
 
   statement {
-    effect    = "Allow"
-    actions   = ["ssm:SendCommand"]
-    resources = [aws_ssm_document.app_deploy[each.key].arn, aws_instance.hub.arn]
+    effect  = "Allow"
+    actions = ["ssm:SendCommand"]
+    resources = concat(
+      [aws_ssm_document.app_deploy[each.key].arn, aws_instance.hub.arn],
+      contains(local.capture_export_app_names, each.key) ? [aws_ssm_document.capture_export[each.key].arn] : [],
+    )
   }
 }
 
