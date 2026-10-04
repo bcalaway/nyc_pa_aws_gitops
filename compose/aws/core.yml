@@ -334,10 +334,19 @@ services:
       AUTHENTIK_HOME_MCP_AUDIT_TOKEN: "${AUTHENTIK_HOME_MCP_AUDIT_TOKEN}"
       AWS_REGION: us-east-1
       LOKI_URL: "http://loki:3100"
+      # Market data (mkt-data's capture tools). A read-only token: mkt-data
+      # accepts it on its GET job endpoints only, never captures or reparses.
+      MKT_DATA_URL: "http://mkt-data:8000"
+      MKT_DATA_READ_TOKEN: "${MKT_DATA_READ_TOKEN}"
     volumes:
       # Weekly exposure-check results, written by a root host unit
       # (compose/aws/host/exposure-check.py).
       - /var/lib/home-platform/exposure:/exposure:ro
+    # default: Prometheus, Loki and the rest of the stack. home-platform:
+    # internal apps (mkt-data:8000), which aren't on the default network.
+    networks:
+      - default
+      - home-platform
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.mcp.rule=Host(`mcp.billandjessie.com`)"
