@@ -203,7 +203,9 @@ data "aws_iam_policy_document" "app_deploy_document" {
     actions = ["ssm:SendCommand"]
     resources = concat(
       [aws_ssm_document.app_deploy[each.key].arn, aws_instance.hub.arn],
-      contains(local.capture_export_app_names, each.key) ? [aws_ssm_document.capture_export[each.key].arn] : [],
+      # From the name, not the resource, so other apps' policies stay known at
+      # plan time instead of showing a no-op "known after apply" change.
+      contains(local.capture_export_app_names, each.key) ? ["arn:aws:ssm:us-east-1:${var.aws_account_id}:document/${each.key}-capture-export"] : [],
     )
   }
 }
