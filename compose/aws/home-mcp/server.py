@@ -38,6 +38,7 @@ import github_status as github_status_mod
 import hub_view
 import jobs
 import logs
+import prom_query
 import security_events as security_events_mod
 import status
 import tasks
@@ -252,6 +253,28 @@ async def airflow_status(dag: str = "", detail: bool = False) -> str:
     Paused state and next run times aren't in metrics; they're in the
     Airflow UI."""
     return await airflow_view.airflow_status(dag, detail)
+
+
+@mcp.tool()
+@audited
+async def prometheus_query(query: str, minutes: int = 0, step_seconds: int = 0) -> str:
+    """Run a read-only PromQL query against the platform's Prometheus.
+    minutes=0 (default) is an instant query: each matching series and its
+    current value. minutes>0 is a range query over the last N minutes (up to
+    7 days), summarised per series as min, max and last. At most 40 series
+    come back; aggregate (sum by, topk) to narrow. Use for questions the
+    named tools don't cover, or to check a dashboard or alert query against
+    live data. Pair with prometheus_metrics to find metric names."""
+    return await prom_query.prometheus_query(query, minutes, step_seconds)
+
+
+@mcp.tool()
+@audited
+async def prometheus_metrics(match: str = "") -> str:
+    """List the metric names Prometheus has, optionally only those
+    containing `match` (e.g. "airflow", "container_memory", "rachio").
+    Read-only."""
+    return await prom_query.prometheus_metrics(match)
 
 
 @mcp.tool()
