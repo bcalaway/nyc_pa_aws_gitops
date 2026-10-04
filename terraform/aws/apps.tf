@@ -186,7 +186,7 @@ data "aws_iam_policy_document" "app_github_actions_permissions" {
 
   # No SSM parameter access (Milestone 20, ADR-0025): the hub reads this
   # app's secrets itself when the <app>-deploy document runs, with its own
-  # role (tls.tf's hub_app_deploy).
+  # role (tls.tf's hub_apps).
   #
   # Deploy staging -- reuses the ansible-deploy bucket (s3.tf) under an
   # apps/<app>/ prefix, the same "stage an artifact, hub pulls it down"

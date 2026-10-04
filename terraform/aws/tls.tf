@@ -136,56 +136,70 @@ resource "aws_iam_role_policy" "hub_capture_export" {
 # App deploy support (ADR-0019, apps.tf) -- the hub-side deploy script
 # (.github/workflows/app-deploy.yml) runs as this role, not the GitHub
 # Actions workflow's own role, so it needs its own ECR pull access and its
-# own read access to each app's secrets. One set of statements per app in
-# apps/registry.yml (ADR-0028); the NUC relays below (hue-agent,
-# mopeka-exporter, voice-worker) are listed by hand.
+# own read access to each app's secrets.
+#
+# The per-app grants live in a managed policy (hub_apps below), one
+# statement per kind of access listing every app in apps/registry.yml
+# (ADR-0028): a role's inline policies share one 10,240-character limit,
+# and adding four apps at once (#132) passed it. A managed policy has its
+# own 6,144 characters, and the compact form costs about 250 per app. The
+# inline policy keeps the fixed grants: the ECR token and the NUC relays
+# below (hue-agent is in the registry; mopeka-exporter and voice-worker are
+# listed by hand).
+data "aws_iam_policy_document" "hub_apps" {
+  # Image pulls: each app's repositories plus its preview repository.
+  # Extra repos cover NUC relays too -- hue-agent is NOT deployed by
+  # app-deploy.yml at all; Ansible on this hub (ansible/roles/hue-agent)
+  # pulls it with this role's credentials and docker save/scp/loads it onto
+  # the NUC, which has no AWS credentials of its own.
+  statement {
+    effect  = "Allow"
+    actions = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]
+    resources = concat(
+      [for r in sort(keys(local.app_ecr_repos)) : aws_ecr_repository.app[r].arn],
+      [for n in local.preview_app_names : aws_ecr_repository.app_preview[n].arn],
+    )
+  }
+
+  # Secret injection at deploy time (see app-deploy.yml's header comment for
+  # the SSM-path-to-env-var convention): each app's own /home-platform/<app>/
+  # tree (for hue this also covers Ansible's read of the site bridge keys)...
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:GetParametersByPath"]
+    resources = [for n in local.app_names : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${n}/*"]
+  }
+
+  # ...plus its database password and Authentik client, when it has them.
+  statement {
+    effect  = "Allow"
+    actions = ["ssm:GetParameter"]
+    resources = [for p in flatten([for n in local.app_names : concat(
+      local.apps[n].database ? ["postgres/${n}-password"] : [],
+      local.apps[n].authentik ? ["authentik/${n}-client-id", "authentik/${n}-client-secret"] : [],
+    )]) : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${p}"]
+  }
+}
+
+# The platform's CI role may create policies named home-platform-hub-*
+# only (iam.tf).
+resource "aws_iam_policy" "hub_apps" {
+  name        = "home-platform-hub-apps"
+  description = "Hub: pull each registry app's images and read its secrets at deploy time (terraform/aws/tls.tf)"
+  policy      = data.aws_iam_policy_document.hub_apps.json
+  depends_on  = [aws_iam_role_policy.github_actions]
+}
+
+resource "aws_iam_role_policy_attachment" "hub_apps" {
+  role       = aws_iam_role.hub.name
+  policy_arn = aws_iam_policy.hub_apps.arn
+}
+
 data "aws_iam_policy_document" "hub_app_deploy" {
   statement {
     effect    = "Allow"
     actions   = ["ecr:GetAuthorizationToken"]
     resources = ["*"]
-  }
-
-  # Image pulls: the app's own repositories plus its preview repository.
-  # Extra repos cover NUC relays too -- hue-agent is NOT deployed by
-  # app-deploy.yml at all; Ansible on this hub (ansible/roles/hue-agent)
-  # pulls it with this role's credentials and docker save/scp/loads it onto
-  # the NUC, which has no AWS credentials of its own.
-  dynamic "statement" {
-    for_each = local.app_names
-    content {
-      effect  = "Allow"
-      actions = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]
-      resources = concat(
-        [for r in local.app_repo_names[statement.value] : aws_ecr_repository.app[r].arn],
-        local.apps[statement.value].preview ? [aws_ecr_repository.app_preview[statement.value].arn] : [],
-      )
-    }
-  }
-
-  # Secret injection at deploy time (see app-deploy.yml's header comment for
-  # the SSM-path-to-env-var convention): the app's own /home-platform/<app>/
-  # tree (for hue this also covers Ansible's read of the site bridge keys)...
-  dynamic "statement" {
-    for_each = local.app_names
-    content {
-      effect    = "Allow"
-      actions   = ["ssm:GetParametersByPath"]
-      resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${statement.value}/*"]
-    }
-  }
-
-  # ...plus its database password and Authentik client, when it has them.
-  dynamic "statement" {
-    for_each = { for n in local.app_names : n => n if local.apps[n].database || local.apps[n].authentik }
-    content {
-      effect  = "Allow"
-      actions = ["ssm:GetParameter"]
-      resources = [for p in concat(
-        local.apps[statement.key].database ? ["postgres/${statement.key}-password"] : [],
-        local.apps[statement.key].authentik ? ["authentik/${statement.key}-client-id", "authentik/${statement.key}-client-secret"] : [],
-      ) : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${p}"]
-    }
   }
 
   # Milestone 15: mopeka-exporter is relayed to nuc5 by Ansible
@@ -224,6 +238,9 @@ resource "aws_iam_role_policy" "hub_app_deploy" {
   name   = "home-platform-hub-app-deploy"
   role   = aws_iam_role.hub.id
   policy = data.aws_iam_policy_document.hub_app_deploy.json
+  # Shrinks only once the managed policy carries the per-app grants, so a
+  # deploy never loses them for longer than the apply.
+  depends_on = [aws_iam_role_policy_attachment.hub_apps]
 }
 
 # Platform deploy from CI (.github/workflows/platform-deploy.yml): the
@@ -347,6 +364,9 @@ resource "aws_iam_role_policy" "hub_platform_deploy" {
   name   = "home-platform-hub-platform-deploy"
   role   = aws_iam_role.hub.id
   policy = data.aws_iam_policy_document.hub_platform_deploy.json
+  # This one grows with the registry too; update it after hub_app_deploy has
+  # shrunk, so the role's inline total (10,240 characters) never peaks over.
+  depends_on = [aws_iam_role_policy.hub_app_deploy]
 }
 
 # Lets postgres-backup (compose/aws/postgres-backup) upload pg_dumpall
