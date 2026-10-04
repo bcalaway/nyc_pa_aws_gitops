@@ -94,3 +94,52 @@ resource "aws_accessanalyzer_archive_rule" "github_oidc_roles" {
     eq       = [aws_iam_openid_connect_provider.github.arn]
   }
 }
+
+# The weekly exposure check (compose/aws/host/exposure-check.py) nmaps the
+# hub's own public IP and both sites' WAN IPs from the hub, which GuardDuty
+# reports as Recon:EC2/Portscan (first seen 2026-10-04, docs/gotchas.md).
+# Archive exactly that: this finding type, from the hub instance, against
+# those three addresses. A scan of anything else still shows in aws_posture.
+#
+# The site IPs are residential and can drift (docs/platform-reference.md,
+# "Site WAN egress"; the check itself reads them from WireGuard). When one
+# changes, the finding simply comes back -- update it here then. Rambles'
+# will change, or go away behind CGNAT, once Starlink failover lands.
+locals {
+  exposure_scan_site_ips = [
+    "173.68.62.107",  # NYC (Verizon FiOS)
+    "204.186.165.69", # Rambles (Blue Ridge Cable)
+  ]
+}
+
+resource "time_sleep" "wait_for_github_actions_guardduty_filter_policy" {
+  depends_on      = [aws_iam_role_policy.github_actions]
+  create_duration = "15s"
+}
+
+resource "aws_guardduty_filter" "exposure_scan" {
+  depends_on = [time_sleep.wait_for_github_actions_guardduty_filter_policy]
+
+  detector_id = aws_guardduty_detector.main.id
+  name        = "exposure-check-self-scan"
+  description = "The hub's weekly exposure check scanning its own and the sites' public IPs (compose/aws/host/exposure-check.py)."
+  action      = "ARCHIVE"
+  rank        = 1
+
+  finding_criteria {
+    criterion {
+      field  = "type"
+      equals = ["Recon:EC2/Portscan"]
+    }
+    criterion {
+      field  = "resource.instanceDetails.instanceId"
+      equals = [aws_instance.hub.id]
+    }
+    criterion {
+      field  = "service.action.networkConnectionAction.remoteIpDetails.ipAddressV4"
+      equals = concat([aws_eip.hub.public_ip], local.exposure_scan_site_ips)
+    }
+  }
+
+  tags = { Name = "home-platform" }
+}
