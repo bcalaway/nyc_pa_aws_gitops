@@ -124,6 +124,7 @@ Tasks:
 - [ ] 🤖 Lambda + S3 backup-capture resources and IAM, for sources that need a capture path independent of the hub and NUCs
 - [ ] 🤖 Split Terraform state into `network`, `hub`, `ci`, `edge`, one module per PR, each a no-change plan (ADR-0029) — last, after the above lands
 - [x] 🤖 GitHub repos from the registry: `terraform/github/` stack + `terraform-github.yml`, importing todo-app and hue (ADR-0030) *(done 2026-10-03, PR #86: 13 imported, 3 changed (two no-op repo re-saves, plus todo-app's `production` now gated, Bill's call). Tokens created and stored in SSM + Actions secrets. `imports.tf` removed afterwards)*
+- [x] 🤖 Airflow visibility *(2026-10-03, Bill asked)*: Grafana **Airflow** dashboard (scheduler heartbeat, import errors, slots, task outcomes, run time and schedule delay per DAG, container memory) and home-mcp `airflow_status` (scheduler health, 24h results, each DAG's last success and 7-day failures; from Prometheus, no Airflow credentials), plus read-only `prometheus_query` (instant or range PromQL, max 40 series, ranges summarised) and `prometheus_metrics` (metric names by substring). After merge: 🧑 reconnect the claude.ai connector so the new tool appears
 - [ ] 🤖 home-mcp: market data status, open gaps and backfill as named tools/jobs, once mkt-data exists
 
 ### Milestone 22 — Market data platform, phase 1: holiday calendars end to end

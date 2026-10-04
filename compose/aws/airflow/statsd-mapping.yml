@@ -4,7 +4,10 @@
 # through with dots replaced by underscores.
 #
 # Used by Grafana alert rules (grafana/provisioning/alerting/rules.yaml,
-# group "airflow"): airflow_scheduler_heartbeat, airflow_ti_finish.
+# group "airflow"): airflow_scheduler_heartbeat, airflow_ti_finish; by the
+# Grafana "Airflow" dashboard (dashboards/airflow.json); and by home-mcp's
+# airflow_status tool (home-mcp/airflow_view.py). Renaming a metric or label
+# here breaks all three.
 mappings:
   # Task instance finished: airflow.ti.finish.<dag_id>.<task_id>.<state>
   - match: "airflow.ti.finish.*.*.*"
