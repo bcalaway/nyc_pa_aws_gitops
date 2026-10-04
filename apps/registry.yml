@@ -99,8 +99,8 @@ apps:
   # docs/phase-2.md Part A): owns the golden holiday calendars, built from
   # mkt-data's near-raw calendar rows (gRPC, mkt-data:9090), and serves the
   # business-day answer. Internal only, no UI: no Authentik client, no previews.
-  # github_repo_id follows in a second PR once the repo exists.
   - name: calendar-svc
+    github_repo_id: 1404748201
     database: true
     airflow: true
     authentik: false
