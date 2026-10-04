@@ -52,9 +52,11 @@ locals {
 # that creates the new app's ECR repo and roles, and a time_sleep only waits
 # when it is (re)created. Without them, adding mkt-data (PR #93) raced the
 # grant and failed with AccessDenied on ecr:CreateRepository until a re-run.
+# 15s still lost the race adding calendar-svc (PR #126, 2026-10-04), hence 60s:
+# it only runs when the registry's app or repo lists change.
 resource "time_sleep" "wait_for_github_actions_m20_policy" {
   depends_on      = [aws_iam_role_policy.github_actions]
-  create_duration = "15s"
+  create_duration = "60s"
   triggers = {
     apps      = join(",", local.app_names)
     ecr_repos = join(",", sort(keys(local.app_ecr_repos)))
