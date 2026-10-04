@@ -95,6 +95,17 @@ apps:
     preview: false
     capture_export: true
 
+  # Market data platform's calendar service (Milestone 23, mkt-data's
+  # docs/phase-2.md Part A): owns the golden holiday calendars, built from
+  # mkt-data's near-raw calendar rows (gRPC, mkt-data:9090), and serves the
+  # business-day answer. Internal only, no UI: no Authentik client, no previews.
+  # github_repo_id follows in a second PR once the repo exists.
+  - name: calendar-svc
+    database: true
+    airflow: true
+    authentik: false
+    preview: false
+
 platform_databases:
   # Airflow's metadata database (ADR-0027, compose/aws/data.yml).
   - name: airflow
