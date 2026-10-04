@@ -18,6 +18,12 @@ services:
       - --storage.tsdb.retention.size=160GB
     ports:
       - "9090:9090"
+    # default: the stack's own exporters. home-platform: apps' /metrics
+    # (e.g. mkt-data:8000), which are only on that network (app-platform.md,
+    # "Data-quality metrics").
+    networks:
+      - default
+      - home-platform
 
   loki:
     image: grafana/loki:3.7.8

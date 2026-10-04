@@ -33,6 +33,16 @@ scrape_configs:
         labels:
           instance: aws-hub
 
+  # Apps' data-quality gauges (app-platform.md, "Data-quality metrics"):
+  # scraped on the home-platform network, which Prometheus joins for this.
+  - job_name: mkt-data
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["mkt-data:8000"]
+        labels:
+          instance: aws-hub
+          app: mkt-data
+
   # Airflow (ADR-0027): StatsD metrics via airflow-statsd-exporter
   # (compose/aws/data.yml, names from airflow/statsd-mapping.yml).
   - job_name: airflow

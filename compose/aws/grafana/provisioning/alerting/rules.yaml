@@ -450,3 +450,141 @@ groups:
         annotations:
           summary: "Airflow task failed: {{ $labels.dag_id }}.{{ $labels.task_id }}"
           description: "Task {{ $labels.task_id }} in DAG {{ $labels.dag_id }} failed after its retries. Logs are in the Airflow UI (https://airflow.billandjessie.com) under the failed run."
+
+  - orgId: 1
+    name: mkt-data
+    folder: Alerts
+    interval: 15m
+    rules:
+      - uid: mkt-data-capture-stale
+        title: Market data capture stale
+        # mkt-data's /metrics (mkt-data app/metrics.py). The calendar DAGs run
+        # weekly with retries, so 8 days without a successful fetch means the
+        # DAG or the source is broken. No data means mkt-data isn't serving
+        # metrics at all (down, or the scrape is broken): alert, as with
+        # postgres-backup-stale.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: time() - max by (calendar, source) (mkt_data_source_last_success_timestamp_seconds)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [691200]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: Alerting
+        execErrState: Error
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Market data source {{ $labels.source }} ({{ $labels.calendar }}) not fetched in 8 days"
+          description: "mkt-data hasn't fetched {{ $labels.source }} successfully in over 8 days, or mkt-data isn't serving /metrics. Check the calendar's DAG in Airflow and the source's checks (home-mcp mkt_data_captures; `docker logs mkt-data` on the hub)."
+
+      - uid: mkt-data-parse-failed
+        title: Market data parse failed
+        # The source's latest parse (capture or reparse) failed. The raw
+        # capture is kept; fix the parser, deploy, then reparse.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: min by (calendar, source) (mkt_data_source_parse_ok)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Market data parse failed: {{ $labels.source }} ({{ $labels.calendar }})"
+          description: "mkt-data's latest parse of {{ $labels.source }} failed (raw capture kept). Read the real wording with home-mcp mkt_data_capture_text, fix the parser, deploy, then POST /jobs/calendars/{{ $labels.calendar }}/reparse."
+
+      - uid: mkt-data-next-year-missing
+        title: Market data next year not published
+        # Next year isn't covered by a publisher (rules and projections don't
+        # count) and it's past the calendar's usual publish date: always for
+        # FED and NYSE, from Dec 20 for SIFMA-US.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: max by (calendar, year) (mkt_data_calendar_next_year_overdue)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.calendar }} hasn't published {{ $labels.year }} yet"
+          description: "No publisher covers {{ $labels.year }} for calendar {{ $labels.calendar }}, past its usual publish date, so its dates are still projected from rules. Check the publisher's page and whether the capture or parser missed the new year (home-mcp mkt_data_capture_text)."
