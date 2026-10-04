@@ -549,7 +549,9 @@ groups:
         title: Market data next year not published
         # Next year isn't covered by a publisher (rules and projections don't
         # count) and it's past the calendar's usual publish date: always for
-        # FED and NYSE, from Dec 20 for SIFMA-US.
+        # FED and NYSE, from Dec 20 for SIFMA-US. From calendar-svc's golden
+        # calendars since phase 2 (mkt-data's docs/phase-2.md, step A5); the
+        # uid stays so the rule's history carries on.
         condition: C
         data:
           - refId: A
@@ -559,7 +561,7 @@ groups:
             datasourceUid: PBFA97CFB590B2093
             model:
               refId: A
-              expr: max by (calendar, year) (mkt_data_calendar_next_year_overdue)
+              expr: max by (calendar, year) (calendar_svc_calendar_next_year_overdue)
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -587,4 +589,97 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $labels.calendar }} hasn't published {{ $labels.year }} yet"
-          description: "No publisher covers {{ $labels.year }} for calendar {{ $labels.calendar }}, past its usual publish date, so its dates are still projected from rules. Check the publisher's page and whether the capture or parser missed the new year (home-mcp mkt_data_capture_text)."
+          description: "No publisher covers {{ $labels.year }} for calendar {{ $labels.calendar }}, past its usual publish date, so its dates are still projected from rules (calendar-svc). Check the publisher's page and whether mkt-data's capture or parser missed the new year (home-mcp mkt_data_capture_text), then whether calendar-svc's load ran."
+
+  - orgId: 1
+    name: calendar-svc
+    folder: Alerts
+    interval: 15m
+    rules:
+      - uid: calendar-svc-load-stale
+        title: Calendar load stale
+        # calendar-svc's /metrics (calendar-svc app/metrics.py). Its load runs
+        # nightly and on every mkt-data calendar capture, so 30 hours without a
+        # successful one means the DAG, calendar-svc or mkt-data's gRPC is
+        # broken. No data means calendar-svc isn't serving metrics: alert.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: time() - max(calendar_svc_load_last_success_timestamp_seconds)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [108000]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: Alerting
+        execErrState: Error
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "calendar-svc hasn't loaded the calendars in 30 hours"
+          description: "calendar-svc's last successful load from mkt-data's near-raw rows is over 30 hours old, or it isn't serving /metrics. Check calendar_svc__load in Airflow (home-mcp airflow_runs, airflow_task_log) and `docker logs calendar-svc` on the hub."
+
+      - uid: calendar-svc-load-failed
+        title: Calendar load failed
+        # The latest load failed (calendar-svc records each run in load_run).
+        # The golden calendars keep their last good state.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: min(calendar_svc_load_ok)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "calendar-svc's latest calendar load failed"
+          description: "calendar-svc's latest load failed; the calendars keep their last good state. The calendar_svc__load task log (home-mcp airflow_task_log) has the reason, e.g. mkt-data's gRPC unreachable."

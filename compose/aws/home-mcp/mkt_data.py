@@ -7,8 +7,13 @@ start captures or reparses. mkt-data is internal: home-mcp reaches it on the
 home-platform network as mkt-data:8000.
 
 Uses: "did the SIFMA capture parse?", "what does NYSE's page say about early
-closes now?", "is 2027-03-26 a business day for SIFMA?", and checking a parser
-against a page's real wording. For a byte-exact copy (a test fixture), mkt-data's
+closes now?", and checking a parser against a page's real wording.
+
+mkt_data_business_day answers from calendar-svc (bcalaway/calendar-svc), which
+owns the golden calendars since phase 2 (mkt-data's docs/phase-2.md, step A5),
+with its own read-only token (/home-platform/calendar-svc/read-token,
+CALENDAR_SVC_READ_TOKEN here). The tool keeps its name so the claude.ai
+connector needn't be reconnected. For a byte-exact copy (a test fixture), mkt-data's
 capture-export workflow is the route; these tools return text.
 """
 
@@ -18,6 +23,8 @@ import httpx
 
 MKT_DATA_URL = os.environ.get("MKT_DATA_URL", "http://mkt-data:8000")
 TOKEN = os.environ.get("MKT_DATA_READ_TOKEN", "")
+CALENDAR_SVC_URL = os.environ.get("CALENDAR_SVC_URL", "http://calendar-svc:8000")
+CALENDAR_TOKEN = os.environ.get("CALENDAR_SVC_READ_TOKEN", "")
 TIMEOUT_SECONDS = 20
 MAX_LINES = 120
 MAX_LINE_CHARS = 300
@@ -29,24 +36,24 @@ def _ready() -> str | None:
     return None
 
 
-async def _get(path: str, params: dict) -> tuple[int, dict | str]:
+async def _get(path: str, params: dict, base: str = "", token: str = "", app: str = "mkt-data") -> tuple[int, dict | str]:
     try:
         async with httpx.AsyncClient() as client:
             r = await client.get(
-                f"{MKT_DATA_URL}/jobs/{path}",
+                f"{base or MKT_DATA_URL}/jobs/{path}",
                 params=params,
-                headers={"Authorization": f"Bearer {TOKEN}"},
+                headers={"Authorization": f"Bearer {token or TOKEN}"},
                 timeout=TIMEOUT_SECONDS,
             )
     except httpx.HTTPError as exc:
-        return 0, f"I couldn't reach mkt-data ({type(exc).__name__})."
+        return 0, f"I couldn't reach {app} ({type(exc).__name__})."
     try:
         body = r.json()
     except ValueError:
         body = {}
     if r.status_code != 200:
         detail = body.get("detail") if isinstance(body, dict) else None
-        return r.status_code, f"mkt-data answered {r.status_code}: {detail or r.text[:200]}"
+        return r.status_code, f"{app} answered {r.status_code}: {detail or r.text[:200]}"
     return 200, body
 
 
@@ -110,9 +117,12 @@ async def mkt_data_capture_text(
 
 
 async def mkt_data_business_day(calendar: str, on: str) -> str:
-    if msg := _ready():
-        return msg
-    status, body = await _get(f"calendars/{calendar.strip()}/business-day", {"on": on.strip()})
+    if not CALENDAR_TOKEN or CALENDAR_TOKEN == "none":
+        return "The calendar service's read token isn't set up yet (CALENDAR_SVC_READ_TOKEN)."
+    status, body = await _get(
+        f"calendars/{calendar.strip()}/business-day", {"on": on.strip()},
+        base=CALENDAR_SVC_URL, token=CALENDAR_TOKEN, app="calendar-svc",
+    )
     if status == 409:
         return f"{calendar} doesn't cover that year: {body.split(': ', 1)[-1]}"
     if status != 200:

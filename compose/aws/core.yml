@@ -343,6 +343,9 @@ services:
       # accepts it on its GET job endpoints only, never captures or reparses.
       MKT_DATA_URL: "http://mkt-data:8000"
       MKT_DATA_READ_TOKEN: "${MKT_DATA_READ_TOKEN}"
+      # The business-day answer comes from calendar-svc since phase 2 (A5).
+      CALENDAR_SVC_URL: "http://calendar-svc:8000"
+      CALENDAR_SVC_READ_TOKEN: "${CALENDAR_SVC_READ_TOKEN}"
       # grafana_alerts: a Viewer service account token, created once by the
       # hub deploy (/home-platform/grafana/home-mcp-token). The airflow_* tools
       # need no secret: Airflow's API issues tokens to anything that can reach

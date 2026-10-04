@@ -148,6 +148,10 @@ chmod 600 "$ENV_TMP"
   # applied), so the tools say "not set up" instead of the deploy failing.
   mkt_read=$(generated_secret /home-platform/mkt-data/read-token openssl rand -hex 32 2>/dev/null || true)
   echo "MKT_DATA_READ_TOKEN=${mkt_read:-none}"
+  # The same for calendar-svc's GET job endpoints (its business-day answer,
+  # home-mcp's mkt_data_business_day). calendar-svc reads it as READ_TOKEN.
+  cal_read=$(generated_secret /home-platform/calendar-svc/read-token openssl rand -hex 32 2>/dev/null || true)
+  echo "CALENDAR_SVC_READ_TOKEN=${cal_read:-none}"
 } > "$ENV_TMP"
 # A failed lookup inside $(...) doesn't trip set -e (echo's own status
 # wins), so check explicitly: an empty value would silently break a service.

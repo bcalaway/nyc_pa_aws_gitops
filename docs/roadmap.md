@@ -131,7 +131,8 @@ Tasks:
 **Goal:** mkt-data becomes the ingestion layer (raw and near-raw) and services own the golden copies: calendar-svc first, then secmaster-svc and quote-svc with Treasury CMT yields, and the first custom UI (mkt-api, mkt-ui). Status lives in mkt-data's [docs/phase-2.md](https://github.com/bcalaway/mkt-data/blob/main/docs/phase-2.md); this entry changes only when the milestone opens, closes or changes shape.
 
 Platform tasks:
-- [ ] 🤖 calendar-svc in `apps/registry.yml` (database, Airflow) and its Prometheus scrape job; then its `github_repo_id`
+- [x] 🤖 calendar-svc in `apps/registry.yml` (database, Airflow) and its Prometheus scrape job; then its `github_repo_id` *(#126, #128, 2026-10-04)*
+- [ ] 🤖 Calendars switch to calendar-svc: home-mcp's business-day tool, the Market data dashboard's calendar panels and the next-year alert, calendar-svc load alerts *(this PR)*
 - [ ] 🧑 Approve the Platform release for each onboarding PR (one approval since 2026-10-04: `platform-release.yml`)
 - [ ] 🤖 secmaster-svc, quote-svc, mkt-api and mkt-ui onboarding (Part B)
 
