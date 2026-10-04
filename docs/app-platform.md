@@ -154,6 +154,21 @@ How an app reports the health of its data, so Grafana can alert on it. First use
 
 mkt-data's gauges and rules are the worked example: `app/metrics.py` there, and the `mkt-data` alert group here (stale capture, parse failed, next year not published).
 
+## Raw captures for Claude (`capture_export`)
+
+An app that keeps raw captures (mkt-data) can hand one to Claude without a hub session or copied files. Claude builds test fixtures and parsers from the exact bytes. No GitHub token is involved: it runs on the app's existing OIDC role (Bill, 2026-10-04).
+
+1. Claude (or Bill) starts the app's `capture-export.yml` workflow from `main` with a capture id.
+2. The workflow runs the `<app>-capture-export` SSM document on the hub. That's `scripts/hub/capture-export.sh`: it reads `GET /jobs/captures/<id>` inside the app's container with the app's own token, checks the SHA-256, and copies the body and its metadata to `s3://home-platform-ansible-deploy-…/apps/<app>/exports/<id>/`.
+3. The workflow downloads both, checks the SHA-256 again, and commits them to an orphan branch `capture/<id>` (`captures/<source>-<id>.<ext>` and `meta.json`). Claude fetches that branch with git, so the bytes never pass through a tool's output.
+
+Turned on per app with `capture_export: true` in `apps/registry.yml`, which creates:
+- **The document:** the app's role may run it from `main` with no approval; it only reads.
+- **The hub's write access:** limited to `apps/<app>/exports/*`, its only write into that bucket.
+- **An expiry rule:** exports are deleted after 7 days.
+
+The `capture/*` branches are hand-offs. Delete them once the fixture is in a PR.
+
 ## Starter templates
 
 Live in this repo under `templates/<language>/`, not a separate GitHub template repository — same rationale as the reusable CI/CD workflows above (ADR-0014's "no business logic in the platform repo" is about apps, not platform-provided scaffolding). To use one: copy its contents into a new app repo and follow its own README.

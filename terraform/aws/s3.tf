@@ -108,6 +108,27 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "ansible_deploy" {
   }
 }
 
+# Capture exports (scripts/hub/capture-export.sh) are hand-offs, not
+# archives: the raw captures stay in the app's database forever.
+resource "aws_s3_bucket_lifecycle_configuration" "ansible_deploy" {
+  count  = length(local.capture_export_app_names) > 0 ? 1 : 0
+  bucket = aws_s3_bucket.ansible_deploy.id
+
+  dynamic "rule" {
+    for_each = local.capture_export_app_names
+    content {
+      id     = "expire-${rule.value}-capture-exports"
+      status = "Enabled"
+      filter {
+        prefix = "apps/${rule.value}/exports/"
+      }
+      expiration {
+        days = 7
+      }
+    }
+  }
+}
+
 resource "aws_s3_bucket_public_access_block" "ansible_deploy" {
   bucket                  = aws_s3_bucket.ansible_deploy.id
   block_public_acls       = true

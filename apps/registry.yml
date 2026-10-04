@@ -43,6 +43,11 @@
 #                    /home-platform/<name>/airflow-token (the app gets it as
 #                    AIRFLOW_TOKEN), gives Airflow AIRFLOW_CONN_<NAME>, and the
 #                    app's deploy delivers its dags/ into dags/<name>/.
+#   capture_export   true: the app serves raw captures at GET /jobs/captures/<id>
+#                    (mkt-data's job API, AIRFLOW_TOKEN). Gets an
+#                    <app>-capture-export SSM document its own role may run
+#                    from main, and the hub may write apps/<app>/exports/*
+#                    (7-day expiry). See docs/app-platform.md.
 #   extra_ecr_repos  Optional. More ECR repos the app's CI pushes to and the
 #                    hub pulls from (hue's NUC agent image).
 #   required_check   Optional. The status check main's ruleset requires;
@@ -88,6 +93,7 @@ apps:
     airflow: true
     authentik: false
     preview: false
+    capture_export: true
 
 platform_databases:
   # Airflow's metadata database (ADR-0027, compose/aws/data.yml).

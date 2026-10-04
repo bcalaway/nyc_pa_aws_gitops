@@ -113,6 +113,26 @@ resource "aws_iam_role_policy" "hub_ansible_deploy_read" {
   policy = data.aws_iam_policy_document.hub_ansible_deploy_read.json
 }
 
+# Capture exports (scripts/hub/capture-export.sh): the hub's only write into
+# the deploy bucket, limited to apps/<app>/exports/ for apps with
+# `capture_export: true`. Objects there expire after 7 days (s3.tf).
+data "aws_iam_policy_document" "hub_capture_export" {
+  count = length(local.capture_export_app_names) > 0 ? 1 : 0
+
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
+    resources = [for n in local.capture_export_app_names : "${aws_s3_bucket.ansible_deploy.arn}/apps/${n}/exports/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "hub_capture_export" {
+  count  = length(local.capture_export_app_names) > 0 ? 1 : 0
+  name   = "home-platform-hub-capture-export"
+  role   = aws_iam_role.hub.id
+  policy = data.aws_iam_policy_document.hub_capture_export[0].json
+}
+
 # App deploy support (ADR-0019, apps.tf) -- the hub-side deploy script
 # (.github/workflows/app-deploy.yml) runs as this role, not the GitHub
 # Actions workflow's own role, so it needs its own ECR pull access and its
