@@ -32,7 +32,7 @@ After setup, use `gh run list --repo bcalaway/nyc_pa_aws_gitops` to check Action
 
 `main` is protected (ruleset, 2026-09-30): no direct pushes, deletion or force-push — every change goes through a PR. Work on a branch, and always `git push` it immediately after every `git commit` without asking, then open a PR (or update the open one). Bill merges, with one exception: for a PR that changes only docs (`docs/**`, `*.md`), Claude turns on auto-merge, so it merges once its checks pass (Bill, 2026-10-04). Status updates go in one place: an app's own plan doc (e.g. mkt-data's `docs/phase-1.md`), with the roadmap milestone linking to it.
 
-Merging to `main` can deploy: Terraform (`terraform/**`), the hub stack and NUCs (`compose/aws/**`, `ansible/**`, `compose/nuc/**`, `scripts/hub/**`, via `platform-deploy.yml`) and RouterOS all run in the `production` environment, which waits for Bill's approval before applying.
+Merging to `main` can deploy. Terraform (`terraform/**`, `apps/registry.yml`), the hub stack and NUCs (`compose/aws/**`, `ansible/**`, `compose/nuc/**`, `scripts/hub/**`) all go through one workflow, `platform-release.yml`, which waits for one approval from Bill in the `production` environment and then applies, in order, Terraform (AWS), Terraform (GitHub), app databases, the hub stack and the NUCs, each only if the merge touched it (Bill, 2026-10-04). RouterOS has its own gated workflow. App repos' CDs deploy without approval once a merge to `main` has built.
 
 ## AWS
 
@@ -98,7 +98,7 @@ ssh -i "$HOME\.ssh\home-platform.pem" ec2-user@10.0.3.1
 
 ## Deploying the AWS stack
 
-**Normally automatic:** merging to `main` with changes under `compose/aws/`, `ansible/`, `compose/nuc/` or `scripts/hub/` runs `.github/workflows/platform-deploy.yml`, which waits for Bill's approval (the `production` environment's required reviewer, set 2026-10-01) and then deploys the hub stack and/or NUCs through S3 + SSM, the same way `routeros.yml` does. It can also be run by hand from the Actions tab (`workflow_dispatch`: hub / nucs / both). The hub-side logic lives in `scripts/hub/`; unreachable NUCs (nuc5 when Rambles is closed) are skipped, not failed. The scripts below remain for manual deploys.
+**Normally automatic:** merging to `main` with changes under `compose/aws/`, `ansible/`, `compose/nuc/`, `scripts/hub/`, `terraform/` or `apps/registry.yml` runs `.github/workflows/platform-release.yml`, which waits for Bill's approval (the `production` environment's required reviewer) once, then applies Terraform and deploys the hub stack and/or NUCs through S3 + SSM in order, the same way `routeros.yml` does. It can also be run by hand from the Actions tab (`workflow_dispatch`: hub / nucs / both / app-dbs / terraform-aws / terraform-github / everything). The hub-side logic lives in `scripts/hub/`; unreachable NUCs (nuc5 when Rambles is closed) are skipped, not failed. The scripts below remain for manual deploys.
 
 `scripts/deploy-aws-stack.ps1` (Windows) / `scripts/deploy-aws-stack.sh` (Linux) push `compose/aws/` to the EC2 hub and bring the stack up — Prometheus, Grafana, Loki, Uptime Kuma, Authentik, Traefik, Postgres, Redis. Both fetch the same secrets from SSM into a generated `.env`, delete remote files that no longer exist locally (see `docs/gotchas.md` on why this matters), `scp` the compose dir over, and run `docker compose pull && docker compose build && docker compose up -d`. Keep the two scripts' deploy logic in sync when changing one.
 

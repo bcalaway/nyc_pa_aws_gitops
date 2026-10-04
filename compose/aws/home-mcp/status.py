@@ -125,7 +125,7 @@ async def platform_status() -> str:
         head = f"All good: sites online, NUCs healthy, {apps_up} of {len(APPS)} apps up."
     lines = [head]
     # Deploys paused at the production environment's approval gate
-    # (Terraform, Platform deploy, RouterOS, app CD). Not a "problem" --
+    # (Platform release, RouterOS). Not a "problem" --
     # nothing is broken -- but it's the thing Bill most needs to act on.
     if approvals:
         n = len(approvals)

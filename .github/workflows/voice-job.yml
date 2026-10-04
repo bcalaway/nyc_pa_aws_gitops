@@ -4,7 +4,7 @@ name: voice-job
 # home-mcp dispatches this with an Actions-only token; nothing runs until
 # (1) the request matches jobs/registry.yml on main and (2) Bill approves
 # the `production` environment. The job then runs scripts/jobs/<script> on
-# the hub via SSM, the same mechanism as platform-deploy.yml, and publishes
+# the hub via SSM, the same mechanism as platform-release.yml, and publishes
 # the script's final `RESULT:` line as a `result` annotation that
 # home-mcp's job_status reads back.
 
@@ -31,7 +31,7 @@ permissions:
   id-token: write
   contents: read
 
-# Shares Platform deploy's group: a voice job and a platform deploy never
+# Shares Platform release's group: a voice job and a platform release never
 # touch the hub at the same time; they queue.
 concurrency:
   group: platform-deploy
@@ -127,7 +127,7 @@ jobs:
         run: |
           aws s3 sync scripts/jobs/ "s3://${DEPLOY_BUCKET}/voice-jobs/jobs/" --delete --only-show-errors
           aws s3 sync scripts/hub/ "s3://${DEPLOY_BUCKET}/voice-jobs/hub/" --delete --only-show-errors
-          # Same prefixes Platform deploy uses, so the hub scripts find them.
+          # Same prefixes Platform release uses, so the hub scripts find them.
           for d in $STAGE; do
             case "$d" in
               compose/aws) aws s3 sync compose/aws/ "s3://${DEPLOY_BUCKET}/compose-aws/" --delete --exclude '.env' --only-show-errors ;;

@@ -1,0 +1,266 @@
+name: Platform release
+
+# Everything a merge to main deploys, behind ONE approval and in the right
+# order (Bill, 2026-10-04). Replaces the separate apply jobs of terraform.yml
+# and terraform-github.yml and the old platform-deploy.yml, which each waited
+# for their own approval and could run in any order (docs/gotchas.md: a hub
+# deploy that ran before the IAM grant it needed).
+#
+# 1. "What changed" (no approval): which parts this push touches.
+# 2. "Release" (the `production` environment, so it waits for Bill once),
+#    then in order, each only if needed, stopping at the first failure:
+#      Terraform (AWS) -> Terraform (GitHub) -> app databases -> hub stack -> NUCs
+#    AWS first because the hub's scripts and app deploys use the IAM grants and
+#    SSM documents it creates; databases before the hub because a platform
+#    service's password must exist before the stack's .env is built.
+#
+# PR plans still come from terraform.yml and terraform-github.yml. Each step
+# ends with a `result` annotation, which home-mcp's last_deploys reads back.
+#
+# Hosted runners can't reach the hub (its security group only allows
+# WireGuard subnets), so hub files go to the ansible-deploy S3 bucket and the
+# hub is told to act via ssm:SendCommand (.github/scripts/run-on-hub.sh). The
+# hub reads its own secrets from SSM with its instance role; no secret passes
+# through this workflow except the GitHub admin token, used only by the
+# GitHub apply step.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - 'apps/registry.yml'
+      - 'compose/aws/**'
+      - 'compose/nuc/**'
+      - 'ansible/**'
+      - 'scripts/hub/**'
+      - '.github/workflows/platform-release.yml'
+      - '.github/scripts/run-on-hub.sh'
+      - '.github/scripts/terraform-apply.sh'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to release"
+        required: true
+        type: choice
+        options:
+          - hub
+          - nucs
+          - both
+          - app-dbs
+          - terraform-aws
+          - terraform-github
+          - everything
+
+permissions:
+  id-token: write
+  contents: read
+
+# One release at a time, and never alongside a voice job or the preview sweep
+# (same group): a cancelled SSM command can leave the stack half-updated, and
+# Terraform state is locked per apply anyway.
+concurrency:
+  group: platform-deploy
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: "1.10.5"
+  AWS_REGION: us-east-1
+  DEPLOY_BUCKET: home-platform-ansible-deploy-147856894209
+
+jobs:
+  scope:
+    name: What changed
+    runs-on: ubuntu-24.04
+    outputs:
+      aws: ${{ steps.scope.outputs.aws }}
+      github: ${{ steps.scope.outputs.github }}
+      dbs: ${{ steps.scope.outputs.dbs }}
+      hub: ${{ steps.scope.outputs.hub }}
+      nucs: ${{ steps.scope.outputs.nucs }}
+      any: ${{ steps.scope.outputs.any }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Decide scope and summarize the diff
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          TARGET: ${{ inputs.target }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          AWS=false; GH=false; DBS=false; HUB=false; NUCS=false; RANGE=""
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            case "$TARGET" in
+              hub) HUB=true ;;
+              nucs) NUCS=true ;;
+              both) HUB=true; NUCS=true ;;
+              app-dbs) DBS=true ;;
+              terraform-aws) AWS=true ;;
+              terraform-github) GH=true ;;
+              everything) AWS=true; GH=true; DBS=true; HUB=true; NUCS=true ;;
+            esac
+          else
+            if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+              BEFORE=$(git rev-parse HEAD~1)
+            fi
+            RANGE="$BEFORE..HEAD"
+            CHANGED=$(git diff --name-only "$RANGE")
+            # Terraform (AWS) reads the registry (ADR-0028) and bundles these hub
+            # scripts into SSM documents (terraform/aws/ci-roles.tf).
+            grep -qE '^(terraform/aws/|apps/registry\.yml$|scripts/hub/(app-deploy\.sh|compose-mem-check\.py|preview-up\.sh|preview-compose\.py|preview-down\.sh|capture-export\.sh)$)' <<<"$CHANGED" && AWS=true
+            grep -qE '^(terraform/github/|apps/registry\.yml$)' <<<"$CHANGED" && GH=true
+            grep -qE '^(apps/registry\.yml|scripts/hub/onboard-app-dbs\.sh)$' <<<"$CHANGED" && DBS=true
+            # The registry also drives the hub stack: Airflow's app connections (ADR-0031).
+            grep -qE '^(compose/aws/|scripts/hub/deploy-hub-stack\.sh$|apps/registry\.yml$)' <<<"$CHANGED" && HUB=true
+            grep -qE '^(ansible/|compose/nuc/|scripts/hub/deploy-nucs-on-hub\.sh$)' <<<"$CHANGED" && NUCS=true
+          fi
+          ANY=false
+          for x in $AWS $GH $DBS $HUB $NUCS; do [ "$x" = true ] && ANY=true; done
+          {
+            echo "aws=$AWS"; echo "github=$GH"; echo "dbs=$DBS"; echo "hub=$HUB"; echo "nucs=$NUCS"; echo "any=$ANY"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "## Platform release plan"
+            echo "In order, behind one approval:"
+            echo "1. Terraform (AWS): **$AWS**"
+            echo "2. Terraform (GitHub): **$GH**"
+            echo "3. App databases: **$DBS**"
+            echo "4. Hub stack: **$HUB**"
+            echo "5. NUCs: **$NUCS**"
+            if [ -n "$RANGE" ]; then
+              echo
+              echo '```'
+              git diff --stat "$RANGE"
+              echo '```'
+            fi
+          } | tee "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Release (needs approval)
+    runs-on: ubuntu-24.04
+    needs: scope
+    if: needs.scope.outputs.any == 'true'
+    environment: production
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        if: needs.scope.outputs.aws == 'true' || needs.scope.outputs.github == 'true'
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - run: echo "## Platform release" >> "$GITHUB_STEP_SUMMARY"
+
+      # 1. AWS
+      - name: Terraform (AWS)
+        if: needs.scope.outputs.aws == 'true'
+        run: .github/scripts/terraform-apply.sh aws "Terraform (AWS)"
+
+      # 2. GitHub (terraform/github, ADR-0030). The admin token is a
+      # `production` environment secret, present only in this step.
+      - name: Check the GitHub admin token is set up
+        if: needs.scope.outputs.github == 'true'
+        env:
+          TOKEN: ${{ secrets.TF_GITHUB_ADMIN_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error title=result::Terraform (GitHub): TF_GITHUB_ADMIN_TOKEN isn't set (production environment secret) -- see docs/app-platform.md, GitHub repos"
+            exit 1
+          fi
+
+      - name: Terraform (GitHub)
+        if: needs.scope.outputs.github == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_ADMIN_TOKEN }}
+        run: .github/scripts/terraform-apply.sh github "Terraform (GitHub)"
+
+      # The provider has no resource for code scanning's default setup, so
+      # turn it on here for any registry repo that doesn't have it yet. A
+      # brand-new repo with no code yet can't be configured; the next release
+      # (or target terraform-github) picks it up once its first PR has merged.
+      - name: CodeQL default setup
+        if: needs.scope.outputs.github == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TF_GITHUB_ADMIN_TOKEN }}
+        run: |
+          for repo in $(yq '.apps[].name' apps/registry.yml); do
+            state=$(gh api "repos/bcalaway/$repo/code-scanning/default-setup" --jq .state 2>/dev/null || echo unknown)
+            if [ "$state" = configured ]; then
+              echo "$repo: CodeQL already configured"
+            elif gh api -X PATCH "repos/bcalaway/$repo/code-scanning/default-setup" \
+                   -f state=configured -f query_suite=default >/dev/null 2>&1; then
+              echo "$repo: CodeQL default setup turned on"
+            else
+              echo "::warning::$repo: couldn't turn on CodeQL default setup yet (no code to analyse?)"
+            fi
+          done
+
+      # 3-5. The hub and NUCs, through S3 + SSM.
+      - name: Stage files in S3
+        id: stage
+        if: needs.scope.outputs.dbs == 'true' || needs.scope.outputs.hub == 'true' || needs.scope.outputs.nucs == 'true'
+        env:
+          HUB: ${{ needs.scope.outputs.hub }}
+          NUCS: ${{ needs.scope.outputs.nucs }}
+          DBS: ${{ needs.scope.outputs.dbs }}
+        run: |
+          aws s3 sync scripts/hub/ "s3://${DEPLOY_BUCKET}/scripts-hub/" --delete
+          if [ "$HUB" = "true" ]; then
+            # .env is generated on the hub; never upload a stray local one.
+            aws s3 sync compose/aws/ "s3://${DEPLOY_BUCKET}/compose-aws/" --delete --exclude '.env'
+          fi
+          if [ "$NUCS" = "true" ]; then
+            aws s3 sync ansible/ "s3://${DEPLOY_BUCKET}/ansible/" --delete
+            aws s3 sync compose/nuc/ "s3://${DEPLOY_BUCKET}/compose-nuc/" --delete
+          fi
+          if [ "$DBS" = "true" ] || [ "$HUB" = "true" ]; then
+            # JSON for the hub, which has python3 but no YAML parser. Read by
+            # onboard-app-dbs.sh and, for Airflow's app connections, by
+            # deploy-hub-stack.sh (ADR-0031).
+            yq -o=json apps/registry.yml > "$RUNNER_TEMP/registry.json"
+            aws s3 cp "$RUNNER_TEMP/registry.json" "s3://${DEPLOY_BUCKET}/apps-registry/registry.json" --only-show-errors
+          fi
+          ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=home-platform-hub" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" --output text)
+          if [ -z "$ID" ] || [ "$ID" = "None" ]; then
+            echo "::error title=result::Could not find a running home-platform-hub instance"
+            exit 1
+          fi
+          echo "hub_id=$ID" >> "$GITHUB_OUTPUT"
+
+      # Before the hub stack: a platform service's database password (e.g.
+      # Airflow's, ADR-0027) must exist before the stack's .env is built.
+      # Creates missing databases/roles/passwords; never drops or overwrites
+      # anything (scripts/hub/onboard-app-dbs.sh, ADR-0028).
+      - name: App databases
+        if: needs.scope.outputs.dbs == 'true'
+        env:
+          HUB_ID: ${{ steps.stage.outputs.hub_id }}
+        run: .github/scripts/run-on-hub.sh "App database onboarding" onboard-app-dbs.sh
+
+      # Hub before NUCs: a change like a new voice-worker repo spans both
+      # home-mcp (hub) and the nuc4 worker, and the hub side gates new requests.
+      - name: Hub stack
+        if: needs.scope.outputs.hub == 'true'
+        env:
+          HUB_ID: ${{ steps.stage.outputs.hub_id }}
+        run: .github/scripts/run-on-hub.sh "Hub stack deploy" deploy-hub-stack.sh
+
+      - name: NUCs
+        if: needs.scope.outputs.nucs == 'true'
+        env:
+          HUB_ID: ${{ steps.stage.outputs.hub_id }}
+        run: .github/scripts/run-on-hub.sh "NUC deploy" deploy-nucs-on-hub.sh

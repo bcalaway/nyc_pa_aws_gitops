@@ -3,12 +3,13 @@
 GitHub's job-log downloads aren't reachable from Claude's sessions, but a
 run's annotations are, through the same anonymous API github_status uses.
 So each deploy path ends with one `result` annotation (run-on-hub.sh,
-run-document.sh and terraform.yml's summarize steps), and this tool reads
-the latest one per workflow:
+run-document.sh and terraform-apply.sh), and this tool reads the latest
+run's per workflow:
 
-- platform repo "Platform deploy": the hub stack's Compose version, what
-  restarted, anything not running; or which NUCs were deployed or skipped
-- platform repo "Terraform": "Apply complete! Resources: ..." or the error
+- platform repo "Platform release": one line per step that ran, in order:
+  Terraform (AWS) and (GitHub) ("Apply complete! Resources: ..." or the
+  error), app databases, the hub stack (Compose version, what restarted,
+  anything not running), NUCs deployed or skipped
 - each app's "CD": the hub-side deploy result (e.g. a mem_limit rejection)
 
 Read-only and tokenless. Runs come from github_status's cache; annotations
@@ -26,10 +27,11 @@ import github_status
 OWNER = github_status.OWNER
 # (repo, workflow name) pairs, in the order they're read out.
 WATCHED = [
-    ("nyc_pa_aws_gitops", "Platform deploy"),
-    ("nyc_pa_aws_gitops", "Terraform"),
+    ("nyc_pa_aws_gitops", "Platform release"),
     ("todo-app", "CD"),
     ("hue", "CD"),
+    ("mkt-data", "CD"),
+    ("calendar-svc", "CD"),
 ]
 CACHE_SECONDS = 120
 _notes_cache: dict[int, tuple[float, list[str]]] = {}

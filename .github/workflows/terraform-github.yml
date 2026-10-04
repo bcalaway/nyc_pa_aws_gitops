@@ -1,25 +1,19 @@
 name: Terraform (GitHub)
 
 # terraform/github (ADR-0030): GitHub repos for registry apps, with the
-# platform's standard settings. Separate from terraform.yml (AWS) so the
-# GitHub admin token is never present in an AWS apply, and vice versa.
+# platform's standard settings. This workflow only plans PRs; the apply is a
+# step of platform-release.yml, behind the one release approval, and the admin
+# token is passed to that step only.
 #
 # Tokens (fine-grained PATs, set up once by Bill; docs/app-platform.md):
 #   TF_GITHUB_READ_TOKEN   repository secret   PR plans (read-only)
-#   TF_GITHUB_ADMIN_TOKEN  `production` secret applies, after Bill approves
+#   TF_GITHUB_ADMIN_TOKEN  `production` secret applies, in platform-release.yml
 # Both cover "All repositories" so a repo this stack creates is in scope.
 # Dependabot PRs get neither (GitHub withholds repo secrets from them), so a
 # provider bump's plan fails until Bill re-runs it from a normal PR.
 
 on:
   pull_request:
-    paths:
-      - 'terraform/github/**'
-      - 'apps/registry.yml'
-      - '.github/workflows/terraform-github.yml'
-  push:
-    branches:
-      - main
     paths:
       - 'terraform/github/**'
       - 'apps/registry.yml'
@@ -43,7 +37,6 @@ jobs:
   plan:
     name: Terraform Plan (GitHub)
     runs-on: ubuntu-24.04
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v7
 
@@ -109,74 +102,3 @@ jobs:
       - name: Check plan status
         if: steps.plan.outcome == 'failure'
         run: exit 1
-
-  apply:
-    name: Terraform Apply (GitHub)
-    runs-on: ubuntu-24.04
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment: production
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-actions
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Check the admin token is set up
-        env:
-          TOKEN: ${{ secrets.TF_GITHUB_ADMIN_TOKEN }}
-        run: |
-          if [ -z "$TOKEN" ]; then
-            echo "::error title=result::TF_GITHUB_ADMIN_TOKEN isn't set (production environment secret) -- see docs/app-platform.md, GitHub repos"
-            exit 1
-          fi
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Terraform Init
-        working-directory: terraform/github
-        run: terraform init
-
-      - name: Terraform Apply
-        # shell: bash runs with -o pipefail, so `terraform ... | tee` fails the
-        # step when Terraform fails (the default shell let a failed apply show green).
-        shell: bash
-        working-directory: terraform/github
-        env:
-          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_ADMIN_TOKEN }}
-        run: terraform apply -auto-approve -no-color 2>&1 | tee apply.txt
-
-      # The provider has no resource for code scanning's default setup, so
-      # turn it on here for any registry repo that doesn't have it yet. A
-      # brand-new repo with no code yet can't be configured; the next apply
-      # (or a manual run) picks it up once its first PR has merged.
-      - name: CodeQL default setup
-        if: success()
-        env:
-          GH_TOKEN: ${{ secrets.TF_GITHUB_ADMIN_TOKEN }}
-        run: |
-          for repo in $(yq '.apps[].name' apps/registry.yml); do
-            state=$(gh api "repos/bcalaway/$repo/code-scanning/default-setup" --jq .state 2>/dev/null || echo unknown)
-            if [ "$state" = configured ]; then
-              echo "$repo: CodeQL already configured"
-            elif gh api -X PATCH "repos/bcalaway/$repo/code-scanning/default-setup" \
-                   -f state=configured -f query_suite=default >/dev/null 2>&1; then
-              echo "$repo: CodeQL default setup turned on"
-            else
-              echo "::warning::$repo: couldn't turn on CodeQL default setup yet (no code to analyse?)"
-            fi
-          done
-
-      - name: Summarize apply
-        if: always()
-        working-directory: terraform/github
-        run: |
-          line=$(grep -hE '^(Apply complete!|No changes\.)' apply.txt 2>/dev/null | tail -1)
-          err=$(grep -hE '^Error: ' apply.txt 2>/dev/null | head -1)
-          if [ -n "$err" ]; then echo "::error title=result::apply failed: ${err#Error: }"
-          else echo "::notice title=result::${line:-apply produced no summary}"; fi
