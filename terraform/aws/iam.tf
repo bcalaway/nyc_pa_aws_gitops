@@ -313,6 +313,9 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "guardduty:CreateDetector", "guardduty:GetDetector", "guardduty:UpdateDetector",
       "guardduty:DeleteDetector", "guardduty:ListDetectors",
       "guardduty:TagResource", "guardduty:UntagResource", "guardduty:ListTagsForResource",
+      # The exposure-scan suppression rule (security.tf).
+      "guardduty:CreateFilter", "guardduty:GetFilter", "guardduty:UpdateFilter",
+      "guardduty:DeleteFilter", "guardduty:ListFilters",
       "access-analyzer:CreateAnalyzer", "access-analyzer:GetAnalyzer", "access-analyzer:DeleteAnalyzer",
       "access-analyzer:ListAnalyzers", "access-analyzer:UpdateAnalyzer",
       "access-analyzer:CreateArchiveRule", "access-analyzer:GetArchiveRule", "access-analyzer:UpdateArchiveRule",
