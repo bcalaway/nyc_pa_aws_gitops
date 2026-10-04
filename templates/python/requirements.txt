@@ -4,7 +4,9 @@ sqlalchemy==2.1.1
 alembic==1.20.0
 psycopg2-binary==2.9.13
 authlib==1.8.0
-httpx==0.28.1
+# httpx2: Pydantic's maintained fork of httpx. Authlib 1.8 prefers it and warns
+# when it falls back to httpx.
+httpx2==2.13.1
 itsdangerous==2.2.0
 # gRPC (ADR-0020). protobuf is left to grpcio-tools/-health-checking's own
 # compatible range rather than pinned separately.
