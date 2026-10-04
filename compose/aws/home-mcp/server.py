@@ -38,6 +38,7 @@ import github_status as github_status_mod
 import hub_view
 import jobs
 import logs
+import mkt_data
 import prom_query
 import security_events as security_events_mod
 import status
@@ -275,6 +276,28 @@ async def prometheus_metrics(match: str = "") -> str:
     containing `match` (e.g. "airflow", "container_memory", "rachio").
     Read-only."""
     return await prom_query.prometheus_metrics(match)
+
+
+@mcp.tool()
+@audited
+async def mkt_data_captures(calendar: str = "", limit: int = 10) -> str:
+    """The market data platform's raw captures (pages mkt-data fetched and
+    keeps byte for byte), newest first: id, source, when, size, and whether
+    its parse was applied. A newest capture that's NOT applied usually means
+    the parser rejected the page. Optional calendar ("FED", "SIFMA-US",
+    "NYSE"). Read-only."""
+    return await mkt_data.mkt_data_captures(calendar, limit)
+
+
+@mcp.tool()
+@audited
+async def mkt_data_capture_text(capture_id: int, contains: str = "", context: int = 0, lines: int = 40) -> str:
+    """One raw capture's visible text, as numbered lines (what mkt-data's
+    parsers read). contains keeps lines with that phrase (case-insensitive),
+    plus `context` lines either side; lines caps the output (max 120). Use
+    for "what does NYSE's page say about early closes?" or to check a parser
+    against a page's real wording. HTML captures only. Read-only."""
+    return await mkt_data.mkt_data_capture_text(capture_id, contains, context, lines)
 
 
 @mcp.tool()

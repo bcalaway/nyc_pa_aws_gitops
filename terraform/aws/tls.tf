@@ -286,6 +286,15 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
       resources = [for n in local.airflow_app_names : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/${n}/airflow-token"]
     }
   }
+
+  # deploy-hub-stack.sh generates home-mcp's read-only token for mkt-data's
+  # GET job endpoints once (MKT_DATA_READ_TOKEN); mkt-data reads the same
+  # parameter as READ_TOKEN through its own deploy. Exactly this parameter.
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter", "ssm:PutParameter"]
+    resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/mkt-data/read-token"]
+  }
 }
 
 resource "aws_iam_role_policy" "hub_platform_deploy" {

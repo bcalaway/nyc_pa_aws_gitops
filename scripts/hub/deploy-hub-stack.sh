@@ -115,6 +115,12 @@ chmod 600 "$ENV_TMP"
   echo "AIRFLOW_FERNET_KEY=$(generated_secret /home-platform/airflow/fernet-key fernet_key)"
   echo "AIRFLOW_API_SECRET_KEY=$(generated_secret /home-platform/airflow/api-secret-key openssl rand -hex 32)"
   echo "AIRFLOW_JWT_SECRET=$(generated_secret /home-platform/airflow/jwt-secret openssl rand -hex 32)"
+  # home-mcp's read-only token for mkt-data's GET job endpoints (its capture
+  # tools). mkt-data reads the same parameter through its own deploy, as
+  # READ_TOKEN. "none" until it exists (e.g. before the Terraform grant is
+  # applied), so the tools say "not set up" instead of the deploy failing.
+  mkt_read=$(generated_secret /home-platform/mkt-data/read-token openssl rand -hex 32 2>/dev/null || true)
+  echo "MKT_DATA_READ_TOKEN=${mkt_read:-none}"
 } > "$ENV_TMP"
 # A failed lookup inside $(...) doesn't trip set -e (echo's own status
 # wins), so check explicitly: an empty value would silently break a service.
