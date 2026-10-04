@@ -142,7 +142,7 @@ Done (details in `phase-1.md` and the PRs):
   - Monitored by Grafana alerts: stale capture, parse failed, next year not published.
 
 Platform-side tasks:
-- [ ] 🤖 home-mcp market-data tools (Bill, 2026-10-04): trigger `mkt_data__*` DAGs; Airflow runs and task logs; Grafana alert state; mkt-data business-day answers, capture checks and the embedded-data capture view. Deployed 2026-10-04 (#115); end-to-end checks pending (listed in `phase-1.md` step 9)
+- [x] 🤖 home-mcp market-data tools (Bill, 2026-10-04): trigger `mkt_data__*` DAGs; Airflow runs and task logs; Grafana alert state; mkt-data business-day answers, capture checks and the embedded-data capture view. Deployed 2026-10-04 (#115), verified end to end the same day (`phase-1.md` step 9). The Grafana token needed a hub redeploy after Terraform (`docs/gotchas.md`, GitHub and CI/CD)
 - [ ] 🤖 Market-data Grafana dashboard (phase-1 step 8): per-calendar coverage, upcoming closes, capture history, storage
 - [ ] 🤖 Airflow API auth (found 2026-10-04):
   - **The problem:** with `SIMPLE_AUTH_MANAGER_ALL_ADMINS`, `GET /auth/token` on `airflow-api-server:8080` hands an admin token to anything on the `home-platform` network. Only the UI is behind Authentik.
