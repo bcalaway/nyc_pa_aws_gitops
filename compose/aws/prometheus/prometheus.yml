@@ -51,6 +51,24 @@ scrape_configs:
           instance: aws-hub
           app: calendar-svc
 
+  # secmaster-svc and quote-svc (Milestone 23): down until each serves
+  # /metrics (mkt-data's docs/phase-2.md, steps B4, B5); nothing alerts on up.
+  - job_name: secmaster-svc
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["secmaster-svc:8000"]
+        labels:
+          instance: aws-hub
+          app: secmaster-svc
+
+  - job_name: quote-svc
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["quote-svc:8000"]
+        labels:
+          instance: aws-hub
+          app: quote-svc
+
   # Airflow (ADR-0027): StatsD metrics via airflow-statsd-exporter
   # (compose/aws/data.yml, names from airflow/statsd-mapping.yml).
   - job_name: airflow

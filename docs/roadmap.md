@@ -134,7 +134,7 @@ Platform tasks:
 - [x] 🤖 calendar-svc in `apps/registry.yml` (database, Airflow) and its Prometheus scrape job; then its `github_repo_id` *(#126, #128, 2026-10-04)*
 - [x] 🤖 Calendars switch to calendar-svc: home-mcp's business-day tool, the Market data dashboard's calendar panels and the next-year alert, calendar-svc load alerts *(#130, 2026-10-04; mkt-data #48 retired its golden calendar tables: Part A complete)*
 - [ ] 🧑 Approve the Platform release for each onboarding PR (one approval since 2026-10-04: `platform-release.yml`)
-- [ ] 🤖 secmaster-svc, quote-svc, mkt-api and mkt-ui onboarding (Part B)
+- [ ] 🤖 secmaster-svc, quote-svc, mkt-api and mkt-ui in `apps/registry.yml` (databases and Airflow for the two services; Authentik for mkt-ui), mkt-ui's DNS record `mkt.billandjessie.com` and generated OIDC client, the services' scrape jobs; then their `github_repo_id`s (Part B, step 3)
 
 ## Future / Deferred
 
