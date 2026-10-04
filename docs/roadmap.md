@@ -150,6 +150,7 @@ Tasks:
   - **NYSE from 1990:** `NYSE-RULES`, with 25 cited exceptions; it reproduces the hours page and ICE's 2023–2025 announcement (#20).
 
   Rules are versioned JSON files read as `repo:` sources, so each version is kept as a raw capture.
+- [ ] 🤖 Calendars projected to 2100 for bond and swap payment schedules (Bill, 2026-10-04; mkt-data #22). FED gives New York banking days and SIFMA-US gives U.S. Government Securities Business Days. Each calendar's rules run forward as its last source: full closes only, filling only years no publisher covers, and giving a year up whole once it's published. Answers from projected years are flagged `"projected": true`.
 - [x] 🤖 home-mcp `mkt_data_captures` and `mkt_data_capture_text` *(platform #102 + mkt-data #9, 2026-10-04)*: read-only views of mkt-data's raw captures (list with an `applied` flag; one HTML capture's visible text, filtered by a phrase) through a read-only token (`/home-platform/mkt-data/read-token`, GET endpoints only). home-mcp joined `home-platform` to reach `mkt-data:8000`
 - [ ] 🤖 Data-quality metrics (mkt-data exposes gauges: last capture, years covered, parse failures) and Grafana alerts; a market-data dashboard with per-calendar coverage and storage/cost; home-mcp market-data tools
 - [ ] 🤖 Small follow-ups: the Python template's Authlib/httpx deprecation warning (httpx2)
