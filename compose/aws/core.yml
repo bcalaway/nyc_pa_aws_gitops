@@ -93,10 +93,13 @@ services:
     # this is additive, not a replacement.
     # `preview` (ADR-0023): per-PR preview containers live only on that
     # internal network, so Traefik joins it to route to them.
+    # airflow-api: the Airflow UI's backend lives only there
+    # (docker-compose.yml).
     networks:
       - default
       - home-platform
       - preview
+      - airflow-api
 
   authentik-server:
     image: ghcr.io/goauthentik/server:2026.8.3
@@ -247,10 +250,12 @@ services:
     # hostname from there. See traefik's networks: comment above.
     # `preview` (ADR-0023): previews reach Postgres (as a role that owns
     # only its own <app>-pr<n> database) and nothing else on the hub.
+    # airflow-api: Airflow's API server, which is on that network only.
     networks:
       - default
       - home-platform
       - preview
+      - airflow-api
 
   postgres-backup:
     build: ./postgres-backup
@@ -340,8 +345,9 @@ services:
       MKT_DATA_READ_TOKEN: "${MKT_DATA_READ_TOKEN}"
       # grafana_alerts: a Viewer service account token, created once by the
       # hub deploy (/home-platform/grafana/home-mcp-token). The airflow_* tools
-      # need no secret: Airflow's API issues tokens to anything on
-      # home-platform (simple auth manager, all admins; see the roadmap).
+      # need no secret: Airflow's API issues tokens to anything that can reach
+      # it (simple auth manager, all admins), which is why it's only on the
+      # internal airflow-api network.
       GRAFANA_HOME_MCP_TOKEN: "${GRAFANA_HOME_MCP_TOKEN}"
     volumes:
       # Weekly exposure-check results, written by a root host unit
@@ -349,9 +355,11 @@ services:
       - /var/lib/home-platform/exposure:/exposure:ro
     # default: Prometheus, Loki and the rest of the stack. home-platform:
     # internal apps (mkt-data:8000), which aren't on the default network.
+    # airflow-api: Airflow's API server (its airflow_* tools).
     networks:
       - default
       - home-platform
+      - airflow-api
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.mcp.rule=Host(`mcp.billandjessie.com`)"

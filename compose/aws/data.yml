@@ -5,11 +5,13 @@
 # report to), the scheduler (which also runs the tasks, as subprocesses),
 # the DAG processor and the triggerer.
 #
-# Networks: Airflow joins only `home-platform`, like the apps -- it reaches
-# Postgres and Traefik there, and the IMDS guard (compose/aws/host/) keeps it
-# off the hub's instance-role credentials, which matters once DAGs run app
-# code. Only the statsd exporter also joins the stack's default network, so
-# Prometheus can scrape it.
+# Networks: the scheduler, DAG processor and triggerer join `home-platform`,
+# like the apps (Postgres, and the apps' /jobs APIs), and the IMDS guard
+# (compose/aws/host/) keeps them off the hub's instance-role credentials,
+# which matters once DAGs run app code. The API server is only on the internal
+# `airflow-api` network (see "Login" below), which the others join too. Only
+# the statsd exporter also joins the stack's default network, so Prometheus
+# can scrape it.
 #
 # Secrets come from the stack's .env (scripts/hub/deploy-hub-stack.sh):
 # AIRFLOW_DB_PASSWORD (registry platform_databases onboarding), and the
@@ -20,7 +22,10 @@
 # repo). Mounted read-only.
 #
 # Login: Authentik forward-auth in front (blueprints/airflow-proxy.yaml), so
-# Airflow's own simple auth manager treats every request as admin.
+# Airflow's own simple auth manager treats every request as admin. That makes
+# GET /auth/token an anonymous admin token, so the API server is only on the
+# internal airflow-api network (docker-compose.yml), never home-platform:
+# apps can't reach it, only Airflow itself, Traefik and home-mcp.
 
 x-airflow: &airflow
   image: apache/airflow:3.3.2
@@ -50,8 +55,11 @@ x-airflow: &airflow
   volumes:
     - /home/ec2-user/airflow/dags:/opt/airflow/dags:ro
     - airflow-logs:/opt/airflow/logs
+  # home-platform: apps' /jobs APIs (tasks run in the scheduler) and Postgres.
+  # airflow-api: the API server (execution API).
   networks:
     - home-platform
+    - airflow-api
 
 services:
   # Runs the database migration on start (the image's _AIRFLOW_DB_MIGRATE),
@@ -87,6 +95,9 @@ services:
     container_name: airflow-api-server
     command: api-server
     mem_limit: 1g
+    # Only airflow-api: never home-platform (see the header).
+    networks:
+      - airflow-api
     depends_on:
       airflow-scheduler:
         condition: service_healthy
@@ -98,7 +109,7 @@ services:
       start_period: 1m
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=home-platform"
+      - "traefik.docker.network=airflow-api"
       - "traefik.http.routers.airflow.rule=Host(`airflow.billandjessie.com`)"
       - "traefik.http.routers.airflow.entrypoints=websecure"
       - "traefik.http.routers.airflow.tls.certresolver=route53"
@@ -160,3 +171,4 @@ services:
     networks:
       - default
       - home-platform
+      - airflow-api  # the API server sends its StatsD from there
