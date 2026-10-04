@@ -1,10 +1,11 @@
 """airflow_runs, airflow_task_log and airflow_trigger: Airflow's REST API.
 
 home-mcp reaches the API server on the home-platform network
-(airflow-api-server:8080). Airflow runs the simple auth manager with every
-user an admin (compose/aws/data.yml), so GET /auth/token issues a token with
-no credentials. That's the platform's current state, not something this
-module adds; the roadmap has a task to give API callers a real credential.
+(airflow-api-server:8080) over the internal airflow-api network. Airflow runs
+the simple auth manager with every user an admin (compose/aws/data.yml), so
+GET /auth/token issues a token with no credentials. That's why the API server
+is only on that network (2026-10-04): apps on home-platform can't reach it,
+only Airflow itself, Traefik and home-mcp.
 
 airflow_trigger is the only tool here that changes anything, and only for
 DAGs named mkt_data__*: their runs are idempotent captures (Bill, 2026-10-04),

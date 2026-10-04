@@ -121,6 +121,7 @@ A shared Airflow 3 on the hub (`compose/aws/data.yml`), UI at `https://airflow.b
 - **New DAGs start paused** (`dags_are_paused_at_creation`); unpause in the UI once it parses cleanly.
 - **Concurrency**: LocalExecutor, at most 4 task processes at once across all DAGs; tasks run inside the scheduler container (1 GiB limit, ADR-0026). App tasks only make HTTP calls, so the real work's memory counts against the app's own `mem_limit`.
 - **Credentials**: Airflow can't reach the hub's AWS instance role (it's on `home-platform`, behind the IMDS guard), and it never holds an app's secrets (ADR-0031). The only per-app credential it has is the app's job token.
+- **Airflow's own API isn't reachable from apps** (2026-10-04): the API server is only on the internal `airflow-api` network, shared with Airflow's other containers, Traefik, home-mcp, Postgres and the statsd exporter. An app never calls Airflow; Airflow calls the app's `/jobs`. To see or start runs, use the UI or home-mcp (`airflow_runs`, `airflow_trigger`).
 
 **App pipelines (ADR-0031): DAGs orchestrate, apps do the work.** No app code runs inside Airflow and there's no Docker socket. To use it:
 

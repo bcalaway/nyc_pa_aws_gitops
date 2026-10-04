@@ -43,3 +43,13 @@ networks:
   # Postgres join it from this stack.
   preview:
     external: true
+  # Airflow's API server (data.yml) lives only here, not on home-platform:
+  # with the simple auth manager's all-admins mode, GET /auth/token hands an
+  # admin token to anyone who can reach it. Members: the Airflow containers
+  # (the execution API), Traefik (the UI, behind Authentik), home-mcp (its
+  # airflow_* tools), and the API server's own dependencies (Postgres, the
+  # statsd exporter). Apps on home-platform can't reach it. Internal: no route
+  # to the internet. Fixed name so Traefik's docker.network label can name it.
+  airflow-api:
+    name: airflow-api
+    internal: true
