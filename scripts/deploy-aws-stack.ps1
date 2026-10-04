@@ -45,6 +45,11 @@ $voiceJobsToken = (& $aws ssm get-parameter --name "/home-platform/github/voice-
 if (-not $voiceJobsToken) { $voiceJobsToken = "none" }
 # Optional (ADR-0024): "none" until the GitHub security-read token exists.
 $githubSecurityToken = (& $aws ssm get-parameter --name "/home-platform/github/security-read-token" --with-decryption --region us-east-1 --output json 2>$null | ConvertFrom-Json).Parameter.Value
+# Created by the CI hub deploy; a manual deploy only reads them.
+$mktDataReadToken = (& $aws ssm get-parameter --name "/home-platform/mkt-data/read-token" --with-decryption --region us-east-1 --output json 2>$null | ConvertFrom-Json).Parameter.Value
+if (-not $mktDataReadToken) { $mktDataReadToken = "none" }
+$grafanaHomeMcpToken = (& $aws ssm get-parameter --name "/home-platform/grafana/home-mcp-token" --with-decryption --region us-east-1 --output json 2>$null | ConvertFrom-Json).Parameter.Value
+if (-not $grafanaHomeMcpToken) { $grafanaHomeMcpToken = "none" }
 if (-not $githubSecurityToken) { $githubSecurityToken = "none" }
 # ADR-0024: home-mcp's Authentik audit token, generated once if missing
 # (same as scripts/hub/deploy-hub-stack.sh's audit_token).
@@ -70,7 +75,7 @@ $airflowFernetKey = Get-Required "airflow/fernet-key"
 $airflowApiSecretKey = Get-Required "airflow/api-secret-key"
 $airflowJwtSecret = Get-Required "airflow/jwt-secret"
 
-"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nRACHIO_API_KEY=$rachioApiKey`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret`nAUTHENTIK_TODO_APP_CLIENT_ID=$authentikTodoAppClientId`nAUTHENTIK_TODO_APP_CLIENT_SECRET=$authentikTodoAppClientSecret`nAUTHENTIK_HUE_CLIENT_ID=$authentikHueClientId`nAUTHENTIK_HUE_CLIENT_SECRET=$authentikHueClientSecret`nAUTHENTIK_HOME_MCP_CLIENT_ID=$authentikHomeMcpClientId`nAUTHENTIK_HOME_MCP_CLIENT_SECRET=$authentikHomeMcpClientSecret`nVOICE_WORKER_SSH_KEY_B64=$voiceWorkerSshKeyB64`nUMAMI_DB_PASSWORD=$umamiDbPassword`nUMAMI_APP_SECRET=$umamiAppSecret`nUMAMI_TWO_FACTOR_KEY=$umamiTwoFactorKey`nVOICE_JOBS_GITHUB_TOKEN=$voiceJobsToken`nGITHUB_SECURITY_TOKEN=$githubSecurityToken`nAUTHENTIK_HOME_MCP_AUDIT_TOKEN=$auditToken`nAIRFLOW_DB_PASSWORD=$airflowDbPassword`nAIRFLOW_FERNET_KEY=$airflowFernetKey`nAIRFLOW_API_SECRET_KEY=$airflowApiSecretKey`nAIRFLOW_JWT_SECRET=$airflowJwtSecret" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
+"GRAFANA_SMTP_PASSWORD=$smtpPassword`nPOSTGRES_PASSWORD=$postgresPassword`nREDIS_PASSWORD=$redisPassword`nRACHIO_API_KEY=$rachioApiKey`nAUTHENTIK_DB_PASSWORD=$authentikDbPassword`nAUTHENTIK_SECRET_KEY=$authentikSecretKey`nAUTHENTIK_BOOTSTRAP_PASSWORD=$authentikBootstrapPassword`nAUTHENTIK_GRAFANA_CLIENT_ID=$authentikGrafanaClientId`nAUTHENTIK_GRAFANA_CLIENT_SECRET=$authentikGrafanaClientSecret`nAUTHENTIK_TODO_APP_CLIENT_ID=$authentikTodoAppClientId`nAUTHENTIK_TODO_APP_CLIENT_SECRET=$authentikTodoAppClientSecret`nAUTHENTIK_HUE_CLIENT_ID=$authentikHueClientId`nAUTHENTIK_HUE_CLIENT_SECRET=$authentikHueClientSecret`nAUTHENTIK_HOME_MCP_CLIENT_ID=$authentikHomeMcpClientId`nAUTHENTIK_HOME_MCP_CLIENT_SECRET=$authentikHomeMcpClientSecret`nVOICE_WORKER_SSH_KEY_B64=$voiceWorkerSshKeyB64`nUMAMI_DB_PASSWORD=$umamiDbPassword`nUMAMI_APP_SECRET=$umamiAppSecret`nUMAMI_TWO_FACTOR_KEY=$umamiTwoFactorKey`nVOICE_JOBS_GITHUB_TOKEN=$voiceJobsToken`nGITHUB_SECURITY_TOKEN=$githubSecurityToken`nAUTHENTIK_HOME_MCP_AUDIT_TOKEN=$auditToken`nAIRFLOW_DB_PASSWORD=$airflowDbPassword`nAIRFLOW_FERNET_KEY=$airflowFernetKey`nAIRFLOW_API_SECRET_KEY=$airflowApiSecretKey`nAIRFLOW_JWT_SECRET=$airflowJwtSecret`nMKT_DATA_READ_TOKEN=$mktDataReadToken`nGRAFANA_HOME_MCP_TOKEN=$grafanaHomeMcpToken" | Set-Content -Path (Join-Path $localDir ".env") -NoNewline
 
 Write-Host "Copying compose stack to EC2..."
 ssh -i $sshKey $ec2Host "mkdir -p $remoteDir"

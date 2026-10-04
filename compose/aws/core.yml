@@ -338,6 +338,11 @@ services:
       # accepts it on its GET job endpoints only, never captures or reparses.
       MKT_DATA_URL: "http://mkt-data:8000"
       MKT_DATA_READ_TOKEN: "${MKT_DATA_READ_TOKEN}"
+      # grafana_alerts: a Viewer service account token, created once by the
+      # hub deploy (/home-platform/grafana/home-mcp-token). The airflow_* tools
+      # need no secret: Airflow's API issues tokens to anything on
+      # home-platform (simple auth manager, all admins; see the roadmap).
+      GRAFANA_HOME_MCP_TOKEN: "${GRAFANA_HOME_MCP_TOKEN}"
     volumes:
       # Weekly exposure-check results, written by a root host unit
       # (compose/aws/host/exposure-check.py).

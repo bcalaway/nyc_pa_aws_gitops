@@ -27,12 +27,14 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+import airflow_api
 import airflow_view
 import authentik_audit as authentik_audit_mod
 import aws_posture as aws_posture_mod
 import context
 import deploys
 import exposure
+import grafana_alerts as grafana_alerts_mod
 import github_security as github_security_mod
 import github_status as github_status_mod
 import hub_view
@@ -292,13 +294,79 @@ async def mkt_data_captures(calendar: str = "", limit: int = 10) -> str:
 
 @mcp.tool()
 @audited
-async def mkt_data_capture_text(capture_id: int, contains: str = "", context: int = 0, lines: int = 40) -> str:
+async def mkt_data_capture_text(
+    capture_id: int, contains: str = "", context: int = 0, lines: int = 40, embedded: bool = False
+) -> str:
     """One raw capture's visible text, as numbered lines (what mkt-data's
     parsers read). contains keeps lines with that phrase (case-insensitive),
-    plus `context` lines either side; lines caps the output (max 120). Use
-    for "what does NYSE's page say about early closes?" or to check a parser
-    against a page's real wording. HTML captures only. Read-only."""
-    return await mkt_data.mkt_data_capture_text(capture_id, contains, context, lines)
+    plus `context` lines either side; lines caps the output (max 120).
+    embedded=true shows a Next.js page's embedded data instead (what SIFMA's
+    parser reads, hidden year tabs included). Use for "what does NYSE's page
+    say about early closes?" or to check a parser against a page's real
+    wording. HTML captures only. Read-only."""
+    return await mkt_data.mkt_data_capture_text(capture_id, contains, context, lines, embedded)
+
+
+@mcp.tool()
+@audited
+async def mkt_data_business_day(calendar: str, on: str) -> str:
+    """Whether a date is a business day on a market data calendar ("FED",
+    "SIFMA-US", "NYSE"): open, closed (and which holiday), or an early close
+    with its time. on is YYYY-MM-DD, any year 1986-2100 (coverage varies by
+    calendar). Says when the answer is projected from rules rather than
+    published. Read-only."""
+    return await mkt_data.mkt_data_business_day(calendar, on)
+
+
+@mcp.tool()
+@audited
+async def mkt_data_checks(calendar: str = "", source: str = "", limit: int = 10) -> str:
+    """What mkt-data's capture jobs did, newest first: each fetch attempt or
+    reparse per source, with its outcome (new, unchanged, error, reparse),
+    whether the parse worked, and any message (a fetch or parse error).
+    Optional calendar ("SIFMA-US") or source ("FED-K8"). Read-only. Use for
+    "did the last SIFMA run work?" or after a DAG run."""
+    return await mkt_data.mkt_data_checks(calendar, source, limit)
+
+
+@mcp.tool()
+@audited
+async def airflow_runs(dag: str = "", limit: int = 10) -> str:
+    """Airflow DAG runs, newest first: state, type (scheduled or manual),
+    start time and duration, and run id. Optional dag (e.g.
+    "mkt_data__sifma_calendar"); empty lists runs across all DAGs.
+    Read-only."""
+    return await airflow_api.airflow_runs(dag, limit)
+
+
+@mcp.tool()
+@audited
+async def airflow_task_log(dag: str, run_id: str = "", task: str = "", try_number: int = 0, lines: int = 60) -> str:
+    """The end of an Airflow task's log. Defaults: the DAG's latest run, its
+    failed task (else its last task), and the latest try; lines caps the
+    output (max 200). Read-only. Use after a failed or surprising run."""
+    return await airflow_api.airflow_task_log(dag, run_id, task, try_number, lines)
+
+
+@mcp.tool()
+@audited
+async def airflow_trigger(dag: str) -> str:
+    """Start a run of a market data DAG now (mkt_data__* only, e.g.
+    "mkt_data__nyse_calendar"). Those runs are idempotent captures, so this
+    needs no approval (Bill, 2026-10-04); other DAGs are refused. This
+    changes things: it starts a run. Follow with airflow_runs."""
+    return await airflow_api.airflow_trigger(dag)
+
+
+@mcp.tool()
+@audited
+async def grafana_alerts(group: str = "", show_all: bool = False) -> str:
+    """Grafana's alert rules and their state: how many are inactive, pending
+    or firing, plus each rule that isn't inactive and healthy (with its last
+    evaluation and any error). group filters by group or folder name (e.g.
+    "mkt-data") and lists every rule in it; show_all lists all rules.
+    Read-only. Use for "are the alerts loaded?" or "what's firing?"."""
+    return await grafana_alerts_mod.grafana_alerts(group, show_all)
 
 
 @mcp.tool()

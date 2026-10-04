@@ -73,6 +73,32 @@ generated_secret() {
   aws ssm put-parameter --name "$p" --type SecureString --value "$v" --region "$REGION" >/dev/null && echo "$v"
 }
 audit_token() { generated_secret /home-platform/authentik/home-mcp-audit-token openssl rand -hex 32; }
+# home-mcp's Grafana token (its grafana_alerts tool): a Viewer service account
+# "home-mcp", created once with Grafana's admin login and kept in SSM like the
+# secrets above. "none" whenever it can't be made yet (Grafana not up, or the
+# Terraform grant not applied), so the tool says "not set up" and a later
+# deploy finishes the job, instead of this deploy failing.
+grafana_home_mcp_token() {
+  local p=/home-platform/grafana/home-mcp-token v pw
+  if v=$(ssm "$p" 2>/tmp/gf-token.err) && [ -n "$v" ]; then echo "$v"; return; fi
+  grep -q ParameterNotFound /tmp/gf-token.err 2>/dev/null || { echo none; return; }
+  pw=$(ssm /home-platform/grafana/admin-password 2>/dev/null) || { echo none; return; }
+  v=$(GF_ADMIN_PASSWORD="$pw" python3 - <<'PY'
+import base64, json, os, time, urllib.request
+base = "http://127.0.0.1:3000"
+auth = "Basic " + base64.b64encode(("admin:" + os.environ["GF_ADMIN_PASSWORD"]).encode()).decode()
+def call(method, path, body=None):
+    req = urllib.request.Request(base + path, method=method, headers={"Authorization": auth, "Content-Type": "application/json"},
+                                 data=json.dumps(body).encode() if body is not None else None)
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.load(r)
+found = call("GET", "/api/serviceaccounts/search?query=home-mcp")["serviceAccounts"]
+sa = next((a for a in found if a["name"] == "home-mcp"), None) or call("POST", "/api/serviceaccounts", {"name": "home-mcp", "role": "Viewer"})
+print(call("POST", f"/api/serviceaccounts/{sa['id']}/tokens", {"name": f"home-mcp-{int(time.time())}"})["key"])
+PY
+  ) || { echo "Grafana token for home-mcp not created yet (Grafana unreachable or login refused)." >&2; echo none; return; }
+  aws ssm put-parameter --name "$p" --type SecureString --value "$v" --region "$REGION" >/dev/null && echo "$v" || echo none
+}
 # Fernet keys are 32 random bytes, URL-safe base64 (with padding).
 fernet_key() { openssl rand -base64 32 | tr '+/' '-_'; }
 
@@ -108,6 +134,7 @@ chmod 600 "$ENV_TMP"
   # alerts. Until Bill creates it, github_security reports "not set up".
   echo "GITHUB_SECURITY_TOKEN=$(ssm /home-platform/github/security-read-token 2>/dev/null || echo none)"
   echo "AUTHENTIK_HOME_MCP_AUDIT_TOKEN=$(audit_token)"
+  echo "GRAFANA_HOME_MCP_TOKEN=$(grafana_home_mcp_token)"
   # Airflow (ADR-0027, data.yml). The database password comes from the
   # registry's platform_databases onboarding (onboard-app-dbs.sh, which
   # platform-deploy.yml runs before this script).
