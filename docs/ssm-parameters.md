@@ -13,7 +13,8 @@ None of these are managed by Terraform. Until Milestone 20 (ADR-0025), 21 of the
 | `/home-platform/wireguard/server-private-key` | EC2 WireGuard hub private key |
 | `/home-platform/wireguard/laptop-private-key` | Laptop WireGuard client private key |
 | `/home-platform/wireguard/laptop-public-key` | Laptop WireGuard client public key |
-| `/home-platform/grafana/admin-password` | Grafana admin login |
+| `/home-platform/grafana/admin-password` | Grafana admin login. Also read by the hub deploy, once, to create the `home-mcp` service account token below |
+| `/home-platform/grafana/home-mcp-token` | Token of Grafana's `home-mcp` service account (**Viewer**), for home-mcp's `grafana_alerts`. Created by `scripts/hub/deploy-hub-stack.sh` on the first deploy that can reach Grafana, then only read. Reissue: delete the parameter, and the next deploy makes a new token (revoke the old one under Administration → Service accounts) |
 | `/home-platform/grafana/smtp-password` | Grafana Gmail SMTP App Password (real value set, verified working 2026-07-18) |
 | `/home-platform/uptime-kuma/admin-password` | Uptime Kuma admin login |
 | `/home-platform/postgres/admin-password` | Shared Postgres instance (hub) superuser password — apps get their own per-database least-privilege credentials under this same `/home-platform/postgres/*` namespace as they're onboarded |

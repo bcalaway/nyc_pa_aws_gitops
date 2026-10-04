@@ -53,6 +53,9 @@ UMAMI_TWO_FACTOR_KEY=$(ssm "/home-platform/umami/two-factor-encryption-key")
 VOICE_JOBS_GITHUB_TOKEN=$(ssm "/home-platform/github/voice-jobs-token" 2>/dev/null || echo none)
 # Optional (ADR-0024): "none" until the GitHub security-read token exists.
 GITHUB_SECURITY_TOKEN=$(ssm "/home-platform/github/security-read-token" 2>/dev/null || echo none)
+# Created by the CI hub deploy; a manual deploy only reads them.
+MKT_DATA_READ_TOKEN=$(ssm "/home-platform/mkt-data/read-token" 2>/dev/null || echo none)
+GRAFANA_HOME_MCP_TOKEN=$(ssm "/home-platform/grafana/home-mcp-token" 2>/dev/null || echo none)
 # ADR-0024: home-mcp's Authentik audit token, generated once if missing
 # (same as scripts/hub/deploy-hub-stack.sh's audit_token).
 if ! AUTHENTIK_HOME_MCP_AUDIT_TOKEN=$(ssm "/home-platform/authentik/home-mcp-audit-token" 2>&1); then
@@ -93,6 +96,8 @@ UMAMI_APP_SECRET=$UMAMI_APP_SECRET
 UMAMI_TWO_FACTOR_KEY=$UMAMI_TWO_FACTOR_KEY
 VOICE_JOBS_GITHUB_TOKEN=$VOICE_JOBS_GITHUB_TOKEN
 GITHUB_SECURITY_TOKEN=$GITHUB_SECURITY_TOKEN
+MKT_DATA_READ_TOKEN=$MKT_DATA_READ_TOKEN
+GRAFANA_HOME_MCP_TOKEN=$GRAFANA_HOME_MCP_TOKEN
 AUTHENTIK_HOME_MCP_AUDIT_TOKEN=$AUTHENTIK_HOME_MCP_AUDIT_TOKEN
 AIRFLOW_DB_PASSWORD=$AIRFLOW_DB_PASSWORD
 AIRFLOW_FERNET_KEY=$AIRFLOW_FERNET_KEY

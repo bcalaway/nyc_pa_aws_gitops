@@ -257,6 +257,8 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
       "github/voice-jobs-token",
       "github/security-read-token",
       "authentik/home-mcp-audit-token",
+      # Read only to create home-mcp's Grafana service account token once.
+      "grafana/admin-password",
       ],
       # Each registry app's Authentik client (ADR-0028), for the hub stack's .env.
       flatten([for n in local.app_names : local.apps[n].authentik ? ["authentik/${n}-client-id", "authentik/${n}-client-secret"] : []]),
@@ -282,6 +284,15 @@ data "aws_iam_policy_document" "hub_platform_deploy" {
       actions   = ["ssm:GetParameter", "ssm:PutParameter"]
       resources = [for n in concat(local.database_app_names, local.platform_database_names) : "arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/postgres/${n}-password"]
     }
+  }
+
+  # deploy-hub-stack.sh creates home-mcp's Grafana token (a Viewer service
+  # account, for its grafana_alerts tool) on the first deploy that can, and
+  # reads it into the stack's .env. This parameter only.
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter", "ssm:PutParameter"]
+    resources = ["arn:aws:ssm:us-east-1:${var.aws_account_id}:parameter/home-platform/grafana/home-mcp-token"]
   }
 
   # ADR-0027: deploy-hub-stack.sh generates Airflow's own secrets on the

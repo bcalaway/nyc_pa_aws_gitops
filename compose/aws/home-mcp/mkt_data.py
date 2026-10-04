@@ -1,4 +1,4 @@
-"""mkt_data_captures and mkt_data_capture_text: the market data platform's raw captures.
+"""mkt_data_* tools: the market data platform's raw captures, checks and calendars.
 
 mkt-data (bcalaway/mkt-data) keeps every page it fetches byte for byte. These
 tools read them through its job API's GET endpoints with a read-only token
@@ -7,9 +7,9 @@ start captures or reparses. mkt-data is internal: home-mcp reaches it on the
 home-platform network as mkt-data:8000.
 
 Uses: "did the SIFMA capture parse?", "what does NYSE's page say about early
-closes now?", and checking a parser against a page's real wording. For a
-byte-exact copy (a test fixture) the README's docker exec one-liner is the
-route; these tools return text.
+closes now?", "is 2027-03-26 a business day for SIFMA?", and checking a parser
+against a page's real wording. For a byte-exact copy (a test fixture), mkt-data's
+capture-export workflow is the route; these tools return text.
 """
 
 import os
@@ -80,25 +80,78 @@ async def mkt_data_captures(calendar: str = "", limit: int = 10) -> str:
     return "\n".join([head, *lines])
 
 
-async def mkt_data_capture_text(capture_id: int, contains: str = "", context: int = 0, lines: int = 40) -> str:
+async def mkt_data_capture_text(
+    capture_id: int, contains: str = "", context: int = 0, lines: int = 40, embedded: bool = False
+) -> str:
     if msg := _ready():
         return msg
     params = {"limit": max(1, min(lines, MAX_LINES)), "context": max(0, min(context, 10))}
     if contains.strip():
         params["contains"] = contains.strip()
+    if embedded:
+        params["embedded"] = "true"
     status, body = await _get(f"captures/{int(capture_id)}/text", params)
     if status != 200:
         return body
     shown = body["lines"]
+    view = " embedded data" if body.get("view") == "embedded" else ""
     if contains.strip():
         head = (
-            f"Capture #{body['capture_id']} ({body['source']}): {body['matches']} of "
+            f"Capture #{body['capture_id']} ({body['source']}{view}): {body['matches']} of "
             f"{body['lines_total']} lines contain {contains.strip()!r}."
         )
     else:
-        head = f"Capture #{body['capture_id']} ({body['source']}): {body['lines_total']} lines."
+        head = f"Capture #{body['capture_id']} ({body['source']}{view}): {body['lines_total']} lines."
     out = [head]
     out += [f"{ln['n']}: {ln['text'][:MAX_LINE_CHARS]}" for ln in shown]
     if body["truncated"]:
         out.append(f"(First {len(shown)} shown; narrow with contains, or raise lines up to {MAX_LINES}.)")
     return "\n".join(out)
+
+
+async def mkt_data_business_day(calendar: str, on: str) -> str:
+    if msg := _ready():
+        return msg
+    status, body = await _get(f"calendars/{calendar.strip()}/business-day", {"on": on.strip()})
+    if status == 409:
+        return f"{calendar} doesn't cover that year: {body.split(': ', 1)[-1]}"
+    if status != 200:
+        return body
+    day = f"{body['calendar']} on {body['date']}: "
+    if body["status"] == "weekend":
+        return day + "a weekend."
+    if body["status"] == "open":
+        text = day + "open, a normal business day."
+    elif body["status"] == "early_close":
+        text = day + f"open but closing early at {body.get('close_time')} ({body.get('holiday')})."
+    else:
+        text = day + f"closed ({body.get('holiday')})."
+    if body.get("projected"):
+        text += " Projected from the rules: no publisher covers that year yet."
+    return text
+
+
+async def mkt_data_checks(calendar: str = "", source: str = "", limit: int = 10) -> str:
+    if msg := _ready():
+        return msg
+    params: dict = {"limit": max(1, min(limit, 50))}
+    if source.strip():
+        params["source"] = source.strip()
+    elif calendar.strip():
+        params["calendar"] = calendar.strip()
+    status, body = await _get("checks", params)
+    if status != 200:
+        return body
+    checks = body["checks"]
+    if not checks:
+        return "No checks yet."
+    lines = [f"{len(checks)} check{'s' if len(checks) != 1 else ''}, newest first:"]
+    for c in checks:
+        parse = {"ok": ", parsed OK", "error": ", PARSE FAILED"}.get(c.get("parse_outcome"), "")
+        cap = f" capture #{c['capture_id']}" if c.get("capture_id") else ""
+        note = c.get("parse_detail") if c.get("parse_outcome") == "error" else c.get("detail")
+        lines.append(
+            f"- {c['checked_at'][:16].replace('T', ' ')} UTC {c['source']}: {c['outcome']}{cap}{parse}"
+            + (f" ({note[:200]})" if note else "")
+        )
+    return "\n".join(lines)
