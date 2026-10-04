@@ -36,6 +36,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Lint
+        id: lint
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -50,6 +51,7 @@ jobs:
           secrets: ${{ secrets.vcpkg_pat != '' && format('vcpkg_pat={0}', secrets.vcpkg_pat) || '' }}
 
       - name: Test
+        id: test
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -64,6 +66,7 @@ jobs:
           secrets: ${{ secrets.vcpkg_pat != '' && format('vcpkg_pat={0}', secrets.vcpkg_pat) || '' }}
 
       - name: Build (final stage)
+        id: final
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -75,3 +78,27 @@ jobs:
           # app-build-push.yml's identical fix for why an unconditional
           # `vcpkg_pat=` line isn't safe for non-C++ apps.
           secrets: ${{ secrets.vcpkg_pat != '' && format('vcpkg_pat={0}', secrets.vcpkg_pat) || '' }}
+
+      # CI's logs aren't readable from Claude's sandbox, but annotations are
+      # (check-runs/<id>/annotations). On a failure, rebuild the failing stage
+      # with plain progress and post its last lines (pytest's failures and
+      # short summary, ruff's findings) as an error annotation. The job's own
+      # builder still has every layer it built, so only the failing step runs
+      # again (no --cache-from: the gha cache needs the action's credentials).
+      - name: Report the failure as an annotation
+        if: failure() && (steps.lint.outcome == 'failure' || steps.test.outcome == 'failure' || steps.final.outcome == 'failure')
+        env:
+          DOCKERFILE: ${{ inputs.dockerfile }}
+          LINT: ${{ steps.lint.outcome }}
+          TEST: ${{ steps.test.outcome }}
+          VCPKG_PAT: ${{ secrets.vcpkg_pat }}
+        run: |
+          if [ "$LINT" = failure ]; then stage=lint; elif [ "$TEST" = failure ]; then stage=test; else stage=final; fi
+          args=(-f "$DOCKERFILE" --progress=plain)
+          [ "$stage" = final ] || args+=(--target "$stage")
+          [ -n "$VCPKG_PAT" ] && args+=(--secret id=vcpkg_pat,env=VCPKG_PAT)
+          docker buildx build "${args[@]}" . > "$RUNNER_TEMP/build.log" 2>&1 || true
+          # Drop BuildKit's "#12 3.456 " step/time prefixes; keep the last 80 lines.
+          sed -E 's/^#[0-9]+ [0-9]+\.[0-9]+ //' "$RUNNER_TEMP/build.log" | tail -n 80 > "$RUNNER_TEMP/tail.log"
+          msg=$(python3 -c 'import sys; t=open(sys.argv[1], errors="replace").read(); print(t.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))' "$RUNNER_TEMP/tail.log")
+          echo "::error title=${stage} stage failed (last 80 lines)::${msg}"
