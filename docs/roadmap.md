@@ -155,7 +155,14 @@ Tasks:
 - [x] 🤖 Data-quality metrics and Grafana alerts *(mkt-data #23, #24 + PR #110; verified live 2026-10-04: target up, all 11 sources parse OK):*
   - gauges for last capture, parse OK, years by kind (published, rules, projected) and next year published or overdue;
   - alerts for a stale capture (8 days), a failed parse, and next year not published (always due for FED and NYSE, from Dec 20 for SIFMA-US).
-- [ ] 🤖 A market-data dashboard with per-calendar coverage and storage/cost; home-mcp market-data tools
+- [ ] 🤖 A market-data dashboard with per-calendar coverage and storage/cost
+- [ ] 🤖 home-mcp market-data tools. Asked by Bill 2026-10-04, so Claude can debug and run things without a hub session:
+  - **Visibility:**
+    - Grafana alert state (rules, firing or pending, last evaluation);
+    - Airflow DAG runs and task logs;
+    - mkt-data's business-day answers and capture-job summaries.
+  - **Run things:** trigger Airflow DAGs, limited to the `mkt_data__*` ones.
+  - **No more manual capture pulls:** get a raw capture's exact bytes to Claude without Bill copying files. For example, a tool that pushes the capture to a branch of `bcalaway/mkt-data`, never `main`, for Claude to fetch with git.
 - [ ] 🤖 Small follow-ups: the Python template's Authlib/httpx deprecation warning (httpx2)
 
 ## Future / Deferred

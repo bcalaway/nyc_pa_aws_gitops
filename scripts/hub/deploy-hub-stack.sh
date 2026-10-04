@@ -240,6 +240,22 @@ if [ -n "$prom_started" ] && [ "$(date -d "$prom_started" +%s 2>/dev/null || ech
 else
   echo "Prometheus (re)started by this deploy; skipping the config-reload HUP."
 fi
+# Grafana reads its alerting provisioning (alert rules, contact points,
+# notification policies) only at startup. Unlike dashboards, it doesn't
+# poll. So restart it when those files changed since the last deploy, unless
+# `up` just (re)started it anyway. That's what left the mkt-data alert group
+# unloaded after PR #110 (docs/gotchas.md). The hash lives outside the synced
+# directory so the --delete sync can't remove it.
+alert_state=/var/lib/home-platform/grafana-alerting.sha256
+alert_sha=$(cd "$REMOTE_DIR/grafana/provisioning/alerting" && sha256sum -- * | sha256sum | cut -d' ' -f1)
+if [ "$(cat "$alert_state" 2>/dev/null)" != "$alert_sha" ]; then
+  graf_started=$(docker inspect -f '{{.State.StartedAt}}' grafana 2>/dev/null || true)
+  if [ -n "$graf_started" ] && [ "$(date -d "$graf_started" +%s 2>/dev/null || echo 0)" -lt "$DEPLOY_START" ]; then
+    echo "Grafana alerting provisioning changed; restarting Grafana to load it."
+    docker compose restart grafana
+  fi
+  echo "$alert_sha" > "$alert_state"
+fi
 docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Status}}'
 
 # Host-level units (ADR-0024): pending-update metrics + weekly exposure

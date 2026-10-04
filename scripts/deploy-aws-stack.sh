@@ -147,6 +147,9 @@ ssh -i "$SSH_KEY" "$EC2_HOST" "docker rm -f promtail >/dev/null 2>&1 || true"
 # CI deploy, which reads the registry; a manual deploy leaves them as they are.
 ssh -i "$SSH_KEY" "$EC2_HOST" "mkdir -p /home/ec2-user/airflow/dags/platform && cp -rT $REMOTE_DIR/airflow/dags/platform /home/ec2-user/airflow/dags/platform && cp $REMOTE_DIR/airflow/dags/home_platform_jobs.py $REMOTE_DIR/airflow/dags/.airflowignore /home/ec2-user/airflow/dags/"
 ssh -i "$SSH_KEY" "$EC2_HOST" "cd $REMOTE_DIR && docker compose pull && docker compose build && t0=\$(date +%s) && docker compose up -d && s=\$(docker inspect -f '{{.State.StartedAt}}' prometheus) && if [ \"\$(date -d \"\$s\" +%s)\" -lt \"\$t0\" ]; then docker exec prometheus kill -HUP 1; fi"
+# Grafana loads alerting provisioning only at startup: restart it when those
+# files changed since the last deploy (same hash file as deploy-hub-stack.sh).
+ssh -i "$SSH_KEY" "$EC2_HOST" "cd $REMOTE_DIR && a=\$(cd grafana/provisioning/alerting && sha256sum -- * | sha256sum | cut -d' ' -f1) && if [ \"\$(sudo cat /var/lib/home-platform/grafana-alerting.sha256 2>/dev/null)\" != \"\$a\" ]; then docker compose restart grafana && echo \$a | sudo tee /var/lib/home-platform/grafana-alerting.sha256 >/dev/null; fi"
 
 echo "Installing host units (ADR-0024)..."
 ssh -i "$SSH_KEY" "$EC2_HOST" "sudo bash $REMOTE_DIR/host/install.sh $REMOTE_DIR"
