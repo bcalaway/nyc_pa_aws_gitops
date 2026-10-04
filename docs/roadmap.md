@@ -152,7 +152,7 @@ Tasks:
   Rules are versioned JSON files read as `repo:` sources, so each version is kept as a raw capture.
 - [x] 🤖 Calendars projected to 2100 for bond and swap payment schedules (Bill, 2026-10-04; mkt-data #22, applied on the hub 2026-10-04). FED gives New York banking days and SIFMA-US gives U.S. Government Securities Business Days. Each calendar's rules run forward as its last source: full closes only, filling only years no publisher covers, and giving a year up whole once it's published. Answers from projected years are flagged `"projected": true`.
 - [x] 🤖 home-mcp `mkt_data_captures` and `mkt_data_capture_text` *(platform #102 + mkt-data #9, 2026-10-04)*: read-only views of mkt-data's raw captures (list with an `applied` flag; one HTML capture's visible text, filtered by a phrase) through a read-only token (`/home-platform/mkt-data/read-token`, GET endpoints only). home-mcp joined `home-platform` to reach `mkt-data:8000`
-- [ ] 🤖 Data-quality metrics and Grafana alerts *(mkt-data #24 + this repo's `mkt-data` scrape job and alert group):*
+- [x] 🤖 Data-quality metrics and Grafana alerts *(mkt-data #23, #24 + PR #110; verified live 2026-10-04: target up, all 11 sources parse OK):*
   - gauges for last capture, parse OK, years by kind (published, rules, projected) and next year published or overdue;
   - alerts for a stale capture (8 days), a failed parse, and next year not published (always due for FED and NYSE, from Dec 20 for SIFMA-US).
 - [ ] 🤖 A market-data dashboard with per-calendar coverage and storage/cost; home-mcp market-data tools
