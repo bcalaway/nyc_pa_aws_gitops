@@ -222,6 +222,19 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     )
   }
 
+  # Managed policies for the hub role (tls.tf's hub_apps): the per-app grants
+  # outgrew the role's shared inline-policy limit (#132). Only policies named
+  # home-platform-hub-*, and attaching them only to the roles listed above.
+  statement {
+    effect = "Allow"
+    actions = [
+      "iam:CreatePolicy", "iam:DeletePolicy", "iam:GetPolicy", "iam:GetPolicyVersion",
+      "iam:ListPolicyVersions", "iam:CreatePolicyVersion", "iam:DeletePolicyVersion",
+      "iam:TagPolicy", "iam:UntagPolicy", "iam:ListPolicyTags", "iam:ListEntitiesForPolicy",
+    ]
+    resources = ["arn:aws:iam::${var.aws_account_id}:policy/home-platform-hub-*"]
+  }
+
   # ECR — per-app repositories (ADR-0019, apps.tf). Literal ARN string for
   # the same reason as the IAM statement above: this statement must grant
   # CreateRepository before the repository exists, so referencing
