@@ -301,3 +301,28 @@ Tasks:
 - [x] 🤖 **Node in the coding agent** — done 2026-10-01 (PR #24; verified by hue PR #5: agent ran `npm ci`, lint, 20/20 tests and build; CI agreed): Node 24 (copied from the official `node:24-bookworm-slim` image, matching hue's frontend build stage) in the voice-agent image, `registry.npmjs.org` added to the squid allowlist, agent told to use `npm ci` and to skip/report builds that need other hosts. hue's C++ agent still isn't buildable by the agent (vcpkg needs GitHub). After merge: 🧑 approve Platform deploy (NUCs, rebuilds the image on nuc4), then try a small hue frontend task
 - [x] 🤖 **`recent_logs` tool** — done 2026-10-01 (PR #26; first use diagnosed the preview login below): Claude (chat or voice) can read recent, redacted lines from one hub container's logs in Loki, so debugging (e.g. the first preview login's callback failure) doesn't need Bill to SSH in. After merge: 🧑 approve Platform deploy, reconnect the claude.ai connector (new tool)
 - [x] 🤖 **Phase 5 — preview environments** — done 2026-10-01 (PR #25, todo-app PR #4). First preview `todo-app-pr4` deployed, served behind Authentik, and was removed on merge ("preview todo-app-pr4 removed"). Terraform's first apply hit the IAM-propagation gotcha and passed on re-run. The first login failed only because it started in Safari and finished in Chrome (see docs/gotchas.md, Voice access / previews). todo-app PRs get an automatic preview (no approval, Bill's call) at `todo-app-pr<n>.preview.billandjessie.com`, contained on an internal no-egress network with no production secrets, removed on close plus a nightly sweep. hue excluded. After merge: 🧑 approve Terraform then Platform deploy (hub: new `preview` network, Traefik and Postgres recreated, a brief blip for all apps); 🧑 assign the `previews` proxy provider to the Embedded Outpost (`ak shell`, as for Kuma/Umami); merge todo-app's `preview.yml` PR; open a test PR
+
+### Milestone 22 — Market data platform, phase 1: holiday calendars end to end — done 2026-10-04
+**Goal:** One vertical slice through the whole data layer before adding more sources: holiday calendars sourced, stored raw, processed, scheduled by Airflow, monitored, and on a Grafana dashboard. Scheduling and monitoring for later datasets honor these calendars.
+
+Scope (Bill, 2026-10-03): SIFMA US bond market, Federal Reserve (FedWire/FRB holidays), NYSE. CME later.
+
+**Step-by-step status lives in mkt-data's [`docs/phase-1.md`](https://github.com/bcalaway/mkt-data/blob/main/docs/phase-1.md)**, the one place for it (Bill, 2026-10-04). This section changes only when the milestone opens, closes or changes shape, plus the platform-side tasks below.
+
+Done (details in `phase-1.md` and the PRs):
+- **Platform:** the registry entry, Airflow app pipelines (ADR-0031), Airflow visibility, home-mcp capture views, the data-quality metrics pattern and alerts, and capture export for Claude (#113).
+- **Calendars:** FED, SIFMA-US and NYSE, weekly.
+  - Backfilled: SIFMA-US from 1996, FED from 1986, NYSE from 1990.
+  - Projected to 2100 for bond and swap payment schedules.
+  - Monitored by Grafana alerts: stale capture, parse failed, next year not published.
+
+Platform-side tasks:
+- [x] 🤖 home-mcp market-data tools (Bill, 2026-10-04): trigger `mkt_data__*` DAGs; Airflow runs and task logs; Grafana alert state; mkt-data business-day answers, capture checks and the embedded-data capture view. Deployed 2026-10-04 (#115), verified end to end the same day (`phase-1.md` step 9). The Grafana token needed a hub redeploy after Terraform (`docs/gotchas.md`, GitHub and CI/CD)
+- [x] 🤖 Market-data Grafana dashboard (phase-1 step 8): per-calendar coverage, upcoming closes, capture history, storage. Grafana **Market data** (#118), done 2026-10-04
+- [x] 🤖 Airflow API auth (found 2026-10-04; fixed #121, deployed and verified the same day: home-mcp's Airflow tools and an `mkt_data__fed_calendar` run work over the new network, IMDS guard still active):
+  - **The problem:** with `SIMPLE_AUTH_MANAGER_ALL_ADMINS`, `GET /auth/token` on `airflow-api-server:8080` hands an admin token to anything on the `home-platform` network. Only the UI is behind Authentik.
+  - **The fix (Bill, 2026-10-04):** the API server moves off `home-platform` onto its own internal `airflow-api` network, shared only with Airflow's other containers, Traefik, home-mcp, Postgres and the statsd exporter. Apps can no longer reach it. The UI is unchanged; home-mcp still gets an anonymous admin token, acceptable since it only triggers `mkt_data__*` DAGs.
+  - **Later, if more people use Airflow:** sign in through Authentik (FAB auth manager with OIDC, roles from Authentik groups), with home-mcp as its own Airflow user.
+- [x] 🤖 Small follow-ups: the Python template's Authlib/httpx deprecation warning (httpx2) *(2026-10-04: `httpx2==2.13.1` in `templates/python` (#120) and mkt-data (mkt-data#34); httpx stays only for Starlette's TestClient)*
+
+**Closed 2026-10-04.** All nine steps of `phase-1.md` are done and verified on the hub: the three calendars captured weekly, backfilled and projected to 2100; alerts; the Grafana **Market data** dashboard; home-mcp tools, tested by voice. The phase's open questions are settled (FED covers both Fedwire services). Follow-ups after phase 1 (capturing the NY Fed circulars and NYSE's holiday history as raw sources) are listed at the end of `phase-1.md`.

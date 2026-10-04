@@ -11,7 +11,7 @@ Tasks are tagged: 🧑 = Bill does this physically / approves | 🤖 = Claude do
 
 Rambles WAN failover (Blue Ridge Cable → Starlink) is the near-term priority. Everything else can be built in milestone order.
 
-Completed milestones (1–5, 8, 9, 11–18) moved to [roadmap-archive.md](roadmap-archive.md) on 2026-09-30 with their full history. This file keeps what's still in play: open loose ends from finished milestones, then the active milestones.
+Completed milestones (1–5, 8, 9, 11–18) moved to [roadmap-archive.md](roadmap-archive.md) on 2026-09-30 with their full history; Milestone 22 followed on 2026-10-04. This file keeps what's still in play: open loose ends from finished milestones, then the active milestones.
 
 ## Loose ends from completed milestones
 
@@ -126,29 +126,6 @@ Tasks:
 - [x] 🤖 GitHub repos from the registry: `terraform/github/` stack + `terraform-github.yml`, importing todo-app and hue (ADR-0030) *(done 2026-10-03, PR #86: 13 imported, 3 changed (two no-op repo re-saves, plus todo-app's `production` now gated, Bill's call). Tokens created and stored in SSM + Actions secrets. `imports.tf` removed afterwards)*
 - [x] 🤖 Airflow visibility *(2026-10-03, Bill asked)*: Grafana **Airflow** dashboard (scheduler heartbeat, import errors, slots, task outcomes, run time and schedule delay per DAG, container memory) and home-mcp `airflow_status` (scheduler health, 24h results, each DAG's last success and 7-day failures; from Prometheus, no Airflow credentials), plus read-only `prometheus_query` (instant or range PromQL, max 40 series, ranges summarised) and `prometheus_metrics` (metric names by substring). After merge: 🧑 reconnect the claude.ai connector so the new tool appears
 - [ ] 🤖 home-mcp: market data status, open gaps and backfill as named tools/jobs, once mkt-data exists
-
-### Milestone 22 — Market data platform, phase 1: holiday calendars end to end
-**Goal:** One vertical slice through the whole data layer before adding more sources: holiday calendars sourced, stored raw, processed, scheduled by Airflow, monitored, and on a Grafana dashboard. Scheduling and monitoring for later datasets honor these calendars.
-
-Scope (Bill, 2026-10-03): SIFMA US bond market, Federal Reserve (FedWire/FRB holidays), NYSE. CME later.
-
-**Step-by-step status lives in mkt-data's [`docs/phase-1.md`](https://github.com/bcalaway/mkt-data/blob/main/docs/phase-1.md)**, the one place for it (Bill, 2026-10-04). This section changes only when the milestone opens, closes or changes shape, plus the platform-side tasks below.
-
-Done (details in `phase-1.md` and the PRs):
-- **Platform:** the registry entry, Airflow app pipelines (ADR-0031), Airflow visibility, home-mcp capture views, the data-quality metrics pattern and alerts, and capture export for Claude (#113).
-- **Calendars:** FED, SIFMA-US and NYSE, weekly.
-  - Backfilled: SIFMA-US from 1996, FED from 1986, NYSE from 1990.
-  - Projected to 2100 for bond and swap payment schedules.
-  - Monitored by Grafana alerts: stale capture, parse failed, next year not published.
-
-Platform-side tasks:
-- [x] 🤖 home-mcp market-data tools (Bill, 2026-10-04): trigger `mkt_data__*` DAGs; Airflow runs and task logs; Grafana alert state; mkt-data business-day answers, capture checks and the embedded-data capture view. Deployed 2026-10-04 (#115), verified end to end the same day (`phase-1.md` step 9). The Grafana token needed a hub redeploy after Terraform (`docs/gotchas.md`, GitHub and CI/CD)
-- [x] 🤖 Market-data Grafana dashboard (phase-1 step 8): per-calendar coverage, upcoming closes, capture history, storage. Grafana **Market data** (#118), done 2026-10-04
-- [x] 🤖 Airflow API auth (found 2026-10-04; fixed #121, deployed and verified the same day: home-mcp's Airflow tools and an `mkt_data__fed_calendar` run work over the new network, IMDS guard still active):
-  - **The problem:** with `SIMPLE_AUTH_MANAGER_ALL_ADMINS`, `GET /auth/token` on `airflow-api-server:8080` hands an admin token to anything on the `home-platform` network. Only the UI is behind Authentik.
-  - **The fix (Bill, 2026-10-04):** the API server moves off `home-platform` onto its own internal `airflow-api` network, shared only with Airflow's other containers, Traefik, home-mcp, Postgres and the statsd exporter. Apps can no longer reach it. The UI is unchanged; home-mcp still gets an anonymous admin token, acceptable since it only triggers `mkt_data__*` DAGs.
-  - **Later, if more people use Airflow:** sign in through Authentik (FAB auth manager with OIDC, roles from Authentik groups), with home-mcp as its own Airflow user.
-- [x] 🤖 Small follow-ups: the Python template's Authlib/httpx deprecation warning (httpx2) *(2026-10-04: `httpx2==2.13.1` in `templates/python` (#120) and mkt-data (mkt-data#34); httpx stays only for Starlette's TestClient)*
 
 ## Future / Deferred
 
