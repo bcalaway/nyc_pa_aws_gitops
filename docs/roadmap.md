@@ -144,11 +144,11 @@ Done (details in `phase-1.md` and the PRs):
 Platform-side tasks:
 - [x] 🤖 home-mcp market-data tools (Bill, 2026-10-04): trigger `mkt_data__*` DAGs; Airflow runs and task logs; Grafana alert state; mkt-data business-day answers, capture checks and the embedded-data capture view. Deployed 2026-10-04 (#115), verified end to end the same day (`phase-1.md` step 9). The Grafana token needed a hub redeploy after Terraform (`docs/gotchas.md`, GitHub and CI/CD)
 - [x] 🤖 Market-data Grafana dashboard (phase-1 step 8): per-calendar coverage, upcoming closes, capture history, storage. Grafana **Market data** (#118), done 2026-10-04
-- [ ] 🤖 Airflow API auth (found 2026-10-04):
+- [x] 🤖 Airflow API auth (found 2026-10-04; fixed #121, deployed and verified the same day: home-mcp's Airflow tools and an `mkt_data__fed_calendar` run work over the new network, IMDS guard still active):
   - **The problem:** with `SIMPLE_AUTH_MANAGER_ALL_ADMINS`, `GET /auth/token` on `airflow-api-server:8080` hands an admin token to anything on the `home-platform` network. Only the UI is behind Authentik.
   - **The fix (Bill, 2026-10-04):** the API server moves off `home-platform` onto its own internal `airflow-api` network, shared only with Airflow's other containers, Traefik, home-mcp, Postgres and the statsd exporter. Apps can no longer reach it. The UI is unchanged; home-mcp still gets an anonymous admin token, acceptable since it only triggers `mkt_data__*` DAGs.
   - **Later, if more people use Airflow:** sign in through Authentik (FAB auth manager with OIDC, roles from Authentik groups), with home-mcp as its own Airflow user.
-- [ ] 🤖 Small follow-ups: the Python template's Authlib/httpx deprecation warning (httpx2)
+- [x] 🤖 Small follow-ups: the Python template's Authlib/httpx deprecation warning (httpx2) *(2026-10-04: `httpx2==2.13.1` in `templates/python` (#120) and mkt-data (mkt-data#34); httpx stays only for Starlette's TestClient)*
 
 ## Future / Deferred
 
