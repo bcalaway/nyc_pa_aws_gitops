@@ -43,6 +43,14 @@ scrape_configs:
           instance: aws-hub
           app: mkt-data
 
+  - job_name: calendar-svc
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["calendar-svc:8000"]
+        labels:
+          instance: aws-hub
+          app: calendar-svc
+
   # Airflow (ADR-0027): StatsD metrics via airflow-statsd-exporter
   # (compose/aws/data.yml, names from airflow/statsd-mapping.yml).
   - job_name: airflow

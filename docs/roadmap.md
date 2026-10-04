@@ -127,6 +127,14 @@ Tasks:
 - [x] 🤖 Airflow visibility *(2026-10-03, Bill asked)*: Grafana **Airflow** dashboard (scheduler heartbeat, import errors, slots, task outcomes, run time and schedule delay per DAG, container memory) and home-mcp `airflow_status` (scheduler health, 24h results, each DAG's last success and 7-day failures; from Prometheus, no Airflow credentials), plus read-only `prometheus_query` (instant or range PromQL, max 40 series, ranges summarised) and `prometheus_metrics` (metric names by substring). After merge: 🧑 reconnect the claude.ai connector so the new tool appears
 - [ ] 🤖 home-mcp: market data status, open gaps and backfill as named tools/jobs, once mkt-data exists
 
+### Milestone 23 — Market data platform, phase 2: golden copies in services (calendars first, then Treasury CMT yields)
+**Goal:** mkt-data becomes the ingestion layer (raw and near-raw) and services own the golden copies: calendar-svc first, then secmaster-svc and quote-svc with Treasury CMT yields, and the first custom UI (mkt-api, mkt-ui). Status lives in mkt-data's [docs/phase-2.md](https://github.com/bcalaway/mkt-data/blob/main/docs/phase-2.md); this entry changes only when the milestone opens, closes or changes shape.
+
+Platform tasks:
+- [ ] 🤖 calendar-svc in `apps/registry.yml` (database, Airflow) and its Prometheus scrape job; then its `github_repo_id`
+- [ ] 🧑 Approve the Terraform (AWS, GitHub) applies and the Platform deploy for each onboarding PR
+- [ ] 🤖 secmaster-svc, quote-svc, mkt-api and mkt-ui onboarding (Part B)
+
 ## Future / Deferred
 
 - NAS-to-NAS replication (NYC → Rambles) via Synology Hyper Backup *(distinct from Milestone 10's restic-based Docker-volume backups — this would be live replication between the two NAS boxes themselves, once both exist)*
