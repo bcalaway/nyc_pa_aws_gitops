@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Voice job (ADR-0022): the NUC deploy, same script as Platform deploy.
+# Voice job (ADR-0022): the NUC deploy, same script as Platform release.
 # ansible/ and compose/nuc/ were staged from main by voice-job.yml.
 # Usage: deploy-nucs.sh <bucket>
 set -uo pipefail

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs ON the EC2 hub (as root, via SSM Run Command from
-# .github/workflows/platform-deploy.yml). Hub-side counterpart of
+# .github/workflows/platform-release.yml). Hub-side counterpart of
 # scripts/deploy-aws-stack.sh: same secrets, same stale-file handling, same
 # compose commands -- keep the SSM parameter list below in sync with that
 # script when adding a secret.
@@ -137,7 +137,7 @@ chmod 600 "$ENV_TMP"
   echo "GRAFANA_HOME_MCP_TOKEN=$(grafana_home_mcp_token)"
   # Airflow (ADR-0027, data.yml). The database password comes from the
   # registry's platform_databases onboarding (onboard-app-dbs.sh, which
-  # platform-deploy.yml runs before this script).
+  # platform-release.yml runs before this script).
   echo "AIRFLOW_DB_PASSWORD=$(ssm /home-platform/postgres/airflow-password)"
   echo "AIRFLOW_FERNET_KEY=$(generated_secret /home-platform/airflow/fernet-key fernet_key)"
   echo "AIRFLOW_API_SECRET_KEY=$(generated_secret /home-platform/airflow/api-secret-key openssl rand -hex 32)"
@@ -194,7 +194,7 @@ done
 # airflow: true, a job token generated once into SSM at
 # /home-platform/<app>/airflow-token (the app gets the same token as
 # AIRFLOW_TOKEN through its own deploy) and AIRFLOW_CONN_<APP> for the
-# scheduler. The registry comes from platform-deploy.yml's S3 staging.
+# scheduler. The registry comes from platform-release.yml's S3 staging.
 echo "Building Airflow app connections from the registry..."
 aws s3 cp "s3://${BUCKET}/apps-registry/registry.json" /tmp/registry.json --only-show-errors
 AIRFLOW_APPS=$(python3 - /tmp/registry.json <<'PY'

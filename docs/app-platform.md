@@ -19,7 +19,7 @@ A NUC (`nuc4` in NYC, `nuc5` in Rambles) is only used when an app has a hard loc
 
 One shared Postgres instance on the hub. Each app gets its own logical database and a least-privilege role — never the shared admin credential (`/home-platform/postgres/admin-password`).
 
-**Onboarding a new app's database** is automatic since 2026-10-03 (ADR-0028): set `database: true` on the app's entry in `apps/registry.yml`. Merging that runs `scripts/hub/onboard-app-dbs.sh` from `platform-deploy.yml` (behind `production` approval, after the hub stack), which for each such app makes sure that:
+**Onboarding a new app's database** is automatic since 2026-10-03 (ADR-0028): set `database: true` on the app's entry in `apps/registry.yml`. Merging that runs `scripts/hub/onboard-app-dbs.sh` from `platform-release.yml` (behind the release's one `production` approval, after the Terraform applies and before the hub stack), which for each such app makes sure that:
 
 1. `/home-platform/postgres/<app>-password` exists in SSM — generated if absent, never overwritten
 2. a `LOGIN` role named `<app>` exists (`NOSUPERUSER NOCREATEDB NOCREATEROLE`) — an existing role's password is only set when SSM had none
@@ -27,7 +27,7 @@ One shared Postgres instance on the hub. Each app gets its own logical database 
 4. the database's `public` schema is owned by the role — **required** on Postgres 15+: database privileges alone no longer let a non-owner `CREATE TABLE` in `public` (docs/gotchas.md; hit for real onboarding `todo-app`)
 5. the app can actually log in with the SSM password over TCP and `CREATE TABLE`/`DROP TABLE` — if the password doesn't log in, the run fails and changes nothing
 
-It never drops a database or role; removing an app stays manual. Run it by hand from the Actions tab (`Platform deploy`, target `app-dbs`). Its `RESULT` line (read back by home-mcp's `last_deploys`) lists what was unchanged, what it changed, and anything that failed.
+It never drops a database or role; removing an app stays manual. Run it by hand from the Actions tab (`Platform release`, target `app-dbs`). Its `RESULT` line (read back by home-mcp's `last_deploys`) lists what was unchanged, what it changed, and anything that failed.
 
 The app connects to `postgres:5432` by Docker network hostname (see "Networking" below), user and database `<app>`, `sslmode=disable` — matches the existing internal-only pattern (`postgres-exporter`, Authentik); the instance is never exposed beyond WireGuard peers. `app-deploy.sh` injects the password as `POSTGRES_PASSWORD`.
 
@@ -109,6 +109,8 @@ Until that network exists, an app's own Compose fragment should declare it as `e
 **Memory limits (ADR-0026)**: every service in an app's Compose fragment must set `mem_limit` (or `deploy.resources.limits.memory`). `scripts/hub/compose-mem-check.py` enforces it twice: in `app-deploy.yml` on the runner, so the app's own run fails early with the offending service names, and on the hub in `app-deploy.sh`, which is the real gate — a rejected fragment never replaces the running one. Size it from Grafana's **Containers** dashboard: the sizing table's peak over 7 days plus ~30% (its "Suggested limit" column). The starter templates begin at `256m`; previews are fixed at `384m` regardless (ADR-0023).
 
 An app repo composes these itself to pick its mode: call `app-build-push.yml` then immediately `app-deploy.yml` for **auto-deploy**, or call `app-build-push.yml` on merge and leave `app-deploy.yml` behind a separate `workflow_dispatch` trigger for **manual-promote**.
+
+**No deploy approval for apps (since 2026-10-04, Bill: merging is the review).** Each app repo's `production` environment (`terraform/github/repos.tf`) has no required reviewer, so an auto-deploy app is live a few minutes after its PR merges. It allows deployments from protected branches only (`main`): the app's AWS role trusts `environment:production`, so that branch policy is what keeps any other branch from getting a production token. The platform's own changes still wait for one approval, in `platform-release.yml`.
 
 **Environment**: production only — no staging tier, per Bill's explicit call in ADR-0019. Since 2026-10-01, opted-in apps also get **per-PR previews** (ADR-0023): a thin `preview.yml` (workflow name `Preview`) calling `app-preview.yml` on `pull_request`, which deploys each same-repo PR automatically to `<app>-pr<n>.preview.billandjessie.com` behind forward-auth, with a copy of the app's database and no production secrets, and removes it on close. Opting in needs: the app runs (open) without its Authentik secrets, `preview: true` on the app's entry in `apps/registry.yml`, which gives it its own `<app>-github-preview` role and `<app>-preview` ECR repo (ADR-0025, ADR-0028), and the caller granting `id-token: write`, `contents: read`, `pull-requests: write`.
 

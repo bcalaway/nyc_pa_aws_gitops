@@ -10,9 +10,10 @@
 # <app>-preview ECR repo and <app>-github-preview role (ADR-0023, ADR-0025).
 #
 # Adding an app: append an entry, open a PR, check both Terraform plans only
-# add that app's resources, merge, approve the applies (AWS, then GitHub,
-# then Platform deploy). Then a second PR adds the new repo's github_repo_id. The repo starts
-# with a README; its first PR brings in the starter template. Removing one stays a deliberate
+# add that app's resources, merge, approve the one Platform release (it applies
+# AWS, then GitHub, then the databases and hub). Then a second PR adds the new
+# repo's github_repo_id. The repo starts with a README; its first PR brings in
+# the starter template. Removing one stays a deliberate
 # manual step (ADR-0028) -- deleting an entry here would destroy its ECR repo
 # and images.
 #

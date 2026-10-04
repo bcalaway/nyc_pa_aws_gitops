@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs ON the EC2 hub (as root, via SSM Run Command from
-# .github/workflows/platform-deploy.yml). Hub-side counterpart of
+# .github/workflows/platform-release.yml). Hub-side counterpart of
 # scripts/deploy-nucs.sh: stages ansible/ and compose/nuc/, refreshes the
 # NUC SSH key from SSM, and runs site.yml as ec2-user -- the same user and
 # paths a manual run uses, so both paths leave the hub in the same state.

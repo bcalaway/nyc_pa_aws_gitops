@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs ON the EC2 hub (as root, via SSM Run Command from
-# .github/workflows/platform-deploy.yml, behind `production` approval).
+# .github/workflows/platform-release.yml, behind `production` approval).
 #
 # App database onboarding (ADR-0028): for every app in apps/registry.yml
 # with `database: true`, and every entry under `platform_databases:` (shared

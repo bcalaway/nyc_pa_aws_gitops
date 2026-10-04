@@ -132,7 +132,7 @@ Tasks:
 
 Platform tasks:
 - [ ] 🤖 calendar-svc in `apps/registry.yml` (database, Airflow) and its Prometheus scrape job; then its `github_repo_id`
-- [ ] 🧑 Approve the Terraform (AWS, GitHub) applies and the Platform deploy for each onboarding PR
+- [ ] 🧑 Approve the Platform release for each onboarding PR (one approval since 2026-10-04: `platform-release.yml`)
 - [ ] 🤖 secmaster-svc, quote-svc, mkt-api and mkt-ui onboarding (Part B)
 
 ## Future / Deferred

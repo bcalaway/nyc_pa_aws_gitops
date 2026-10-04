@@ -1,5 +1,8 @@
 name: Terraform
 
+# PR plans for terraform/aws. Applies happen in platform-release.yml, behind
+# the one release approval (Bill, 2026-10-04).
+
 on:
   pull_request:
     paths:
@@ -12,19 +15,7 @@ on:
       - 'scripts/hub/preview-up.sh'
       - 'scripts/hub/preview-compose.py'
       - 'scripts/hub/preview-down.sh'
-  push:
-    branches:
-      - main
-    paths:
-      - 'terraform/**'
-      # Read by Terraform with yamldecode() (ADR-0028, terraform/aws/apps.tf)
-      - 'apps/registry.yml'
-      # Bundled into the hub's SSM documents (terraform/aws/ci-roles.tf)
-      - 'scripts/hub/app-deploy.sh'
-      - 'scripts/hub/compose-mem-check.py'
-      - 'scripts/hub/preview-up.sh'
-      - 'scripts/hub/preview-compose.py'
-      - 'scripts/hub/preview-down.sh'
+      - 'scripts/hub/capture-export.sh'
 
 permissions:
   id-token: write
@@ -39,7 +30,6 @@ jobs:
   plan:
     name: Terraform Plan
     runs-on: ubuntu-24.04
-    if: github.event_name == 'pull_request'
 
     steps:
       - uses: actions/checkout@v7
@@ -97,45 +87,3 @@ jobs:
       - name: Check plan status
         if: steps.plan.outcome == 'failure'
         run: exit 1
-
-  apply:
-    name: Terraform Apply
-    runs-on: ubuntu-24.04
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment: production
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-actions
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Terraform Init
-        working-directory: terraform/aws
-        run: terraform init
-
-      - name: Terraform Apply
-        # shell: bash runs with -o pipefail, so `terraform ... | tee` fails the
-        # step when Terraform fails (the default shell let a failed apply show green).
-        shell: bash
-        working-directory: terraform/aws
-        run: terraform apply -auto-approve -no-color 2>&1 | tee apply.txt
-
-      # One-line `result` annotation (home-mcp's last_deploys reads it back;
-      # the full log isn't reachable from Claude's sessions).
-      - name: Summarize apply
-        if: always()
-        working-directory: terraform/aws
-        run: |
-          line=$(grep -hE '^(Apply complete!|No changes\.)' apply.txt 2>/dev/null | tail -1)
-          err=$(grep -hE '^Error: ' apply.txt 2>/dev/null | head -1)
-          if [ -n "$err" ]; then echo "::error title=result::apply failed: ${err#Error: }"
-          else echo "::notice title=result::${line:-apply produced no summary}"; fi

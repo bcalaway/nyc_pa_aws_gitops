@@ -372,11 +372,11 @@ async def grafana_alerts(group: str = "", show_all: bool = False) -> str:
 @mcp.tool()
 @audited
 async def last_deploys(repo: str = "") -> str:
-    """What the latest deploys did, from each run's result line: the hub
-    stack (Compose version, what restarted, anything not running) or the
-    NUCs, the last Terraform apply ("Apply complete! Resources: ..."), and
-    the todo-app and hue CD deploys. Optional repo ("platform repo",
-    "todo-app", "hue"). Read-only."""
+    """What the latest deploys did, from each run's result lines: the
+    latest Platform release, step by step (Terraform AWS and GitHub applies,
+    app databases, the hub stack with what restarted, NUCs), and the app CD
+    deploys (todo-app, hue, mkt-data, calendar-svc). Optional repo
+    ("platform repo", "mkt-data", ...). Read-only."""
     return await deploys.last_deploys(repo)
 
 

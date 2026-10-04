@@ -13,11 +13,6 @@ locals {
   preview_apps = { for n, a in local.apps : n => a if a.preview }
 }
 
-# Bill, the required reviewer for every `production` environment.
-data "github_user" "owner" {
-  username = "bcalaway"
-}
-
 resource "github_repository" "app" {
   for_each = local.apps
 
@@ -128,7 +123,12 @@ resource "github_repository_ruleset" "main" {
   }
 }
 
-# Deploys (app-deploy.yml) wait here for Bill's approval (ADR-0025).
+# App deploys (app-deploy.yml) run here as soon as a merge to main has built:
+# no approval since 2026-10-04 (Bill: merging is the review; the platform's own
+# release still waits for him). The apps' AWS roles trust
+# `environment:production` (terraform/aws/apps.tf), so only main, a protected
+# branch, may deploy here: without the reviewer, the branch policy is what
+# keeps another branch's workflow from getting a production token.
 resource "github_repository_environment" "production" {
   for_each = local.apps
 
@@ -137,8 +137,9 @@ resource "github_repository_environment" "production" {
   can_admins_bypass   = true
   prevent_self_review = false
 
-  reviewers {
-    users = [data.github_user.owner.id]
+  deployment_branch_policy {
+    protected_branches     = true
+    custom_branch_policies = false
   }
 }
 
