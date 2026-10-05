@@ -28,7 +28,7 @@ export function createApp() {
         authRequired: false,
         auth0Logout: false,
         idpLogout: true,
-        baseURL: `https://${config.appName}.billandjessie.com`,
+        baseURL: `https://${config.publicHost}`,
         clientID: config.authentikClientId,
         clientSecret: config.authentikClientSecret,
         issuerBaseURL: `${config.authentikBaseUrl}/application/o/${config.appName}`,
@@ -76,7 +76,8 @@ export function createApp() {
   app.use(express.static(DIST_DIR));
   // SPA fallback -- any route not handled above (client-side routing, or
   // just "/") gets the built frontend's index.html.
-  app.get("*", (req, res) => {
+  // Express 5 (path-to-regexp 8) names wildcards: "*" alone no longer parses.
+  app.get("/{*splat}", (req, res) => {
     res.sendFile(path.join(DIST_DIR, "index.html"));
   });
 

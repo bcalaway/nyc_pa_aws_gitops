@@ -1,0 +1,63 @@
+name: React template
+
+# Builds and smoke-tests templates/react on every change to it, like
+# template-python.yml: its monthly Dependabot group bump (ESLint 10, Express
+# 5) once broke npm ci, lint and the server's start with no check to say so,
+# and mkt-ui found out on its first PR (2026-10-04). Same lint and test
+# stages app-ci.yml runs for real apps, plus the final image actually
+# serving.
+
+on:
+  pull_request:
+    paths:
+      - 'templates/react/**'
+      - '.github/workflows/template-react.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'templates/react/**'
+      - '.github/workflows/template-react.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-smoke:
+    name: Build, test, smoke
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: templates/react
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Lint stage
+        run: docker build --target lint -t template-lint .
+
+      - name: Test stage
+        run: docker build --target test -t template-test .
+
+      - name: Final image
+        run: docker build -t template-final .
+
+      - name: Start the app (no database, no Authentik)
+        run: |
+          docker run -d --name app -p 8000:8000 -e APP_NAME=smoke template-final
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8000/health && break
+            sleep 2
+          done
+          docker logs app
+
+      - name: Health, frontend, client-side route, login off
+        run: |
+          set -x
+          curl -fsS http://localhost:8000/health | grep -q '"ok"'
+          curl -fsS http://localhost:8000/ | grep -q '<div id="root">'
+          curl -fsS http://localhost:8000/some/client/route | grep -q '<div id="root">'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/login)" = "501"
+          test "$(docker inspect -f '{{.State.Running}}' app)" = "true"
+
+      - name: App logs on failure
+        if: failure()
+        run: docker logs app || true

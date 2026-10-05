@@ -12,7 +12,7 @@
 
 FROM node:24-slim AS base
 WORKDIR /app
-COPY package*.json ./
+COPY package*.json .npmrc ./
 RUN npm ci
 COPY . .
 
@@ -28,7 +28,7 @@ RUN npm test
 FROM node:24-slim AS final
 WORKDIR /app
 ENV NODE_ENV=production
-COPY package*.json ./
+COPY package*.json .npmrc ./
 RUN npm ci --omit=dev
 COPY server/ server/
 COPY --from=frontend-build /app/dist dist/
