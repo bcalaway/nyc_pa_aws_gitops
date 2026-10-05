@@ -135,7 +135,7 @@ Platform tasks:
 - [x] 🤖 Calendars switch to calendar-svc: home-mcp's business-day tool, the Market data dashboard's calendar panels and the next-year alert, calendar-svc load alerts *(#130, 2026-10-04; mkt-data #48 retired its golden calendar tables: Part A complete)*
 - [ ] 🧑 Approve the Platform release for each onboarding PR (one approval since 2026-10-04: `platform-release.yml`)
 - [x] 🤖 secmaster-svc, quote-svc, mkt-api and mkt-ui in `apps/registry.yml` (databases and Airflow for the two services; Authentik for mkt-ui), mkt-ui's DNS record `mkt.billandjessie.com` and generated OIDC client, the services' scrape jobs; then their `github_repo_id`s *(#132, #135, with fixes #133, #134, #136–#138; 2026-10-04)*
-- [x] 🤖 Treasury CMT monitoring (phase 2, B8): `quote-svc` alert group (curve missing for the last due business day, Treasury and H.15 disagree, load stale or failed, unmapped source keys) and `secmaster-svc` seed-failed alert; the Market data dashboard's Treasury row; Uptime Kuma monitor for `mkt.billandjessie.com`; home-mcp `last_deploys` watches the four new apps; airflow-triggerer to 768m *(#PRNUM, 2026-10-05)*
+- [x] 🤖 Treasury CMT monitoring (phase 2, B8): `quote-svc` alert group (curve missing for the last due business day, Treasury and H.15 disagree, load stale or failed, unmapped source keys) and `secmaster-svc` seed-failed alert; the Market data dashboard's Treasury row; Uptime Kuma monitor for `mkt.billandjessie.com`; home-mcp `last_deploys` watches the four new apps; airflow-triggerer to 768m *(#140, 2026-10-05)*
 
 ## Future / Deferred
 
