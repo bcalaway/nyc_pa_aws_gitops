@@ -28,6 +28,11 @@ describe("config", () => {
     expect(a.sessionSecret).not.toContain("one");
   });
 
+  it("uses Authentik's issuer exactly, trailing slash included", async () => {
+    const config = await loadConfig({ APP_NAME: "app", AUTHENTIK_BASE_URL: "" });
+    expect(config.issuerUrl).toBe("https://auth.billandjessie.com/application/o/app/");
+  });
+
   it("prefers SESSION_SECRET", async () => {
     const config = await loadConfig({ SESSION_SECRET: "set", AUTHENTIK_CLIENT_SECRET: "one" });
     expect(config.sessionSecret).toBe("set");

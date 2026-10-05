@@ -30,6 +30,11 @@ export const config = {
   authentikBaseUrl: process.env.AUTHENTIK_BASE_URL || "https://auth.billandjessie.com",
   authentikClientId: process.env.AUTHENTIK_CLIENT_ID || null,
   authentikClientSecret: process.env.AUTHENTIK_CLIENT_SECRET || null,
+  // Authentik's per-application issuer, trailing slash included: openid-client
+  // 6 (express-openid-connect 3) compares the discovered issuer exactly, and
+  // without the slash every login failed with "discovered metadata issuer
+  // does not match the expected issuer" (mkt-ui, 2026-10-04).
+  issuerUrl: `${process.env.AUTHENTIK_BASE_URL || "https://auth.billandjessie.com"}/application/o/${process.env.APP_NAME || "app"}/`,
 };
 
 function sessionSecret() {

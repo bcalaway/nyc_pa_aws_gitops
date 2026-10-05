@@ -31,7 +31,7 @@ export function createApp() {
         baseURL: `https://${config.publicHost}`,
         clientID: config.authentikClientId,
         clientSecret: config.authentikClientSecret,
-        issuerBaseURL: `${config.authentikBaseUrl}/application/o/${config.appName}`,
+        issuerBaseURL: config.issuerUrl,
         secret: config.sessionSecret,
         routes: {
           callback: "/auth/callback",
