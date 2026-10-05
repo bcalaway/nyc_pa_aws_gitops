@@ -143,7 +143,9 @@ services:
     <<: *airflow
     container_name: airflow-triggerer
     command: triggerer
-    mem_limit: 512m
+    # 768m since 2026-10-05: it peaked at 445 MB of 512 MB during the Treasury
+    # backfill (mkt-data docs/phase-2.md, B6), more Asset-scheduled DAGs since.
+    mem_limit: 768m
     depends_on:
       airflow-scheduler:
         condition: service_healthy

@@ -375,7 +375,8 @@ async def last_deploys(repo: str = "") -> str:
     """What the latest deploys did, from each run's result lines: the
     latest Platform release, step by step (Terraform AWS and GitHub applies,
     app databases, the hub stack with what restarted, NUCs), and the app CD
-    deploys (todo-app, hue, mkt-data, calendar-svc). Optional repo
+    deploys (todo-app, hue, and the market data apps: mkt-data, calendar-svc,
+    secmaster-svc, quote-svc, mkt-api, mkt-ui). Optional repo
     ("platform repo", "mkt-data", ...). Read-only."""
     return await deploys.last_deploys(repo)
 
