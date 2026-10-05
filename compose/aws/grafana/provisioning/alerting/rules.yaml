@@ -683,3 +683,278 @@ groups:
         annotations:
           summary: "calendar-svc's latest calendar load failed"
           description: "calendar-svc's latest load failed; the calendars keep their last good state. The calendar_svc__load task log (home-mcp airflow_task_log) has the reason, e.g. mkt-data's gRPC unreachable."
+
+  - orgId: 1
+    name: quote-svc
+    folder: Alerts
+    interval: 15m
+    rules:
+      - uid: quote-svc-curve-missing
+        title: Treasury curve missing
+        # quote-svc's /metrics (quote-svc app/freshness.py, mkt-data docs/phase-2.md
+        # step B8). The curve for a SIFMA-US business day is due by 9:00 a.m. New
+        # York the next day (Treasury posts by about 6 p.m.; mkt_data__ust_par
+        # retries until 10 p.m.). quote-svc works out the due date with calendar-svc's
+        # closes, so a holiday never alerts. No data means quote-svc isn't serving
+        # metrics: alert.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: max(quote_svc_curve_missing) or (max(quote_svc_curve_active_instruments) < bool 1)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: Alerting
+        execErrState: Error
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Treasury curve missing for the latest business day"
+          description: "No Treasury par yield curve (UST-PAR) has reached quote-svc for the latest business day it was due, or no instrument has had one in 30 days. Check mkt_data__ust_par in Airflow (home-mcp airflow_runs, airflow_task_log), then quote_svc__load; Treasury's page may be late. The Market data dashboard's Treasury row shows which instruments."
+
+      - uid: quote-svc-sources-disagree
+        title: Treasury sources disagree
+        # Treasury's par curve and the Fed's H.15 have given identical values on
+        # every shared date since 1990 (B6), so any difference is news: a revision on
+        # one side, or a parser problem.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: sum(quote_svc_source_disagreements)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Treasury and H.15 disagree on {{ $values.A.Value }} date(s)"
+          description: "UST-PAR and H15-TCM give different values for the same instrument and date. quote-svc's metric quote_svc_source_disagreement_bp lists them (instrument, date, both values); GET /jobs/compare on quote-svc shows the series. Golden uses Treasury's."
+
+      - uid: quote-svc-load-stale
+        title: Quote load stale
+        # quote-svc's load runs on every new capture and nightly at 07:13 UTC, so
+        # 30 hours without a successful one means the DAG, quote-svc or its upstreams
+        # are broken. No data means quote-svc isn't serving metrics: alert.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: time() - max(quote_svc_load_last_success_timestamp_seconds)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [108000]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: Alerting
+        execErrState: Error
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "quote-svc hasn't loaded quotes in 30 hours"
+          description: "quote-svc's last successful load from mkt-data is over 30 hours old, or it isn't serving /metrics. Check quote_svc__load in Airflow (home-mcp airflow_runs, airflow_task_log) and `docker logs quote-svc` on the hub."
+
+      - uid: quote-svc-load-failed
+        title: Quote load failed
+        # The latest load failed (recorded in load_run). Months already loaded are
+        # kept; the next load retries the rest.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: min(quote_svc_load_ok)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "quote-svc's latest quote load failed"
+          description: "quote-svc's latest load failed; months already loaded are kept. The quote_svc__load task log (home-mcp airflow_task_log) has the reason, e.g. mkt-data's or secmaster-svc's gRPC unreachable."
+
+      - uid: quote-svc-unmapped-keys
+        title: Quote source keys unmapped
+        # A source key secmaster-svc has no instrument for: its values aren't loaded.
+        # Usually a new tenor (Treasury added the 1.5-month in 2025); add it to
+        # secmaster-svc's seeds/cmt.toml.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: sum(quote_svc_unmapped_keys)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $values.A.Value }} source key(s) have no instrument"
+          description: "quote-svc saw source keys secmaster-svc can't map, so their values aren't loaded. quote_svc_unmapped_key lists them; add the instrument or identifier to secmaster-svc's seeds/cmt.toml in a PR."
+
+  - orgId: 1
+    name: secmaster-svc
+    folder: Alerts
+    interval: 15m
+    rules:
+      - uid: secmaster-svc-seed-failed
+        title: Security master seed failed
+        # secmaster-svc's /metrics. The seed file is applied at every start and on
+        # POST /jobs/seed; a failure keeps the previous instruments.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: min(secmaster_svc_seed_ok)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "secmaster-svc's latest seed failed"
+          description: "secmaster-svc couldn't apply a seed file (seeds/cmt.toml); the instruments keep their previous state. `docker logs secmaster-svc` on the hub has the reason, usually a bad entry in the file."

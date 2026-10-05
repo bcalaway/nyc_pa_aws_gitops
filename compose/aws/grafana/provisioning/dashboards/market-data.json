@@ -13,12 +13,19 @@
     "from": "now-30d",
     "to": "now"
   },
-  "description": "The market data platform's holiday calendars: upcoming closes and coverage from calendar-svc's golden calendars (scrape job calendar-svc, since phase 2), capture history from mkt-data's sources (scrape job mkt-data), storage from postgres-exporter and the cost-exporter.",
+  "description": "The market data platform: holiday calendars (calendar-svc's golden calendars, since phase 2), Treasury CMT yields (quote-svc's golden quotes and freshness, mkt-data's near-raw observations), capture history from mkt-data's sources, storage from postgres-exporter and the cost-exporter.",
   "links": [
     {
       "title": "Phase 1 status",
       "type": "link",
       "url": "https://github.com/bcalaway/mkt-data/blob/main/docs/phase-1.md",
+      "targetBlank": true,
+      "icon": "doc"
+    },
+    {
+      "title": "Phase 2 status",
+      "type": "link",
+      "url": "https://github.com/bcalaway/mkt-data/blob/main/docs/phase-2.md",
       "targetBlank": true,
       "icon": "doc"
     },
@@ -1066,9 +1073,9 @@
       }
     },
     {
-      "id": 15,
+      "id": 22,
       "type": "row",
-      "title": "Storage and cost",
+      "title": "Treasury CMT yields",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -1079,9 +1086,9 @@
       "panels": []
     },
     {
-      "id": 16,
-      "title": "Database size",
-      "description": "mkt-data's whole Postgres database (postgres-exporter).",
+      "id": 23,
+      "title": "Curve due",
+      "description": "The latest SIFMA-US business day whose Treasury curve is due (by 9:00 a.m. New York the next day), from quote-svc with calendar-svc's closes.",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -1095,7 +1102,735 @@
       },
       "targets": [
         {
-          "expr": "sum(max by (datname) (pg_database_size_bytes{datname=~\"mkt-data|calendar-svc\"}))",
+          "expr": "(max(quote_svc_curve_due_date_timestamp_seconds) + 43200) * 1000",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "time:YYYY-MM-DD",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 24,
+      "title": "Missing the due curve",
+      "description": "Active instruments with no Treasury (UST-PAR) value for the due date. Alert: Treasury curve missing.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 47
+      },
+      "targets": [
+        {
+          "expr": "sum(quote_svc_curve_missing)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 25,
+      "title": "Source disagreements",
+      "description": "Dates where Treasury and H.15 give different values (they should be identical). Alert: Treasury sources disagree.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 47
+      },
+      "targets": [
+        {
+          "expr": "sum(quote_svc_source_disagreements) or vector(0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 26,
+      "title": "Revisions",
+      "description": "Quote values Treasury or the Fed changed after publishing, kept in quote-svc's history (info only).",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 47
+      },
+      "targets": [
+        {
+          "expr": "sum(quote_svc_superseded_quotes{reason=\"revised\"}) or vector(0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 27,
+      "title": "Last quote load",
+      "description": "Time since quote-svc's last successful load (on every new capture, plus nightly). Alert after 30 hours.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 47
+      },
+      "targets": [
+        {
+          "expr": "time() - max(quote_svc_load_last_success_timestamp_seconds)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 86400
+              },
+              {
+                "color": "red",
+                "value": 108000
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 28,
+      "title": "Unmapped keys",
+      "description": "Source keys secmaster-svc has no instrument for: their values aren't loaded (a new tenor, say).",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 47
+      },
+      "targets": [
+        {
+          "expr": "sum(quote_svc_unmapped_keys) or vector(0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 29,
+      "title": "Instruments",
+      "description": "Per instrument: latest Treasury date and whether it's missing for the due date; golden first and last date and values; business days golden is missing against the bond calendar (SIFMA-US from 1996, the Fed's 1986-1995, weekdays before); how many latest golden yields in a row are identical (a stuck feed repeats).",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 51
+      },
+      "targets": [
+        {
+          "expr": "(max by (instrument) (quote_svc_curve_last_date_timestamp_seconds) + 43200) * 1000",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "max by (instrument) (quote_svc_curve_missing)",
+          "refId": "B",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "(max by (instrument) (quote_svc_golden_first_date_timestamp_seconds) + 43200) * 1000",
+          "refId": "C",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "(max by (instrument) (quote_svc_golden_last_date_timestamp_seconds) + 43200) * 1000",
+          "refId": "D",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "sum by (instrument) (quote_svc_golden_values)",
+          "refId": "E",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "max by (instrument) (quote_svc_coverage_missing_days{series=\"golden\"})",
+          "refId": "F",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "max by (instrument) (quote_svc_golden_repeat_days)",
+          "refId": "G",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "app": true,
+              "instance": true,
+              "job": true
+            },
+            "indexByName": {
+              "instrument": 0
+            },
+            "renameByName": {
+              "instrument": "Instrument",
+              "Value #A": "Latest Treasury",
+              "Value #B": "Missing",
+              "Value #C": "Golden from",
+              "Value #D": "Golden to",
+              "Value #E": "Golden values",
+              "Value #F": "Missing days",
+              "Value #G": "Repeats",
+              "series": ""
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latest Treasury"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time:YYYY-MM-DD"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Golden from"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time:YYYY-MM-DD"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Golden to"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time:YYYY-MM-DD"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Missing"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Repeats"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 4
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 30,
+      "title": "Ingestion: latest date per source key",
+      "description": "mkt-data's near-raw observations: each Treasury (UST-PAR) and H.15 (H15-TCM) key's latest date with a value, from the source's newest month. H.15 runs a business day behind Treasury.",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 63
+      },
+      "targets": [
+        {
+          "expr": "(mkt_data_observation_last_date_timestamp_seconds + 43200) * 1000",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "app": true,
+              "instance": true,
+              "job": true
+            },
+            "indexByName": {
+              "source": 0,
+              "key": 1
+            },
+            "renameByName": {
+              "source": "Source",
+              "key": "Key",
+              "calendar": "Calendar",
+              "Value": "Latest date",
+              "Value #A": "Latest date"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latest date"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time:YYYY-MM-DD"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 31,
+      "title": "Longest gaps in golden",
+      "description": "Runs of business days golden has no value for (the longest 20 per instrument): the 20-year 1987-1993 and 30-year 2002-2006 gaps are real; one- or two-day gaps before 1996 are bond-market closes the Fed's calendar doesn't mark (docs/phase-2.md, B6).",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 63
+      },
+      "targets": [
+        {
+          "expr": "topk(20, quote_svc_coverage_gap_days{series=\"golden\"})",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "app": true,
+              "instance": true,
+              "job": true
+            },
+            "indexByName": {
+              "instrument": 0,
+              "start": 1,
+              "end": 2
+            },
+            "renameByName": {
+              "instrument": "Instrument",
+              "start": "From",
+              "end": "To",
+              "Value": "Business days",
+              "Value #A": "Business days",
+              "series": "Series"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 15,
+      "type": "row",
+      "title": "Storage and cost",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 73
+      },
+      "panels": []
+    },
+    {
+      "id": 16,
+      "title": "Database size",
+      "description": "The market data platform's Postgres databases together: mkt-data, calendar-svc, secmaster-svc and quote-svc (postgres-exporter).",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 74
+      },
+      "targets": [
+        {
+          "expr": "sum(max by (datname) (pg_database_size_bytes{datname=~\"mkt-data|calendar-svc|secmaster-svc|quote-svc\"}))",
           "refId": "A",
           "instant": true
         }
@@ -1147,7 +1882,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 47
+        "y": 74
       },
       "targets": [
         {
@@ -1203,7 +1938,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 47
+        "y": 74
       },
       "targets": [
         {
@@ -1259,7 +1994,7 @@
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 47
+        "y": 74
       },
       "targets": [
         {
@@ -1315,7 +2050,7 @@
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 47
+        "y": 74
       },
       "targets": [
         {
@@ -1379,11 +2114,11 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 51
+        "y": 78
       },
       "targets": [
         {
-          "expr": "max by (datname) (pg_database_size_bytes{datname=~\"mkt-data|calendar-svc\"})",
+          "expr": "max by (datname) (pg_database_size_bytes{datname=~\"mkt-data|calendar-svc|secmaster-svc|quote-svc\"})",
           "refId": "A",
           "legendFormat": "{{datname}} database"
         },

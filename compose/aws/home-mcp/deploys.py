@@ -32,6 +32,10 @@ WATCHED = [
     ("hue", "CD"),
     ("mkt-data", "CD"),
     ("calendar-svc", "CD"),
+    ("secmaster-svc", "CD"),
+    ("quote-svc", "CD"),
+    ("mkt-api", "CD"),
+    ("mkt-ui", "CD"),
 ]
 CACHE_SECONDS = 120
 _notes_cache: dict[int, tuple[float, list[str]]] = {}

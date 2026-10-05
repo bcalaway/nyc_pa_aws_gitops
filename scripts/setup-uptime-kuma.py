@@ -33,6 +33,10 @@ MONITORS = [
     dict(type=MonitorType.HTTP, name="Status page (public)", url="https://status.billandjessie.com", interval=60,
          maxredirects=0, accepted_statuscodes=["200-399"]),
     dict(type=MonitorType.HTTP, name="Portal (public)", url="https://billandjessie.com", interval=60),
+    # mkt-ui (market data UI, behind Authentik OIDC): an anonymous visit gets a
+    # redirect to the login, so stop at it, as for the status page above.
+    dict(type=MonitorType.HTTP, name="Market data UI (public)", url="https://mkt.billandjessie.com", interval=60,
+         maxredirects=0, accepted_statuscodes=["200-399"]),
 
     # Network devices, pinged from the hub over the WireGuard tunnel.
     dict(type=MonitorType.PING, name="rt-nyc", hostname="10.0.1.1", interval=60),
