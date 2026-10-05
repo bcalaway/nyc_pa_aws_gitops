@@ -27,6 +27,12 @@ describe("server", () => {
     expect(res.status).toBe(501);
   });
 
+  it("serves the frontend for client-side routes", async () => {
+    const res = await request(app).get("/curve/2026-10-02");
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('<div id="root">');
+  });
+
   it("GET / serves the built frontend", async () => {
     const res = await request(app).get("/");
     expect(res.status).toBe(200);
