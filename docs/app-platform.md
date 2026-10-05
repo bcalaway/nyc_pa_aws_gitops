@@ -39,7 +39,7 @@ Authentik at `auth.billandjessie.com` is the shared OIDC provider. Two integrati
 
 **Pattern A — native OIDC (preferred).** The app implements a standard OIDC relying-party flow (authorization code, not implicit) and Authentik issues tokens directly.
 
-1. A new blueprint, `compose/aws/authentik/blueprints/<app>-oidc.yaml`, declares an OAuth2 Provider + Application — same shape as `grafana-oidc.yaml`, GitOps-managed rather than clicked through the admin UI.
+1. A new blueprint, `compose/aws/authentik/blueprints/<app>-oidc.yaml`, declares an OAuth2 Provider + Application — same shape as `mkt-ui-oidc.yaml`, GitOps-managed rather than clicked through the admin UI. It must list the provider's `grant_types` (`authorization_code`, `refresh_token`): a provider created since Authentik 2026.2 allows none otherwise (`docs/gotchas.md`).
 2. Client ID/secret generated, stored in SSM at `/home-platform/authentik/<app>-client-id` / `<app>-client-secret`.
 3. Redirect URI: `https://<app>.billandjessie.com/<the app's own OIDC callback path>`, `matching_mode: strict`.
 4. The app reads `AUTHENTIK_<APP>_CLIENT_ID` / `_CLIENT_SECRET` from its environment, populated at deploy time from SSM (same mechanism `deploy-aws-stack.ps1` already uses for Grafana's OIDC client).
