@@ -16,6 +16,14 @@ entries:
       authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
       client_type: confidential
+      # Required since Authentik 2026.2: a provider created after the upgrade
+      # allows no grant types unless they're listed (older providers were
+      # backfilled with all of them), and authorize then fails with
+      # "Invalid grant_type for provider" / invalid_request. Code flow with
+      # refresh, nothing else.
+      grant_types:
+        - authorization_code
+        - refresh_token
       client_id: !Env AUTHENTIK_MKT_UI_CLIENT_ID
       client_secret: !Env AUTHENTIK_MKT_UI_CLIENT_SECRET
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
