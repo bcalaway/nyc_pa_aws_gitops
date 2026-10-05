@@ -112,6 +112,7 @@ apps:
   # from a source's key to an instrument. CMT instruments come from a seed
   # file applied by a job. gRPC on secmaster-svc:9090; internal only.
   - name: secmaster-svc
+    github_repo_id: 1404920687
     database: true
     airflow: true
     authentik: false
@@ -121,6 +122,7 @@ apps:
   # instrument, date and field, loaded from mkt-data's near-raw observations
   # (gRPC, mkt-data:9090) through secmaster-svc's map. Internal only.
   - name: quote-svc
+    github_repo_id: 1404920771
     database: true
     airflow: true
     authentik: false
@@ -130,6 +132,7 @@ apps:
   # and quote-svc, JSON to mkt-ui. Holds no data and has no route of its
   # own: mkt-ui's server calls it as mkt-api:8000 for the signed-in user.
   - name: mkt-api
+    github_repo_id: 1404920736
     database: false
     airflow: false
     authentik: false
@@ -139,6 +142,7 @@ apps:
   # mkt-ui.billandjessie.com (Bill, 2026-10-04): Authentik OIDC
   # (blueprints/mkt-ui-oidc.yaml), the DNS record in terraform/aws/tls.tf.
   - name: mkt-ui
+    github_repo_id: 1404920827
     database: false
     airflow: false
     authentik: true
