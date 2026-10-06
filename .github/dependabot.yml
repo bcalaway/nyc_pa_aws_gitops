@@ -24,7 +24,9 @@ updates:
         # first), and its "minor" bumps are really those release lines.
         # Dependabot always proposes the newest, so step through by hand
         # when its PR skips a line (docs/gotchas.md, Authentik).
-        exclude-patterns: ["*goauthentik*"]
+        # Postgres too: a patch restarts the database and, with it, Airflow
+        # (docs/gotchas.md), so it's a deliberate PR of its own.
+        exclude-patterns: ["*goauthentik*", "postgres"]
     ignore:
       # Postgres majors need a dump/restore (pg_upgrade), not a tag bump;
       # update_status reports the end-of-life date instead.

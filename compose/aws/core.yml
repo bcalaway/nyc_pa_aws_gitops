@@ -237,7 +237,11 @@ services:
       - ./authentik/blueprints:/blueprints/local:ro
 
   postgres:
-    image: postgres:16
+    # Pinned to the exact patch the hub runs (2026-10-06, the exporter's
+    # pg_static): a floating `postgres:16` pulled a new patch during a routine
+    # deploy and restarted the database, which hung the Airflow scheduler
+    # (docs/gotchas.md). Patches come as their own Dependabot PR instead.
+    image: postgres:16.15
     container_name: postgres
     restart: unless-stopped
     environment:
