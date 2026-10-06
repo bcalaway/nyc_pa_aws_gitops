@@ -39,6 +39,13 @@ echo "- $LABEL: **$STATUS**" >> "$GITHUB_STEP_SUMMARY"
 RESULT=$(jq -r '.StandardOutputContent' "$RUNNER_TEMP/$SCRIPT.json" | sed -n 's/^RESULT: //p' | tail -1)
 if [ "$STATUS" != "Success" ]; then
   echo "::error title=result::$LABEL failed ($STATUS)${RESULT:+: $RESULT}"
+  # The cause, where Claude's sessions can read it: run logs aren't reachable
+  # from them, annotations are. The last lines of stderr (or stdout when
+  # stderr is empty), newlines encoded as an annotation expects.
+  TAIL=$(jq -r '.StandardErrorContent' "$RUNNER_TEMP/$SCRIPT.json" | tail -15)
+  [ -n "${TAIL//[[:space:]]/}" ] || TAIL=$(jq -r '.StandardOutputContent' "$RUNNER_TEMP/$SCRIPT.json" | tail -15)
+  TAIL=${TAIL//'%'/'%25'}; TAIL=${TAIL//$'\r'/'%0D'}; TAIL=${TAIL//$'\n'/'%0A'}
+  echo "::error title=output::$TAIL"
   exit 1
 fi
 echo "::notice title=result::${RESULT:-$LABEL succeeded}"
