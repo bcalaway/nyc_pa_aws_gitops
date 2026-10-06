@@ -175,7 +175,7 @@ async def mkt_data_checks(calendar: str = "", source: str = "", limit: int = 10)
 #
 # mkt-api is the market data platform's gateway (bcalaway/mkt-api): golden
 # yields from quote-svc with short names from secmaster-svc, values as exact
-# decimal strings in percent. It's internal, with no login of its own (mkt-ui's
+# decimal strings (decimals, each with a percent display form beside it). It's internal, with no login of its own (mkt-ui's
 # server calls it the same way), so these tools need no token: home-mcp reaches
 # it on the home-platform network as mkt-api:8000 (Bill, 2026-10-06).
 
@@ -227,6 +227,14 @@ def _day(on: str) -> date | str:
         return f"I need the date as YYYY-MM-DD, not {on!r}."
 
 
+def _pct(x: dict, field: str) -> str:
+    """A value's percent display from mkt-api: `<field>_display` (or `display`) since values became decimals
+    (mkt-api #11, 2026-10-06); before that the field itself was in percent."""
+    if field == "value":
+        return x.get("display") or x["percent"]
+    return x.get(f"{field}_display") or x[field]
+
+
 def _bp(now: str, then: str) -> str:
     bp = ((Decimal(now) - Decimal(then)) * 100).normalize()  # percent to basis points
     if bp == 0:
@@ -256,10 +264,12 @@ async def mkt_data_yield(tenor: str, on: str = "") -> str:
     if not points:
         return f"{short_tenor(name)} has no yield on or before {day}."
     last = points[-1]
-    text = f"{short_tenor(name)} ({name}) on {last['date']}: {last['close']}%, from {SOURCE_SAID.get(last['source'], last['source'])}"
+    now = _pct(last, "close")
+    text = f"{short_tenor(name)} ({name}) on {last['date']}: {now}%, from {SOURCE_SAID.get(last['source'], last['source'])}"
     if len(points) > 1:
         prev = points[-2]
-        text += f"; {_bp(last['close'], prev['close'])} from {prev['close']}% on {prev['date']}"
+        then = _pct(prev, "close")
+        text += f"; {_bp(now, then)} from {then}% on {prev['date']}"
     text += "."
     if last["date"] != day.isoformat():
         text += f" ({day} has no value: the latest on or before it is shown.)"
@@ -287,8 +297,8 @@ async def mkt_data_curve(on: str = "", compare: str = "") -> str:
         head += "; changes from " + ", ".join(f"{c['label']} earlier ({c['date'] or 'no curve'})" for c in others)
     lines = [head + ":"]
     for p in base["points"]:
-        line = f"- {short_tenor(p['name'])}: {p['percent']}%"
-        changes = [f"{_bp(p['percent'], prev['percent'])} vs {label}" for label, pts in then.items()
+        line = f"- {short_tenor(p['name'])}: {_pct(p, 'value')}%"
+        changes = [f"{_bp(_pct(p, 'value'), _pct(prev, 'value'))} vs {label}" for label, pts in then.items()
                    if (prev := pts.get(p["name"]))]
         if changes:
             line += f" ({', '.join(changes)})"
