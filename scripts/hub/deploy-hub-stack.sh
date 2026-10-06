@@ -257,6 +257,15 @@ docker rm -f promtail >/dev/null 2>&1 || true
 docker compose pull --quiet
 docker compose build
 DEPLOY_START=$(date +%s)
+# A container that's running but unhealthy stays as it is through `up` (only
+# config or image changes recreate one), and anything that waits for it to be
+# healthy then fails the deploy. Restart those first. That's what kept the
+# Airflow scheduler hung after Postgres was recreated, failing every release
+# until it was restarted (2026-10-06, docs/gotchas.md).
+for svc in $(docker compose ps --format '{{.Service}} {{.Health}}' | awk '$2 == "unhealthy" {print $1}'); do
+  echo "Restarting ${svc}: running but unhealthy."
+  docker compose restart "$svc"
+done
 docker compose up -d
 # `up` doesn't recreate Prometheus when only prometheus.yml changed (it's a
 # bind mount), so the running process keeps the old scrape jobs. SIGHUP
