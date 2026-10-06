@@ -405,6 +405,54 @@ groups:
           summary: "Airflow's hourly platform_heartbeat hasn't succeeded in 2 hours"
           description: "No successful platform_heartbeat task in the last 2 hours: Airflow's scheduler, DAG processor or API server may be down or stuck. Check https://airflow.billandjessie.com and `docker ps --filter name=airflow` on the hub."
 
+      - uid: airflow-scheduler-down
+        title: Airflow scheduler not heartbeating
+        # The fast check (2026-10-06): the scheduler heartbeats every few
+        # seconds, so no heartbeat for 10 minutes means it's down or hung.
+        # airflow-heartbeat-stale above is the slow end-to-end check (about
+        # 3.5 hours); on 2026-10-06 the scheduler hung for 80 minutes after a
+        # Postgres restart and came back before that one fired. `or vector(0)`
+        # makes Airflow or the exporter being down alert too; the 10m `for`
+        # covers a deploy's restart (about 2 minutes without heartbeats).
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: sum(rate(airflow_scheduler_heartbeat[5m])) or vector(0)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lte
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: Alerting
+        execErrState: Error
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Airflow's scheduler hasn't heartbeated in 10 minutes"
+          description: "No scheduler heartbeat for 10 minutes: no DAG runs or tasks start until it's back. It can hang without exiting after a Postgres restart (docs/gotchas.md), which Docker won't restart: check home-mcp airflow_status and recent_logs airflow-scheduler, then restart it (`docker restart airflow-scheduler` on the hub) or redeploy the hub, which restarts unhealthy services first."
+
       - uid: airflow-task-failed
         title: Airflow task failed
         # Any task that ended in state "failed" (after its retries). The
