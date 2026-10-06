@@ -83,7 +83,7 @@ services:
     # counts here. Initial limits per ADR-0026, resized from the
     # Containers dashboard after a week.
     mem_limit: 1g
-    # When a deploy recreates Postgres (a new postgres:16 patch on pull), the
+    # When a deploy recreates Postgres (a Postgres patch, now its own PR), the
     # scheduler loses its database and can hang mid-shutdown, never exiting,
     # so `restart: unless-stopped` never fires (2026-10-06, docs/gotchas.md).
     # restart: true makes Compose restart it whenever it restarts Postgres.
