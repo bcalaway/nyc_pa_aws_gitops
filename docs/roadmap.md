@@ -11,7 +11,7 @@ Tasks are tagged: 🧑 = Bill does this physically / approves | 🤖 = Claude do
 
 Rambles WAN failover (Blue Ridge Cable → Starlink) is the near-term priority. Everything else can be built in milestone order.
 
-Completed milestones (1–5, 8, 9, 11–18) moved to [roadmap-archive.md](roadmap-archive.md) on 2026-09-30 with their full history; Milestone 22 followed on 2026-10-04. This file keeps what's still in play: open loose ends from finished milestones, then the active milestones.
+Completed milestones (1–5, 8, 9, 11–18) moved to [roadmap-archive.md](roadmap-archive.md) on 2026-09-30 with their full history; Milestones 22 and 23 followed on 2026-10-04 and 2026-10-06. This file keeps what's still in play: open loose ends from finished milestones, then the active milestones.
 
 ## Loose ends from completed milestones
 
@@ -126,16 +126,6 @@ Tasks:
 - [x] 🤖 GitHub repos from the registry: `terraform/github/` stack + `terraform-github.yml`, importing todo-app and hue (ADR-0030) *(done 2026-10-03, PR #86: 13 imported, 3 changed (two no-op repo re-saves, plus todo-app's `production` now gated, Bill's call). Tokens created and stored in SSM + Actions secrets. `imports.tf` removed afterwards)*
 - [x] 🤖 Airflow visibility *(2026-10-03, Bill asked)*: Grafana **Airflow** dashboard (scheduler heartbeat, import errors, slots, task outcomes, run time and schedule delay per DAG, container memory) and home-mcp `airflow_status` (scheduler health, 24h results, each DAG's last success and 7-day failures; from Prometheus, no Airflow credentials), plus read-only `prometheus_query` (instant or range PromQL, max 40 series, ranges summarised) and `prometheus_metrics` (metric names by substring). After merge: 🧑 reconnect the claude.ai connector so the new tool appears
 - [ ] 🤖 home-mcp: market data status, open gaps and backfill as named tools/jobs, once mkt-data exists
-
-### Milestone 23 — Market data platform, phase 2: golden copies in services (calendars first, then Treasury CMT yields)
-**Goal:** mkt-data becomes the ingestion layer (raw and near-raw) and services own the golden copies: calendar-svc first, then secmaster-svc and quote-svc with Treasury CMT yields, and the first custom UI (mkt-api, mkt-ui). Status lives in mkt-data's [docs/phase-2.md](https://github.com/bcalaway/mkt-data/blob/main/docs/phase-2.md); this entry changes only when the milestone opens, closes or changes shape.
-
-Platform tasks:
-- [x] 🤖 calendar-svc in `apps/registry.yml` (database, Airflow) and its Prometheus scrape job; then its `github_repo_id` *(#126, #128, 2026-10-04)*
-- [x] 🤖 Calendars switch to calendar-svc: home-mcp's business-day tool, the Market data dashboard's calendar panels and the next-year alert, calendar-svc load alerts *(#130, 2026-10-04; mkt-data #48 retired its golden calendar tables: Part A complete)*
-- [ ] 🧑 Approve the Platform release for each onboarding PR (one approval since 2026-10-04: `platform-release.yml`)
-- [x] 🤖 secmaster-svc, quote-svc, mkt-api and mkt-ui in `apps/registry.yml` (databases and Airflow for the two services; Authentik for mkt-ui), mkt-ui's DNS record `mkt.billandjessie.com` and generated OIDC client, the services' scrape jobs; then their `github_repo_id`s *(#132, #135, with fixes #133, #134, #136–#138; 2026-10-04)*
-- [x] 🤖 Treasury CMT monitoring (phase 2, B8): `quote-svc` alert group (curve missing for the last due business day, Treasury and H.15 disagree, load stale or failed, unmapped source keys) and `secmaster-svc` seed-failed alert; the Market data dashboard's Treasury row; Uptime Kuma monitor for `mkt.billandjessie.com`; home-mcp `last_deploys` watches the four new apps; airflow-triggerer to 768m *(#140, 2026-10-05)*
 
 ## Future / Deferred
 
