@@ -1,4 +1,4 @@
-"""mkt_data_* tools: the market data platform's raw captures, checks and calendars.
+"""mkt_data_* tools: the market data platform's raw captures, checks, calendars and yields.
 
 mkt-data (bcalaway/mkt-data) keeps every page it fetches byte for byte. These
 tools read them through its job API's GET endpoints with a read-only token
@@ -18,6 +18,10 @@ capture-export workflow is the route; these tools return text.
 """
 
 import os
+import re
+from datetime import date, datetime
+from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -164,4 +168,133 @@ async def mkt_data_checks(calendar: str = "", source: str = "", limit: int = 10)
             f"- {c['checked_at'][:16].replace('T', ' ')} UTC {c['source']}: {c['outcome']}{cap}{parse}"
             + (f" ({note[:200]})" if note else "")
         )
+    return "\n".join(lines)
+
+
+# --- Yields, from mkt-api (phase 2, B10) ---
+#
+# mkt-api is the market data platform's gateway (bcalaway/mkt-api): golden
+# yields from quote-svc with short names from secmaster-svc, values as exact
+# decimal strings in percent. It's internal, with no login of its own (mkt-ui's
+# server calls it the same way), so these tools need no token: home-mcp reaches
+# it on the home-platform network as mkt-api:8000 (Bill, 2026-10-06).
+
+MKT_API_URL = os.environ.get("MKT_API_URL", "http://mkt-api:8000")
+SOURCE_SAID = {"UST-PAR": "Treasury's par curve", "H15-TCM": "the Fed's H.15"}
+_TENOR = re.compile(r"^(?:UST-)?(\d+(?:\.\d+)?)\s*-?\s*(Y|YR|YRS|YEAR|YEARS|M|MO|MOS|MONTH|MONTHS|W|WK|WEEK|WEEKS)(?:-CMT)?$")
+
+
+def instrument_name(tenor: str) -> str:
+    """"10Y", "10-year", "10 year", "3 month", "6W", "UST-10Y-CMT" -> a short name mkt-api knows."""
+    t = tenor.strip().upper().replace("_", "-")
+    m = _TENOR.match(t)
+    if not m:
+        return t  # mkt-api answers with what it knows, or that it doesn't
+    unit = {"Y": "Y", "M": "M", "W": "W"}[m.group(2)[0]]
+    return f"UST-{m.group(1)}{unit}-CMT"
+
+
+def short_tenor(name: str) -> str:
+    return name.removeprefix("UST-").removesuffix("-CMT")
+
+
+async def _api(path: str, params: dict | list) -> tuple[int, dict | str]:
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(f"{MKT_API_URL}{path}", params=params, timeout=TIMEOUT_SECONDS)
+    except httpx.HTTPError as exc:
+        return 0, f"I couldn't reach mkt-api ({type(exc).__name__})."
+    try:
+        body = r.json()
+    except ValueError:
+        body = {}
+    if r.status_code != 200:
+        detail = body.get("detail") if isinstance(body, dict) else None
+        return r.status_code, f"mkt-api answered {r.status_code}: {detail or r.text[:200]}"
+    return 200, body
+
+
+def _today_ny() -> date:
+    return datetime.now(ZoneInfo("America/New_York")).date()
+
+
+def _day(on: str) -> date | str:
+    if not on.strip():
+        return _today_ny()
+    try:
+        return date.fromisoformat(on.strip())
+    except ValueError:
+        return f"I need the date as YYYY-MM-DD, not {on!r}."
+
+
+def _bp(now: str, then: str) -> str:
+    bp = ((Decimal(now) - Decimal(then)) * 100).normalize()  # percent to basis points
+    if bp == 0:
+        return "unchanged"
+    return f"{'up' if bp > 0 else 'down'} {format(abs(bp), 'f')} bp"
+
+
+async def mkt_data_yield(tenor: str, on: str = "") -> str:
+    day = _day(on)
+    if isinstance(day, str):
+        return day
+    name = instrument_name(tenor)
+    # The day's bars from /api/bars (a block is a calendar year): the last value on or before the day and
+    # the one before it, reaching into the previous year early in January.
+    points: list[dict] = []
+    for year in (day.year, day.year - 1):
+        status, body = await _api("/api/bars", {"series": name, "interval": "day", "block": f"{year:04d}"})
+        if status == 404:
+            return f"There's no instrument {name}. Try a tenor like 10Y, 2Y or 3M."
+        if status != 200:
+            return body
+        series = body["series"][0]
+        name = series["key"]
+        points = [b for b in series["bars"] if b["date"] <= day.isoformat()] + points
+        if len(points) >= 2:
+            break
+    if not points:
+        return f"{short_tenor(name)} has no yield on or before {day}."
+    last = points[-1]
+    text = f"{short_tenor(name)} ({name}) on {last['date']}: {last['close']}%, from {SOURCE_SAID.get(last['source'], last['source'])}"
+    if len(points) > 1:
+        prev = points[-2]
+        text += f"; {_bp(last['close'], prev['close'])} from {prev['close']}% on {prev['date']}"
+    text += "."
+    if last["date"] != day.isoformat():
+        text += f" ({day} has no value: the latest on or before it is shown.)"
+    return text
+
+
+async def mkt_data_curve(on: str = "", compare: str = "") -> str:
+    day = _day(on)
+    if isinstance(day, str):
+        return day
+    params: list = [("date", day.isoformat())] if on.strip() else []
+    if compare.strip():
+        params.append(("compare", compare.strip().upper()))
+    status, body = await _api("/api/curve", params)
+    if status != 200:
+        return body
+    base, *others = body["curves"]
+    if not base["date"]:
+        return f"No Treasury curve on or in the ten days before {base['requested']}."
+    then = {c["label"]: {p["name"]: p for p in c["points"]} for c in others if c["date"]}
+    head = f"Treasury CMT curve on {base['date']}"
+    if base["date"] != base["requested"] and on.strip():
+        head += f" (the last business day on or before {base['requested']})"
+    if others:
+        head += "; changes from " + ", ".join(f"{c['label']} earlier ({c['date'] or 'no curve'})" for c in others)
+    lines = [head + ":"]
+    for p in base["points"]:
+        line = f"- {short_tenor(p['name'])}: {p['percent']}%"
+        changes = [f"{_bp(p['percent'], prev['percent'])} vs {label}" for label, pts in then.items()
+                   if (prev := pts.get(p["name"]))]
+        if changes:
+            line += f" ({', '.join(changes)})"
+        lines.append(line)
+    sources = {SOURCE_SAID.get(p["source"], p["source"]) for p in base["points"]}
+    lines.append(f"From {' and '.join(sorted(sources))}.")
+    if base["missing"]:
+        lines.append(f"No value that day for {', '.join(short_tenor(n) for n in base['missing'])}.")
     return "\n".join(lines)
