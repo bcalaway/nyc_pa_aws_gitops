@@ -320,6 +320,31 @@ async def mkt_data_business_day(calendar: str, on: str) -> str:
 
 @mcp.tool()
 @audited
+async def mkt_data_yield(tenor: str, on: str = "") -> str:
+    """A Treasury constant-maturity yield on a date: the golden value in
+    percent, which publisher it came from (Treasury's par curve or the Fed's
+    H.15), and the change in basis points from the business day before.
+    tenor like "10Y", "2-year", "3 month", "6W" or "UST-10Y-CMT"; on is
+    YYYY-MM-DD, default today (a weekend or holiday gives the last value
+    before it). History goes back to 1962. Read-only. Use for "what was the
+    10-year yesterday?"."""
+    return await mkt_data.mkt_data_yield(tenor, on)
+
+
+@mcp.tool()
+@audited
+async def mkt_data_curve(on: str = "", compare: str = "") -> str:
+    """The Treasury CMT yield curve on a date (default the latest): every
+    tenor's yield in percent, and with compare ("1D", "1W", "1M", "3M",
+    "1Y") each tenor's change in basis points from that long before. on is
+    YYYY-MM-DD; the last business day on or before it is used. Read-only.
+    Use for "what does the curve look like?" or "how has the curve moved
+    this month?"."""
+    return await mkt_data.mkt_data_curve(on, compare)
+
+
+@mcp.tool()
+@audited
 async def mkt_data_checks(calendar: str = "", source: str = "", limit: int = 10) -> str:
     """What mkt-data's capture jobs did, newest first: each fetch attempt or
     reparse per source, with its outcome (new, unchanged, error, reparse),

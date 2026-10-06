@@ -351,6 +351,10 @@ services:
       # The business-day answer comes from calendar-svc since phase 2 (A5).
       CALENDAR_SVC_URL: "http://calendar-svc:8000"
       CALENDAR_SVC_READ_TOKEN: "${CALENDAR_SVC_READ_TOKEN}"
+      # Yields and curves (mkt_data_yield, mkt_data_curve) come from mkt-api,
+      # the market data gateway: internal and without a login of its own, so
+      # no token (phase 2, B10; Bill, 2026-10-06).
+      MKT_API_URL: "http://mkt-api:8000"
       # grafana_alerts: a Viewer service account token, created once by the
       # hub deploy (/home-platform/grafana/home-mcp-token). The airflow_* tools
       # need no secret: Airflow's API issues tokens to anything that can reach
@@ -362,7 +366,7 @@ services:
       # (compose/aws/host/exposure-check.py).
       - /var/lib/home-platform/exposure:/exposure:ro
     # default: Prometheus, Loki and the rest of the stack. home-platform:
-    # internal apps (mkt-data:8000), which aren't on the default network.
+    # internal apps (mkt-data:8000, mkt-api:8000), which aren't on the default network.
     # airflow-api: Airflow's API server (its airflow_* tools).
     networks:
       - default
