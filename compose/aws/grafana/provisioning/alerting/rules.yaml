@@ -435,8 +435,10 @@ groups:
               expression: A
               conditions:
                 - evaluator:
-                    type: lte
-                    params: [0]
+                    # Grafana's thresholds are gt, lt, within_range and
+                    # outside_range only (no lte): below 0.001/s is none.
+                    type: lt
+                    params: [0.001]
                   operator:
                     type: and
                   query:
