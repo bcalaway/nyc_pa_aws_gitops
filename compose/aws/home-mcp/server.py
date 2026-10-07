@@ -345,6 +345,32 @@ async def mkt_data_curve(on: str = "", compare: str = "") -> str:
 
 @mcp.tool()
 @audited
+async def mkt_data_security(security: str) -> str:
+    """One Treasury security: what it is, its CUSIP, issue and maturity
+    dates, whether it's on the run, its latest price per 100 (FedInvest),
+    a TIPS's index ratio today, and its last auction's result. security is
+    a CUSIP ("91282CNT4"), a tenor for today's on-the-run issue ("10Y",
+    "10-year", "5Y TIPS", "2Y FRN", "3 month bill"), a coupon and maturity
+    year ("4.25 2035", "4 1/4s of 35") or a short name
+    ("UST-4.25-2035-08-15"). Read-only. Use for "what's the 10-year on the
+    run?" or "what's the 4 1/4 of 2035 priced at?"."""
+    return await mkt_data.mkt_data_security(security)
+
+
+@mcp.tool()
+@audited
+async def mkt_data_auctions(week: str = "", start: str = "", end: str = "") -> str:
+    """Treasury auctions in a week (Monday to Friday): each one's day, term
+    and type, the security auctioned, the amount offered and, once held,
+    the high yield or discount rate and bid-to-cover. week is "this"
+    (default), "next" or "last"; or give start and end as YYYY-MM-DD
+    instead (up to a year). Read-only. Use for "what's auctioning this
+    week?" or "how did the 10-year auction go?"."""
+    return await mkt_data.mkt_data_auctions(week, start, end)
+
+
+@mcp.tool()
+@audited
 async def mkt_data_checks(calendar: str = "", source: str = "", limit: int = 10) -> str:
     """What mkt-data's capture jobs did, newest first: each fetch attempt or
     reparse per source, with its outcome (new, unchanged, error, reparse),

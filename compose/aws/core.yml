@@ -355,7 +355,8 @@ services:
       # The business-day answer comes from calendar-svc since phase 2 (A5).
       CALENDAR_SVC_URL: "http://calendar-svc:8000"
       CALENDAR_SVC_READ_TOKEN: "${CALENDAR_SVC_READ_TOKEN}"
-      # Yields and curves (mkt_data_yield, mkt_data_curve) come from mkt-api,
+      # Yields, curves, Treasury securities and auctions (mkt_data_yield,
+      # mkt_data_curve, mkt_data_security, mkt_data_auctions) come from mkt-api,
       # the market data gateway: internal and without a login of its own, so
       # no token (phase 2, B10; Bill, 2026-10-06).
       MKT_API_URL: "http://mkt-api:8000"
