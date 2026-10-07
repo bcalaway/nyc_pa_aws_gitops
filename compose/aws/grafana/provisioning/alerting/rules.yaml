@@ -1008,6 +1008,52 @@ groups:
         annotations:
           summary: "Treasury prices missing for the latest business day due"
           description: "Some outstanding Treasury securities have no FedInvest end-of-day price for the business day due, or none has a price in 10 days. quote_svc_prices_missing names them (first 20). Check mkt_data__treasury_securities_capture's TD-PRICES task (home-mcp airflow_runs, airflow_task_log), then quote_svc__load; FedInvest may be late."
+      - uid: quote-svc-prices-implausible
+        title: Treasury prices implausible
+        # quote-svc's /metrics (quote-svc app/sanity.py, mkt-data docs/phase-3.md step 7): the
+        # latest priced day against the one before, for active securities. Stale: over 80%
+        # unchanged (a repeated page; real days peak at 54% in 18 years of FedInvest). Jumps:
+        # a move past its type's limit per 100 (bills and FRNs 0.5, notes 5, TIPS 15, bonds 12;
+        # in 18 years only two bill moves pass, SVB's 2023-03-13 among them). Set from
+        # quote_svc__price_sanity_history on 2026-10-07. No data is "Treasury prices missing"'s.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: (max(quote_svc_prices_stale) + max(quote_svc_prices_jumps_count)) or vector(0)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The latest Treasury end-of-day prices look wrong"
+          description: "quote-svc's price sanity check flags the latest FedInvest day: quote_svc_prices_stale is 1 when over 80% of prices didn't move (a repeated page), and quote_svc_prices_jump names prices that moved more than their type plausibly can (first 20; a misread column or a shifted decimal, or a truly extraordinary day). Compare with the capture (home-mcp mkt_data_capture_text) and the market; a fixed page reaches quote-svc through mkt-data's next capture or a TD-PRICES rebuild."
 
   - orgId: 1
     name: secmaster-svc
