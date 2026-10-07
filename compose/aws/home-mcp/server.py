@@ -375,12 +375,15 @@ async def airflow_task_log(dag: str, run_id: str = "", task: str = "", try_numbe
 
 @mcp.tool()
 @audited
-async def airflow_trigger(dag: str) -> str:
+async def airflow_trigger(dag: str, conf: dict | None = None) -> str:
     """Start a run of a market data DAG now (mkt_data__* only, e.g.
     "mkt_data__nyse_calendar"). Those runs are idempotent captures, so this
-    needs no approval (Bill, 2026-10-04); other DAGs are refused. This
-    changes things: it starts a run. Follow with airflow_runs."""
-    return await airflow_api.airflow_trigger(dag)
+    needs no approval (Bill, 2026-10-04); other DAGs are refused. conf fills
+    the DAG's run form (its params), e.g. {"source": "BLS-CPI", "periods":
+    "1996,1997"} for mkt_data__treasury_securities_probe; Airflow checks it
+    against the DAG's params. This changes things: it starts a run. Follow
+    with airflow_runs."""
+    return await airflow_api.airflow_trigger(dag, conf)
 
 
 @mcp.tool()
