@@ -1801,6 +1801,557 @@
       }
     },
     {
+      "id": 32,
+      "type": "row",
+      "title": "Treasury securities",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 73
+      },
+      "panels": []
+    },
+    {
+      "id": 33,
+      "title": "Securities",
+      "description": "Treasury securities in secmaster-svc with current terms (bills, notes, bonds, TIPS, FRNs), since 1980.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 74
+      },
+      "targets": [
+        {
+          "expr": "sum(secmaster_svc_securities)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 34,
+      "title": "Last securities load",
+      "description": "Time since secmaster-svc's last successful load (on TreasuryDirect changes, plus nightly). Alert after 30 hours.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 74
+      },
+      "targets": [
+        {
+          "expr": "time() - max(secmaster_svc_load_last_success_timestamp_seconds)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 86400
+              },
+              {
+                "color": "red",
+                "value": 108000
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 35,
+      "title": "Untyped records",
+      "description": "TreasuryDirect records secmaster-svc couldn't type into terms (they're not loaded). Alert above 0.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 74
+      },
+      "targets": [
+        {
+          "expr": "sum(secmaster_svc_untyped_records) or vector(0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 36,
+      "title": "Prices due for",
+      "description": "The business day whose FedInvest end-of-day prices are due (printed the next business day evening; due by 9:00 a.m. the day after).",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 74
+      },
+      "targets": [
+        {
+          "expr": "(max(quote_svc_prices_due_date_timestamp_seconds) + 43200) * 1000",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "time:YYYY-MM-DD",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 37,
+      "title": "Priced outstanding",
+      "description": "Active Treasury securities with a FedInvest price in the 10 days before the due date.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 74
+      },
+      "targets": [
+        {
+          "expr": "max(quote_svc_prices_outstanding)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 38,
+      "title": "Missing prices",
+      "description": "Outstanding securities with no FedInvest price for the due date. Alert above 0.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 74
+      },
+      "targets": [
+        {
+          "expr": "max(quote_svc_prices_missing_count)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 39,
+      "title": "By type",
+      "description": "Securities with current terms, and those with a check (original-not-loaded and term-unknown: reopenings in early 1980 of securities issued before TreasuryDirect's history starts).",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 78
+      },
+      "targets": [
+        {
+          "expr": "sum by (security_type) (secmaster_svc_securities)",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "sum by (security_type) (secmaster_svc_securities_with_checks)",
+          "refId": "B",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "app": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "security_type": "Type",
+              "Value #A": "Securities",
+              "Value #B": "With checks"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "id": 40,
+      "title": "Checks",
+      "description": "Every check code on current terms, by security type; secmaster-svc's load log lists the notable ones by security.",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 78
+      },
+      "targets": [
+        {
+          "expr": "sum by (check, security_type) (secmaster_svc_security_checks)",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "app": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "check": "Check",
+              "security_type": "Type",
+              "Value": "Securities"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "id": 41,
+      "title": "Cross-checks and identifiers",
+      "description": "TIPS reference CPIs and index ratios against TreasuryDirect's (each TIPS auction's published figures), and OpenFIGI lookups by outcome (errors are retried after a day and named in the load's map_figis log).",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 78
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (secmaster_svc_tips_cpi_checks)",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "sum by (outcome) (secmaster_svc_figi_lookups)",
+          "refId": "B",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "app": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "outcome": "Outcome",
+              "Value #A": "TIPS CPI figures",
+              "Value #B": "FIGI lookups"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
       "id": 15,
       "type": "row",
       "title": "Storage and cost",
@@ -1809,7 +2360,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 73
+        "y": 87
       },
       "panels": []
     },
@@ -1826,7 +2377,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 74
+        "y": 88
       },
       "targets": [
         {
@@ -1882,7 +2433,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 74
+        "y": 88
       },
       "targets": [
         {
@@ -1938,7 +2489,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 74
+        "y": 88
       },
       "targets": [
         {
@@ -1994,7 +2545,7 @@
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 74
+        "y": 88
       },
       "targets": [
         {
@@ -2050,7 +2601,7 @@
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 74
+        "y": 88
       },
       "targets": [
         {
@@ -2114,7 +2665,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 78
+        "y": 92
       },
       "targets": [
         {

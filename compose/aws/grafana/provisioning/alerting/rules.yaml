@@ -921,7 +921,8 @@ groups:
         title: Quote source keys unmapped
         # A source key secmaster-svc has no instrument for: its values aren't loaded.
         # Usually a new tenor (Treasury added the 1.5-month in 2025); add it to
-        # secmaster-svc's seeds/cmt.toml.
+        # secmaster-svc's seeds/cmt.toml. For TD-PRICES, a CUSIP secmaster-svc hasn't
+        # loaded yet; quote-svc reloads those days once it has.
         condition: C
         data:
           - refId: A
@@ -959,7 +960,54 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $values.A.Value }} source key(s) have no instrument"
-          description: "quote-svc saw source keys secmaster-svc can't map, so their values aren't loaded. quote_svc_unmapped_key lists them; add the instrument or identifier to secmaster-svc's seeds/cmt.toml in a PR."
+          description: "quote-svc saw source keys secmaster-svc can't map, so their values aren't loaded. quote_svc_unmapped_key lists them (first 50 per source). For the CMTs, add the instrument or identifier to secmaster-svc's seeds/cmt.toml in a PR; for TD-PRICES (CUSIPs), secmaster-svc hasn't loaded the security yet: check secmaster_svc__load. Those days reload by themselves once it has."
+
+      - uid: quote-svc-prices-missing
+        title: Treasury prices missing
+        # quote-svc's /metrics (quote-svc app/freshness.py, mkt-data docs/phase-3.md step 4).
+        # FedInvest prints a business day's end-of-day prices the next business day
+        # evening (mkt-data's capture at 7:15 p.m. re-fetches the previous day), so day D's
+        # are due by 9:00 a.m. the day after that; quote-svc works out the due date with
+        # calendar-svc's closes. Outstanding: active securities priced in the last 10 days,
+        # so matured and not-yet-issued ones never alert. No data: quote-svc isn't serving metrics.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: max(quote_svc_prices_missing_count) or (max(quote_svc_prices_outstanding) < bool 1)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: Alerting
+        execErrState: Error
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Treasury prices missing for the latest business day due"
+          description: "Some outstanding Treasury securities have no FedInvest end-of-day price for the business day due, or none has a price in 10 days. quote_svc_prices_missing names them (first 20). Check mkt_data__treasury_securities_capture's TD-PRICES task (home-mcp airflow_runs, airflow_task_log), then quote_svc__load; FedInvest may be late."
 
   - orgId: 1
     name: secmaster-svc
@@ -1008,3 +1056,133 @@ groups:
         annotations:
           summary: "secmaster-svc's latest seed failed"
           description: "secmaster-svc couldn't apply a seed file (seeds/cmt.toml); the instruments keep their previous state. `docker logs secmaster-svc` on the hub has the reason, usually a bad entry in the file."
+
+      - uid: secmaster-svc-load-stale
+        title: Securities load stale
+        # secmaster-svc's load runs when TreasuryDirect's records change and nightly at
+        # 07:27 UTC, so 30 hours without a successful one means the DAG, secmaster-svc or
+        # mkt-data is broken. No data: secmaster-svc isn't serving metrics.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: time() - max(secmaster_svc_load_last_success_timestamp_seconds)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [108000]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: Alerting
+        execErrState: Error
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "secmaster-svc hasn't loaded securities in 30 hours"
+          description: "secmaster-svc's last successful load of Treasury securities from mkt-data is over 30 hours old, or it isn't serving /metrics. Check secmaster_svc__load in Airflow (home-mcp airflow_runs, airflow_task_log) and `docker logs secmaster-svc` on the hub."
+
+      - uid: secmaster-svc-load-failed
+        title: Securities load failed
+        # The latest load failed (recorded in load_run). Months already loaded are kept;
+        # the next load retries the rest.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: min(secmaster_svc_load_ok)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "secmaster-svc's latest securities load failed"
+          description: "secmaster-svc's latest load of Treasury securities failed; months already loaded are kept. The secmaster_svc__load task log (home-mcp airflow_task_log) has the reason."
+
+      - uid: secmaster-svc-untyped-records
+        title: Securities records untyped
+        # A TreasuryDirect record secmaster-svc couldn't type into terms isn't loaded:
+        # usually a new field value (a security type or term it doesn't know).
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: sum(secmaster_svc_untyped_records) or vector(0)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $values.A.Value }} TreasuryDirect record(s) couldn't be typed"
+          description: "secmaster-svc couldn't type some TreasuryDirect records into security terms, so those securities or auctions aren't loaded. The load's answer (secmaster_svc__load task log) and the untyped_record table say which and why; fix the typing in secmaster-svc's app/treasuries.py."
