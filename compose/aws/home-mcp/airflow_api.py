@@ -16,6 +16,7 @@ Uses: "did the SIFMA DAG run, and how did it go?", "show me the failed task's
 log", "run the NYSE calendar now".
 """
 
+import json
 import os
 import re
 import time
@@ -141,16 +142,25 @@ async def airflow_task_log(dag: str, run_id: str = "", task: str = "", try_numbe
     return "\n".join([head, *[ln[:400] for ln in text[-keep:]]])
 
 
-async def airflow_trigger(dag: str) -> str:
+MAX_CONF_BYTES = 4096
+
+
+async def airflow_trigger(dag: str, conf: dict | None = None) -> str:
     dag = dag.strip()
     if not TRIGGERABLE.match(dag):
         return f"I can only trigger the market data DAGs (mkt_data__*), not {dag!r}."
+    if conf is not None:
+        if not isinstance(conf, dict) or not all(isinstance(k, str) for k in conf):
+            return "conf must be a JSON object of the DAG's form fields, e.g. {\"source\": \"BLS-CPI\"}."
+        if len(json.dumps(conf)) > MAX_CONF_BYTES:
+            return f"conf is too big (over {MAX_CONF_BYTES} bytes)."
     status, info = await _call("GET", f"dags/{dag}")
     if status != 200:
         return info
-    status, body = await _call(
-        "POST", f"dags/{dag}/dagRuns", json={"logical_date": None, "note": "Triggered from home-mcp"}
-    )
+    run = {"logical_date": None, "note": "Triggered from home-mcp"}
+    if conf:
+        run["conf"] = conf
+    status, body = await _call("POST", f"dags/{dag}/dagRuns", json=run)
     if status not in (200, 201):
         return body
     paused = " The DAG is paused, so the run waits until it's unpaused." if info.get("is_paused") else ""
