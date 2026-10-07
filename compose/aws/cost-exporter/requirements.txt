@@ -1,2 +1,2 @@
-boto3==1.43.106
+boto3==1.43.108
 prometheus-client==0.26.0
