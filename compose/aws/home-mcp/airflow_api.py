@@ -8,8 +8,10 @@ is only on that network (2026-10-04): apps on home-platform can't reach it,
 only Airflow itself, Traefik and home-mcp.
 
 airflow_trigger is the only tool here that changes anything, and only for
-DAGs named mkt_data__*: their runs are idempotent captures (Bill, 2026-10-04),
-so Claude can re-run them without a GitHub approval. Everything else is
+the market data DAGs: mkt_data__* (idempotent captures, Bill 2026-10-04) and
+secmaster_svc__* and quote_svc__* (loads and rebuilds from mkt-data's
+near-raw, which reproduce the same tables on a rerun, Bill 2026-10-07), so
+Claude can re-run them without a GitHub approval. Everything else is
 read-only.
 
 Uses: "did the SIFMA DAG run, and how did it go?", "show me the failed task's
@@ -25,7 +27,7 @@ import httpx
 
 AIRFLOW_URL = os.environ.get("AIRFLOW_URL", "http://airflow-api-server:8080")
 TIMEOUT_SECONDS = 20
-TRIGGERABLE = re.compile(r"^mkt_data__[a-z0-9_]+$")
+TRIGGERABLE = re.compile(r"^(mkt_data|secmaster_svc|quote_svc)__[a-z0-9_]+$")
 DAG_ID = re.compile(r"^[A-Za-z0-9_.-]{1,250}$")
 MAX_LOG_LINES = 200
 
@@ -148,7 +150,7 @@ MAX_CONF_BYTES = 4096
 async def airflow_trigger(dag: str, conf: dict | None = None) -> str:
     dag = dag.strip()
     if not TRIGGERABLE.match(dag):
-        return f"I can only trigger the market data DAGs (mkt_data__*), not {dag!r}."
+        return f"I can only trigger the market data DAGs (mkt_data__*, secmaster_svc__*, quote_svc__*), not {dag!r}."
     if conf is not None:
         if not isinstance(conf, dict) or not all(isinstance(k, str) for k in conf):
             return "conf must be a JSON object of the DAG's form fields, e.g. {\"source\": \"BLS-CPI\"}."
