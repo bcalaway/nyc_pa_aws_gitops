@@ -1,4 +1,4 @@
-"""mkt_data_* tools: the market data platform's raw captures, checks, calendars and yields.
+"""mkt_data_* tools: the market data platform's raw captures, checks, calendars, yields, Treasuries and auctions.
 
 mkt-data (bcalaway/mkt-data) keeps every page it fetches byte for byte. These
 tools read them through its job API's GET endpoints with a read-only token
@@ -307,4 +307,223 @@ async def mkt_data_curve(on: str = "", compare: str = "") -> str:
     lines.append(f"From {' and '.join(sorted(sources))}.")
     if base["missing"]:
         lines.append(f"No value that day for {', '.join(short_tenor(n) for n in base['missing'])}.")
+    return "\n".join(lines)
+
+
+# --- Treasury securities and auctions, from mkt-api (phase 3, step 10) ---
+#
+# The same gateway: securities by CUSIP from secmaster-svc with their latest
+# price from quote-svc (/api/securities), and the auction calendar
+# (/api/auctions).
+
+_CUSIP = re.compile(r"^[0-9]{3}[0-9A-Z]{5}[0-9]$")
+_OTR_WORDS = re.compile(r"\b(ON[\s-]*THE[\s-]*RUN|OTR|CURRENT|TREASURY|UST|NOTE|BOND)\b")
+# Bills are auctioned in weeks; people say months.
+BILL_WEEKS = {"1": "4", "2": "8", "3": "13", "4": "17", "6": "26", "12": "52"}
+_FRACTION = re.compile(r"^(\d+)\s+(\d+)/(\d+)$")
+_COUPON_YEAR = re.compile(r"^(\d+(?:\.\d+)?|\d+\s+\d+/\d+|\d+/\d+)\s*%?\s*S?\s*(?:OF\s+|DUE\s+)?'?(\d{4}|\d{2})$")
+PRICE_SOURCE = {"TD-PRICES": "FedInvest"}
+
+
+def otr_name(text: str) -> str | None:
+    """"10Y", "10-year on the run", "10 year TIPS", "2Y FRN", "3 month bill", "13W" -> an on-the-run alias
+    (UST-10Y-OTR, UST-10Y-TII-OTR, UST-2Y-FRN-OTR, UST-13W-OTR); None if it isn't a tenor."""
+    t = text.strip().upper().replace("_", "-")
+    suffix = ""
+    if re.search(r"\b(TIPS|TII)\b", t):
+        suffix = "-TII"
+    elif re.search(r"\bFRNS?\b|FLOAT", t):
+        suffix = "-FRN"
+    bill = bool(re.search(r"\bBILLS?\b|T-BILL", t))
+    t = re.sub(r"\b(TIPS|TII|FRNS?|FLOATERS?|FLOATING|RATE|BILLS?|T-BILL)\b", " ", t)
+    t = _OTR_WORDS.sub(" ", t).replace("-OTR", " ")
+    t = " ".join(t.replace("THE ", " ").split()).strip(" -")
+    m = _TENOR.match(t)
+    if not m:
+        return None
+    n, unit = m.group(1), m.group(2)[0]
+    if unit == "M":
+        if n not in BILL_WEEKS:
+            return None
+        n, unit = BILL_WEEKS[n], "W"
+    elif unit == "Y" and n == "1" and not suffix:
+        n, unit = "52", "W"  # "the 1-year bill"
+    elif bill and unit == "Y":
+        return None
+    return f"UST-{n}{unit}{suffix}-OTR"
+
+
+def coupon_year(text: str) -> tuple[Decimal, int] | None:
+    """"4.25 2035", "4 1/4 2035", "4 1/4s of 35", "4.25% 2035" -> (Decimal('4.25'), 2035); None otherwise."""
+    m = _COUPON_YEAR.match(" ".join(text.strip().upper().split()))
+    if not m:
+        return None
+    c, y = m.group(1), m.group(2)
+    if f := _FRACTION.match(c):
+        coupon = Decimal(f.group(1)) + Decimal(f.group(2)) / Decimal(f.group(3))
+    elif "/" in c:
+        a, b = c.split("/")
+        coupon = Decimal(a) / Decimal(b)
+    else:
+        coupon = Decimal(c)
+    year = int(y) if len(y) == 4 else 2000 + int(y)
+    return coupon.normalize(), year
+
+
+def _percent(rate: str) -> str:
+    """A rate as a decimal string ("0.0425") in percent ("4.25"); "" stays ""."""
+    if not rate:
+        return ""
+    try:
+        return format((Decimal(rate) * 100).normalize(), "f")
+    except ArithmeticError:
+        return rate
+
+
+def _billions(dollars: str) -> str:
+    if not dollars:
+        return ""
+    try:
+        b = (Decimal(dollars) / Decimal(1_000_000_000)).quantize(Decimal("0.1")).normalize()
+    except ArithmeticError:
+        return f"${dollars}"
+    return f"${format(b, 'f')} billion"
+
+
+def _auction_result(a: dict) -> str:
+    """A held auction's result in a few words, from a security's auction dict or an /api/auctions row."""
+    parts = []
+    if a.get("high_yield"):
+        parts.append(f"high yield {_percent(a['high_yield'])}%")
+    elif a.get("high_discount_rate"):
+        parts.append(f"high discount rate {_percent(a['high_discount_rate'])}%")
+    elif a.get("high_discount_margin"):
+        parts.append(f"high discount margin {_percent(a['high_discount_margin'])}%")
+    if a.get("bid_to_cover"):
+        try:
+            btc = format(Decimal(a["bid_to_cover"]).normalize(), "f")
+        except ArithmeticError:
+            btc = a["bid_to_cover"]
+        parts.append(f"bid-to-cover {btc}")
+    return ", ".join(parts)
+
+
+async def _resolve_security(text: str) -> tuple[str | None, str]:
+    """What the person said -> (a name mkt-api's /api/securities/{name} knows, ""), or (None, why not)."""
+    t = text.strip()
+    if not t:
+        return None, "Which security? Say a CUSIP, a tenor like 10Y or 10Y TIPS, or a coupon and year like 4.25 2035."
+    up = t.upper()
+    if _CUSIP.match(up) or up.startswith("UST-"):
+        return up, ""
+    if name := otr_name(t):
+        return name, ""
+    if cy := coupon_year(t):
+        coupon, year = cy
+        status, body = await _api("/api/securities", {
+            "maturing_from": f"{year}-01-01", "maturing_to": f"{year}-12-31", "include_inactive": "true",
+            "limit": "6000"})
+        if status != 200:
+            return None, body
+        hits = [r for r in body["securities"]
+                if r.get("coupon_display") and Decimal(r["coupon_display"]) == coupon and r["type"] != "tips"]
+        hits = hits or [r for r in body["securities"]
+                        if r.get("coupon_display") and Decimal(r["coupon_display"]) == coupon]
+        if not hits:
+            return None, f"No Treasury with a {format(coupon, 'f')}% coupon matures in {year}."
+        if len(hits) > 1:
+            listed = "; ".join(f"{r['name']} (CUSIP {r['cusip']}, {r['type']})" for r in hits[:8])
+            return None, (f"{len(hits)} Treasuries with a {format(coupon, 'f')}% coupon mature in {year}: "
+                          f"{listed}. Which one?")
+        return hits[0]["name"], ""
+    return up, ""  # mkt-api answers with what it knows, or that it doesn't
+
+
+async def mkt_data_security(security: str) -> str:
+    name, why = await _resolve_security(security)
+    if name is None:
+        return why
+    status, body = await _api(f"/api/securities/{name}", {})
+    if status == 404:
+        return (f"There's no Treasury security {name}. "
+                "Try a CUSIP, a tenor like 10Y, or a coupon and year like 4.25 2035.")
+    if status != 200:
+        return body
+    d = body
+    terms = d.get("terms") or {}
+    ids = {i["scheme"]: i["value"] for i in d.get("identifiers", []) if not i.get("valid_to")}
+    head = f"{d['name']}"
+    if cusip := ids.get("CUSIP") or terms.get("cusip"):
+        head += f" (CUSIP {cusip})"
+    lines = [f"{head}: {d.get('description') or d['type']}, {d['status']}."]
+    dates = []
+    if terms.get("issue_date"):
+        dates.append(f"issued {terms['issue_date']}")
+    if terms.get("maturity_date"):
+        dates.append(f"matures {terms['maturity_date']}")
+    if dates:
+        lines.append(", ".join(dates).capitalize() + ".")
+    current = [o for o in d.get("on_the_run", []) if not o.get("until") and not o["alias"].endswith("-ISSUED")]
+    if current:
+        lines.append(f"On the run as {', '.join(o['alias'] for o in current)} since {current[0]['since']}.")
+    elif name.endswith("-OTR"):
+        lines.append(f"(That's today's {name}.)")
+    if p := d.get("price"):
+        lines.append(f"Price {p['display']} per 100 on {p['date']}, from {PRICE_SOURCE.get(p['source'], p['source'])}.")
+    if r := d.get("index_ratio"):
+        ratio = r.get("ratio") or r.get("index_ratio")
+        if ratio:
+            lines.append(f"Index ratio today {ratio}.")
+    auctions = d.get("auctions") or []
+    if auctions:
+        last = auctions[-1]
+        text = f"{len(auctions)} auction{'s' if len(auctions) > 1 else ''}; the last on {last.get('auction_date', '?')}"
+        if result := _auction_result(last):
+            text += f": {result}"
+        lines.append(text + ".")
+    return " ".join(lines)
+
+
+def _week(which: str) -> tuple[date, date] | str:
+    w = which.strip().lower().removesuffix(" week").strip() or "this"
+    shift = {"this": 0, "next": 1, "last": -1, "previous": -1}.get(w)
+    if shift is None:
+        return f"I need week as this, next or last, not {which!r}."
+    today = _today_ny()
+    monday = date.fromordinal(today.toordinal() - today.weekday() + 7 * shift)
+    return monday, date.fromordinal(monday.toordinal() + 4)
+
+
+async def mkt_data_auctions(week: str = "", start: str = "", end: str = "") -> str:
+    if start.strip() or end.strip():
+        lo = _day(start) if start.strip() else None
+        hi = _day(end) if end.strip() else None
+        for x in (lo, hi):
+            if isinstance(x, str):
+                return x
+        lo = lo or hi
+        hi = hi or lo
+    else:
+        span = _week(week)
+        if isinstance(span, str):
+            return span
+        lo, hi = span
+    status, body = await _api("/api/auctions", {"start": lo.isoformat(), "end": hi.isoformat()})
+    if status != 200:
+        return body
+    rows = body["auctions"]
+    when = f"{body['start']} to {body['end']}"
+    if not rows:
+        return f"No Treasury auctions from {when}."
+    lines = [f"{len(rows)} Treasury auction{'s' if len(rows) > 1 else ''} from {when}:"]
+    for a in rows:
+        day = date.fromisoformat(a["auction_date"]).strftime("%a %b %-d") if a.get("auction_date") else "?"
+        kind = {"bill": "bill", "note": "note", "bond": "bond", "tips": "TIPS", "frn": "FRN"}.get(a["type"], a["type"])
+        line = f"- {day}: {a['term']} {kind}{' reopening' if a.get('reopening') else ''} ({a['security']})"
+        if amount := _billions(a.get("offering_amount", "")):
+            line += f", {amount}"
+        if a.get("held"):
+            line += f"; {_auction_result(a) or 'held'}"
+        line += "."
+        lines.append(line)
     return "\n".join(lines)

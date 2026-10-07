@@ -1186,3 +1186,47 @@ groups:
         annotations:
           summary: "{{ $values.A.Value }} TreasuryDirect record(s) couldn't be typed"
           description: "secmaster-svc couldn't type some TreasuryDirect records into security terms, so those securities or auctions aren't loaded. The load's answer (secmaster_svc__load task log) and the untyped_record table say which and why; fix the typing in secmaster-svc's app/treasuries.py."
+      - uid: secmaster-svc-auction-results-overdue
+        title: Auction results overdue
+        # An auction held before today (in the last 30 days) whose results secmaster-svc
+        # still hasn't loaded: Treasury publishes them the same afternoon, so the day's
+        # TreasuryDirect capture or the load is behind. 12 hours' grace covers the gap
+        # between an auction and the next capture and load.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: max(secmaster_svc_auction_results_overdue) or vector(0)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 12h
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $values.A.Value }} Treasury auction(s) held without results loaded"
+          description: "secmaster-svc has auctions from before today with no results (amount accepted) yet. secmaster_svc_auction_result_overdue lists them by CUSIP and auction date (the first 10). Check that mkt_data__treasury_securities_capture captured TD-SECURITIES since the auction (home-mcp mkt_data_checks, source TD-SECURITIES) and that secmaster_svc__load ran after it; home-mcp mkt_data_auctions shows what each auction has."
