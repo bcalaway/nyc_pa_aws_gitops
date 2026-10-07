@@ -1870,6 +1870,188 @@
       }
     },
     {
+      "id": 49,
+      "title": "Prices unchanged from the day before",
+      "description": "The share of active securities whose end-of-day price didn't move on the latest priced day. Real days run up to about 54%; over 80% is a repeated page (alert: Treasury prices implausible).",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 46
+      },
+      "targets": [
+        {
+          "expr": "max(quote_svc_prices_unchanged_ratio)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.6
+              },
+              {
+                "color": "red",
+                "value": 0.8
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 50,
+      "title": "Implausible price moves",
+      "description": "Active securities whose price moved more than their type plausibly can in a day (bills and FRNs 0.5, notes 5, TIPS 15, bonds 12, per 100).",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 46
+      },
+      "targets": [
+        {
+          "expr": "max(quote_svc_prices_jumps_count) or vector(0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 51,
+      "title": "Implausible moves (latest priced day)",
+      "description": "quote_svc_prices_jump: each move past its limit, per 100 (first 20). Empty on a normal day.",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 46
+      },
+      "targets": [
+        {
+          "expr": "max by (instrument, type) (quote_svc_prices_jump)",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "app": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "instrument": "Security",
+              "type": "Type",
+              "Value": "Change per 100"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
       "id": 11,
       "type": "row",
       "title": "Captures",
@@ -1878,7 +2060,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 50
       },
       "panels": []
     },
@@ -1895,7 +2077,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 51
       },
       "targets": [
         {
@@ -2074,7 +2256,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 57
+        "y": 61
       },
       "targets": [
         {
@@ -2117,7 +2299,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 57
+        "y": 61
       },
       "targets": [
         {
@@ -2156,7 +2338,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 70
       },
       "panels": [
         {
@@ -2170,7 +2352,7 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 67,
+            "y": 71,
             "w": 6,
             "h": 4
           },
@@ -2230,7 +2412,7 @@
           },
           "gridPos": {
             "x": 6,
-            "y": 67,
+            "y": 71,
             "w": 12,
             "h": 4
           },
@@ -2305,7 +2487,7 @@
           },
           "gridPos": {
             "x": 18,
-            "y": 67,
+            "y": 71,
             "w": 6,
             "h": 4
           },
@@ -2363,7 +2545,7 @@
             "h": 11,
             "w": 24,
             "x": 0,
-            "y": 71
+            "y": 75
           },
           "targets": [
             {
@@ -2512,7 +2694,7 @@
             "h": 9,
             "w": 14,
             "x": 0,
-            "y": 82
+            "y": 86
           },
           "targets": [
             {
@@ -2623,7 +2805,7 @@
             "h": 9,
             "w": 10,
             "x": 14,
-            "y": 82
+            "y": 86
           },
           "targets": [
             {
@@ -2725,7 +2907,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 67
+        "y": 71
       },
       "panels": []
     },
@@ -2740,7 +2922,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 68,
+        "y": 72,
         "w": 6,
         "h": 4
       },
@@ -2796,7 +2978,7 @@
       },
       "gridPos": {
         "x": 6,
-        "y": 68,
+        "y": 72,
         "w": 6,
         "h": 4
       },
@@ -2852,7 +3034,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 68,
+        "y": 72,
         "w": 6,
         "h": 4
       },
@@ -2908,7 +3090,7 @@
       },
       "gridPos": {
         "x": 18,
-        "y": 68,
+        "y": 72,
         "w": 6,
         "h": 4
       },
@@ -2974,7 +3156,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 72
+        "y": 76
       },
       "targets": [
         {
