@@ -453,9 +453,11 @@ async def mkt_data_security(security: str) -> str:
     terms = d.get("terms") or {}
     ids = {i["scheme"]: i["value"] for i in d.get("identifiers", []) if not i.get("valid_to")}
     head = f"{d['name']}"
-    if cusip := ids.get("CUSIP") or terms.get("cusip"):
+    described = d.get("description") or d["type"]
+    # secmaster-svc's descriptions of Treasuries already end with the CUSIP; say it once.
+    if (cusip := ids.get("CUSIP") or terms.get("cusip")) and cusip not in described:
         head += f" (CUSIP {cusip})"
-    lines = [f"{head}: {d.get('description') or d['type']}, {d['status']}."]
+    lines = [f"{head}: {described}, {d['status']}."]
     dates = []
     if terms.get("issue_date"):
         dates.append(f"issued {terms['issue_date']}")
