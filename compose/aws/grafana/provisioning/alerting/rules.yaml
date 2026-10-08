@@ -1234,6 +1234,52 @@ groups:
         annotations:
           summary: "{{ $values.A.Value }} TreasuryDirect record(s) couldn't be typed"
           description: "secmaster-svc couldn't type some TreasuryDirect records into security terms, so those securities or auctions aren't loaded. The load's answer (secmaster_svc__load task log) and the untyped_record table say which and why; fix the typing in secmaster-svc's app/treasuries.py."
+      - uid: secmaster-svc-tips-cpi-mismatch
+        title: TIPS reference CPI mismatch
+        # secmaster-svc computes every TIPS's reference CPI and index ratio from
+        # BLS's CPI-U (Treasury's rule, CPI as first published) and checks them
+        # against what TreasuryDirect published on each TIPS auction. A mismatch
+        # means a CPI month BLS has since revised (add it to app/tips.py's
+        # FIRST_PUBLISHED), a new TreasuryDirect figure, or a rule change.
+        # Clean since 2026-10-08: 799 matched, 4 known exceptions (2000).
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: sum(secmaster_svc_tips_cpi_checks{outcome="mismatched"}) or vector(0)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $values.A.Value }} TIPS reference CPI or index ratio figure(s) differ from TreasuryDirect"
+          description: "secmaster-svc's reference CPI or index ratio for some TIPS auctions differs from what TreasuryDirect published. The secmaster_svc__load task log names each (\"tips cpi: <auction>: ...: ours ..., TreasuryDirect ...\"). Compare the CPI months it needs with BLS's news releases as first published; a revised month goes in secmaster-svc's app/tips.py FIRST_PUBLISHED."
       - uid: secmaster-svc-auction-results-overdue
         title: Auction results overdue
         # An auction held before today (in the last 30 days) whose results secmaster-svc
