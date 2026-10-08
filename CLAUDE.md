@@ -90,10 +90,11 @@ If gh isn't authed yet, see the "gh CLI setup" section above.
 - IP: `3.82.89.106`, user: `ec2-user`
 - SSH key in SSM at `/home-platform/ec2/ssh-private-key` → save to `~/.ssh/home-platform.pem`
 - SSH is only open from WireGuard subnets. The laptop WireGuard peer was re-provisioned 2026-07-07 with a fresh keypair (private key in SSM at `/home-platform/wireguard/laptop-private-key` and imported into the local WireGuard app as tunnel `laptop-wireguard`; never committed to Git). If working from a device already on the NYC or Rambles LAN, that site's RB5009 also routes to the hub automatically, no client needed — but make sure the local `laptop-wireguard` tunnel is deactivated first if so, since an active tunnel takes priority for the `10.0.3.0/24` route and will break connectivity if its key is ever revoked again.
-- **When connecting over the WireGuard tunnel, SSH to `10.0.3.1`, not the public IP `3.82.89.106`.** The laptop tunnel's `AllowedIPs` only covers `10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24` — traffic to the public IP goes out the normal internet path instead of the tunnel and gets blocked by the security group.
+- **Use the name `hub.billandjessie.com`** (Bill, 2026-10-08: names, never IPs). Both site routers resolve it to the hub's WireGuard address (`routeros/*/managed-config.rsc`), so it works from either LAN. Off-LAN over the laptop tunnel it resolves only if the laptop uses a site router for DNS; otherwise its WireGuard address is 10.0.3.1.
+- **When connecting over the WireGuard tunnel, SSH to the WireGuard address, not the public IP `3.82.89.106`.** The laptop tunnel's `AllowedIPs` only covers `10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24` — traffic to the public IP goes out the normal internet path instead of the tunnel and gets blocked by the security group.
 
 ```powershell
-ssh -i "$HOME\.ssh\home-platform.pem" ec2-user@10.0.3.1
+ssh -i "$HOME\.ssh\home-platform.pem" ec2-user@hub.billandjessie.com
 ```
 
 ## Deploying the AWS stack
