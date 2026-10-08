@@ -331,6 +331,12 @@ export COLORTERM=truecolor
 ```
 Close and reopen the PuTTY session (or `source ~/.bashrc`) for it to take effect.
 
+**The standard prompt (Linux):** every Linux box we set up gets the same coloured prompt (user@host, directory, git branch) and `COLORTERM=truecolor` from `/etc/profile.d/home-platform-prompt.sh`. The NUCs get it from Ansible's base role and the hub from its host install on every hub deploy. On a Linux workstation, from this repo:
+```bash
+sudo install -m 0644 ansible/roles/base/files/home-platform-prompt.sh /etc/profile.d/home-platform-prompt.sh
+```
+It applies to new login shells. A `PS1=` line in your own `~/.bashrc` overrides it, so remove that once this is in place.
+
 ---
 
 ## 9. Install pgAdmin (Windows workstation)

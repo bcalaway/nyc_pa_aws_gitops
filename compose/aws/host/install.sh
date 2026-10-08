@@ -25,6 +25,8 @@ install -o root -g root -m 0755 "$SRC/update-metrics.sh" "$LIB/update-metrics.sh
 install -o root -g root -m 0755 "$SRC/exposure-check.py" "$LIB/exposure-check.py"
 install -o root -g root -m 0644 "$SRC/exposure-expected.json" "$LIB/exposure-expected.json"
 install -o root -g root -m 0755 "$SRC/imds-guard.sh" "$LIB/imds-guard.sh"
+# The home platform shell prompt (and COLORTERM), as on the NUCs (ansible/roles/base; Bill, 2026-10-08).
+install -o root -g root -m 0644 "$SRC/home-platform-prompt.sh" /etc/profile.d/home-platform-prompt.sh
 
 # The hub's node-exporter reads textfile metrics from the compose stack's
 # backup-metrics volume (postgres-backup already writes there). Resolve its
