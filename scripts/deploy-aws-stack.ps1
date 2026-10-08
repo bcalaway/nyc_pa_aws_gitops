@@ -121,7 +121,7 @@ ssh -i $sshKey $ec2Host "sudo install -d -m 0755 /var/lib/home-platform/exposure
 
 Write-Host "Starting stack..."
 # Promtail -> Alloy (2026-10-02): remove the old container first; see deploy-hub-stack.sh.
-ssh -i $sshKey $ec2Host "docker rm -f promtail >/dev/null 2>&1 || true"
+ssh -i $sshKey $ec2Host "docker rm -f promtail airflow-triggerer >/dev/null 2>&1 || true"
 # HUP Prometheus (config reload) only if it was already running before `up`,
 # and from inside the container: `docker kill` marks it manually stopped, so it
 # wouldn't come back after a reboot (see docs/gotchas.md).

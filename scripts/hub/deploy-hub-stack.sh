@@ -252,6 +252,9 @@ docker compose config --quiet
 # first so Alloy also starts from Promtail's final read positions. No-op
 # once it's gone.
 docker rm -f promtail >/dev/null 2>&1 || true
+# Likewise the Airflow triggerer, removed 2026-10-08 (compose/aws/data.yml):
+# nothing defers, and idle it used about 0.15 of a core.
+docker rm -f airflow-triggerer >/dev/null 2>&1 || true
 # --quiet: pull progress is most of the output, and SSM keeps only the first
 # 24,000 characters, which would cut off the RESULT line at the end.
 docker compose pull --quiet
