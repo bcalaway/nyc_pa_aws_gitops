@@ -508,11 +508,13 @@ groups:
     rules:
       - uid: mkt-data-capture-stale
         title: Market data capture stale
-        # mkt-data's /metrics (mkt-data app/metrics.py). The calendar DAGs run
-        # weekly with retries, so 8 days without a successful fetch means the
-        # DAG or the source is broken. No data means mkt-data isn't serving
-        # metrics at all (down, or the scrape is broken): alert, as with
-        # postgres-backup-stale.
+        # mkt-data's /metrics (mkt-data app/metrics.py). Each source is held to its
+        # own DAG's schedule (mkt_data_source_late_after_seconds, from mkt-data's
+        # app/source_status.py; the Sources screen's "Late"): 8 days for the weekly
+        # calendar pages, 5 days for the weekday sources (a closed day on each side
+        # of a weekend is 4 days without a fetch). A was "over 8 days" for every
+        # source until 2026-10-07. No data means mkt-data isn't serving metrics at
+        # all (down, or the scrape is broken): alert, as with postgres-backup-stale.
         condition: C
         data:
           - refId: A
@@ -522,7 +524,7 @@ groups:
             datasourceUid: PBFA97CFB590B2093
             model:
               refId: A
-              expr: time() - max by (calendar, source) (mkt_data_source_last_success_timestamp_seconds)
+              expr: (time() - max by (calendar, source) (mkt_data_source_last_success_timestamp_seconds)) - on (calendar, source) max by (calendar, source) (mkt_data_source_late_after_seconds)
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -535,7 +537,7 @@ groups:
               conditions:
                 - evaluator:
                     type: gt
-                    params: [691200]
+                    params: [0]
                   operator:
                     type: and
                   query:
@@ -549,8 +551,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Market data source {{ $labels.source }} ({{ $labels.calendar }}) not fetched in 8 days"
-          description: "mkt-data hasn't fetched {{ $labels.source }} successfully in over 8 days, or mkt-data isn't serving /metrics. Check the calendar's DAG in Airflow and the source's checks (home-mcp mkt_data_captures; `docker logs mkt-data` on the hub)."
+          summary: "Market data source {{ $labels.source }} ({{ $labels.calendar }}) late against its schedule"
+          description: "mkt-data hasn't fetched {{ $labels.source }} successfully for longer than its DAG's schedule allows (mkt_data_source_late_after_seconds), or mkt-data isn't serving /metrics. The value is how far past that it is, in seconds. mkt-ui's Sources screen shows the source's DAG and recent fetches; also home-mcp mkt_data_checks, and the DAG in Airflow."
 
       - uid: mkt-data-parse-failed
         title: Market data parse failed
