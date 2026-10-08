@@ -51,6 +51,16 @@
         path: /tmp/aws
         state: absent
 
+# The same prompt (and COLORTERM) on every Linux box we set up (Bill, 2026-10-08). /etc/bashrc only resets a
+# default PS1, so this survives the users' own ~/.bashrc unless it sets PS1 itself.
+- name: Install the home platform shell prompt
+  ansible.builtin.copy:
+    src: home-platform-prompt.sh
+    dest: /etc/profile.d/home-platform-prompt.sh
+    owner: root
+    group: root
+    mode: "0644"
+
 - name: Ensure firewalld is running and enabled
   ansible.builtin.systemd:
     name: firewalld
