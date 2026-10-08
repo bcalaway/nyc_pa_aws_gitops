@@ -211,21 +211,21 @@ aws ssm get-parameter --name "/home-platform/ec2/ssh-private-key" --with-decrypt
 chmod 600 ~/.ssh/home-platform.pem
 ```
 
-If the machine is a NUC physically on the NYC or Rambles LAN (the normal case — see "Network topology" in `CLAUDE.md`), it already reaches the hub over the site router's own WireGuard link, no client tunnel needed. SSH straight to the hub's WireGuard IP, not the public Elastic IP:
+If the machine is a NUC physically on the NYC or Rambles LAN (the normal case — see "Network topology" in `CLAUDE.md`), it already reaches the hub over the site router's own WireGuard link, no client tunnel needed. SSH straight to the hub by name (`hub.billandjessie.com`, which the site routers resolve to its WireGuard address), not the public Elastic IP:
 ```bash
-ssh -i ~/.ssh/home-platform.pem ec2-user@10.0.3.1 "echo connected"
+ssh -i ~/.ssh/home-platform.pem ec2-user@hub.billandjessie.com "echo connected"
 ```
 
 ### Both platforms — if the machine is remote (not on either site LAN)
 
-> **Note:** SSH to the EC2 instance is only open from WireGuard subnets (10.0.1/2/3.x). From a machine with neither a site LAN connection nor a WireGuard client, temporarily open port 22 for your IP instead of using `10.0.3.1`:
+> **Note:** SSH to the EC2 instance is only open from WireGuard subnets (10.0.1/2/3.x). From a machine with neither a site LAN connection nor a WireGuard client, temporarily open port 22 for your IP instead of using `hub.billandjessie.com`:
 > ```powershell
 > $myIp = (Invoke-WebRequest -Uri "https://checkip.amazonaws.com" -UseBasicParsing).Content.Trim()
 > aws ec2 authorize-security-group-ingress --group-id sg-085be907c12c4e161 --protocol tcp --port 22 --cidr "$myIp/32" --region us-east-1
 > # Remember to revoke when done:
 > aws ec2 revoke-security-group-ingress --group-id sg-085be907c12c4e161 --protocol tcp --port 22 --cidr "$myIp/32" --region us-east-1
 > ```
-> Then SSH to the public IP (`ec2-user@3.82.89.106`) instead of `10.0.3.1`. A remote Linux machine that needs *ongoing* (not one-off) access would need its own WireGuard peer provisioned — the existing "laptop" peer (`10.0.3.4`) is tied to Bill's Windows laptop specifically and shouldn't be reused elsewhere.
+> Then SSH to the public IP (`ec2-user@3.82.89.106`) instead of `hub.billandjessie.com`. A remote Linux machine that needs *ongoing* (not one-off) access would need its own WireGuard peer provisioned — the existing "laptop" peer (`10.0.3.4`) is tied to Bill's Windows laptop specifically and shouldn't be reused elsewhere.
 
 ---
 
@@ -306,7 +306,7 @@ winget install --id DEVCOM.JetBrainsMonoNerdFont --accept-package-agreements --a
 ```
 
 For each PuTTY session you create (nuc4, nuc5, the EC2 hub, etc.):
-1. **Session** — enter host name, save the session name
+1. **Session** — enter the host by name (`ec2-user@hub.billandjessie.com`, `nuc4.nyc.billandjessie.com`, `nuc5.rambles.billandjessie.com`), save the session name. For the hub, also set **Connection → SSH → Auth → Credentials** to the key converted for PuTTY: `& "C:\Program Files\PuTTY\puttygen.exe" "$HOME\.ssh\home-platform.pem" -O private -o "$HOME\.ssh\home-platform.ppk"`
 2. **Window → Appearance → Font** — click "Change...", select **JetBrainsMono NF**, size 11, and set Font Quality to **ClearType**
 3. **Window → Translation → Remote character set** — set to **UTF-8**
 4. Go back to **Session**, click **Save**
@@ -337,7 +337,7 @@ Close and reopen the PuTTY session (or `source ~/.bashrc`) for it to take effect
 
 pgAdmin is the GUI client for the shared Postgres instance running on the AWS hub (`compose/aws/docker-compose.yml`, Milestone 11 — ADR-0016). The hub's security group only allows port 5432 from WireGuard peers (`10.0.3.0/24`, see `terraform/aws/security_groups.tf`), so this only works over the WireGuard tunnel or from a site LAN that routes to the hub (same reachability rules as SSH — see "EC2 access" in `CLAUDE.md`).
 
-> **Linux workstation:** this step and the CLI-registration trick below are Windows-specific (pgAdmin's desktop-app config layout). The simpler cross-platform path is the `psql` CLI directly: `sudo dnf install -y postgresql`, then `PGPASSWORD="$(aws ssm get-parameter --name /home-platform/postgres/admin-password --with-decryption --region us-east-1 --query Parameter.Value --output text)" psql -h 10.0.3.1 -U postgres`. A GUI client (pgAdmin ships an official RPM repo at `www.pgadmin.org/download/pgadmin-4-rpm/`, or use its web/Flatpak build) is optional and not yet set up/documented for Linux — add steps here if it's actually needed.
+> **Linux workstation:** this step and the CLI-registration trick below are Windows-specific (pgAdmin's desktop-app config layout). The simpler cross-platform path is the `psql` CLI directly: `sudo dnf install -y postgresql`, then `PGPASSWORD="$(aws ssm get-parameter --name /home-platform/postgres/admin-password --with-decryption --region us-east-1 --query Parameter.Value --output text)" psql -h hub.billandjessie.com -U postgres`. A GUI client (pgAdmin ships an official RPM repo at `www.pgadmin.org/download/pgadmin-4-rpm/`, or use its web/Flatpak build) is optional and not yet set up/documented for Linux — add steps here if it's actually needed.
 
 ```powershell
 winget install --id PostgreSQL.pgAdmin --silent --accept-package-agreements --accept-source-agreements
@@ -357,7 +357,7 @@ $serversJson = "$env:TEMP\pgadmin-servers.json"
         "1": {
             "Name": "Home Platform Postgres (Hub)",
             "Group": "Servers",
-            "Host": "10.0.3.1",
+            "Host": "hub.billandjessie.com",
             "Port": 5432,
             "MaintenanceDB": "postgres",
             "Username": "postgres",
@@ -384,7 +384,7 @@ Check "Save Password" in the prompt if you want pgAdmin to remember it (encrypte
 
 RedisInsight is the GUI client for the shared Redis instance running on the AWS hub (`compose/aws/docker-compose.yml`, Milestone 11 — ADR-0017, Authentik's dependency). Same reachability rules as pgAdmin above — security group only allows port 6379 from WireGuard peers (`10.0.3.0/24`).
 
-> **Linux workstation:** as with pgAdmin above, the simpler cross-platform path is the `redis-cli` CLI: `sudo dnf install -y redis`, then `redis-cli -h 10.0.3.1 -a "$(aws ssm get-parameter --name /home-platform/authentik/redis-password --with-decryption --region us-east-1 --query Parameter.Value --output text)"`. RedisInsight itself ships a Linux `.deb`/`.rpm`/AppImage from `redis.io/insight` if the GUI is actually wanted — not yet set up/documented here.
+> **Linux workstation:** as with pgAdmin above, the simpler cross-platform path is the `redis-cli` CLI: `sudo dnf install -y redis`, then `redis-cli -h hub.billandjessie.com -a "$(aws ssm get-parameter --name /home-platform/authentik/redis-password --with-decryption --region us-east-1 --query Parameter.Value --output text)"`. RedisInsight itself ships a Linux `.deb`/`.rpm`/AppImage from `redis.io/insight` if the GUI is actually wanted — not yet set up/documented here.
 
 ```powershell
 winget install --id RedisInsight.RedisInsight --silent --accept-package-agreements --accept-source-agreements
@@ -393,7 +393,7 @@ winget install --id RedisInsight.RedisInsight --silent --accept-package-agreemen
 Unlike pgAdmin, RedisInsight's desktop app has no documented CLI for bulk-importing connections, so register it once through the GUI:
 
 1. Launch RedisInsight, click **Add Redis database**
-2. **Host**: `10.0.3.1`, **Port**: `6379`, **Database Alias**: `Home Platform Redis (Hub)`
+2. **Host**: `hub.billandjessie.com`, **Port**: `6379`, **Database Alias**: `Home Platform Redis (Hub)`
 3. **Password**: fetch it from SSM rather than storing it anywhere else —
    ```powershell
    (aws ssm get-parameter --name "/home-platform/authentik/redis-password" --with-decryption --region us-east-1 --output json | ConvertFrom-Json).Parameter.Value
