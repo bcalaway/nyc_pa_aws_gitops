@@ -1,11 +1,11 @@
 # Data services (ADR-0027): Airflow as a shared platform scheduler.
 #
-# Airflow 3, LocalExecutor -- no Celery/Redis queue. Four processes from one
+# Airflow 3, LocalExecutor -- no Celery/Redis queue. Three processes from one
 # image: the API server (UI + REST + the Execution API that task processes
-# report to), the scheduler (which also runs the tasks, as subprocesses),
-# the DAG processor and the triggerer.
+# report to), the scheduler (which also runs the tasks, as subprocesses) and
+# the DAG processor. No triggerer: nothing defers (see where it was, below).
 #
-# Networks: the scheduler, DAG processor and triggerer join `home-platform`,
+# Networks: the scheduler and DAG processor join `home-platform`,
 # like the apps (Postgres, and the apps' /jobs APIs), and the IMDS guard
 # (compose/aws/host/) keeps them off the hub's instance-role credentials,
 # which matters once DAGs run app code. The API server is only on the internal
@@ -56,6 +56,11 @@ x-airflow: &airflow
     AIRFLOW__DAG_PROCESSOR__MIN_FILE_PROCESS_INTERVAL: "300"
     AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: "120"
     AIRFLOW__DAG_PROCESSOR__PARSING_PROCESSES: "1"
+    # The scheduler loop sleeps 5 s, not 1 s, when it found nothing to do:
+    # every DAG here runs on a cron or an Asset, so a run starting up to 5 s
+    # late costs nothing. Idle, the scheduler used about 0.17 of a core
+    # (2026-10-08).
+    AIRFLOW__SCHEDULER__SCHEDULER_IDLE_SLEEP_TIME: "5"
     # StatsD -> airflow-statsd-exporter -> Prometheus (job airflow).
     AIRFLOW__METRICS__STATSD_ON: "True"
     AIRFLOW__METRICS__STATSD_HOST: airflow-statsd-exporter
@@ -158,23 +163,10 @@ services:
       retries: 5
       start_period: 1m
 
-  airflow-triggerer:
-    <<: *airflow
-    container_name: airflow-triggerer
-    command: triggerer
-    # 768m since 2026-10-05: it peaked at 445 MB of 512 MB during the Treasury
-    # backfill (mkt-data docs/phase-2.md, B6), more Asset-scheduled DAGs since.
-    mem_limit: 768m
-    depends_on:
-      airflow-scheduler:
-        condition: service_healthy
-        restart: true
-    healthcheck:
-      test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
-      interval: 30s
-      timeout: 30s
-      retries: 5
-      start_period: 1m
+  # No triggerer (2026-10-08): it only runs deferred tasks (deferrable
+  # operators, async sensors, Asset watchers), and no DAG on the platform
+  # defers; idle, it used about 0.15 of a core. A DAG that defers needs it
+  # back: a deferred task waits forever without one.
 
   # Airflow emits StatsD; this turns it into Prometheus metrics
   # (airflow/statsd-mapping.yml names the ones the alerts use).
