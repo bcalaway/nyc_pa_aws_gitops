@@ -12,9 +12,11 @@
 # Dependabot doesn't propose majors here for that reason (.github/dependabot.yml).
 # node:26 never actually built here: #33's bump only reached nuc4 on 2026-10-03
 # after the same-size S3 sync fix, and its build failed.
-FROM node:24-bookworm-slim AS node
+# Base images from public.ecr.aws/docker/library, AWS's mirror of Docker's official images: no Docker Hub
+# rate limits or outages (Bill, 2026-10-09; nyc_pa_aws_gitops docs/gotchas.md).
+FROM public.ecr.aws/docker/library/node:24-bookworm-slim AS node
 
-FROM python:3.12-slim-bookworm
+FROM public.ecr.aws/docker/library/python:3.12-slim-bookworm
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git curl ca-certificates libstdc++6 \

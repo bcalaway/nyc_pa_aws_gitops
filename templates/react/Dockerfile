@@ -10,7 +10,9 @@
 # alone (skipping the build) would make that test fail for a reason that
 # has nothing to do with the test itself.
 
-FROM node:24-slim AS base
+# Base images from public.ecr.aws/docker/library, AWS's mirror of Docker's official images: no Docker Hub
+# rate limits or outages (Bill, 2026-10-09; nyc_pa_aws_gitops docs/gotchas.md).
+FROM public.ecr.aws/docker/library/node:24-slim AS base
 WORKDIR /app
 COPY package*.json .npmrc ./
 RUN npm ci
@@ -25,7 +27,7 @@ RUN npm run build
 FROM frontend-build AS test
 RUN npm test
 
-FROM node:24-slim AS final
+FROM public.ecr.aws/docker/library/node:24-slim AS final
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package*.json .npmrc ./

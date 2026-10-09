@@ -1,4 +1,6 @@
-FROM python:3.12-slim
+# Base images from public.ecr.aws/docker/library, AWS's mirror of Docker's official images: no Docker Hub
+# rate limits or outages (Bill, 2026-10-09; nyc_pa_aws_gitops docs/gotchas.md).
+FROM public.ecr.aws/docker/library/python:3.12-slim
 
 # ssh client: reaches the voice worker's forced command on nuc4 (tasks.py).
 RUN apt-get update \

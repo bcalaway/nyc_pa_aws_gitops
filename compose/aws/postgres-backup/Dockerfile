@@ -1,4 +1,6 @@
-FROM postgres:16
+# Base images from public.ecr.aws/docker/library, AWS's mirror of Docker's official images: no Docker Hub
+# rate limits or outages (Bill, 2026-10-09; nyc_pa_aws_gitops docs/gotchas.md).
+FROM public.ecr.aws/docker/library/postgres:16
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends awscli cron \
