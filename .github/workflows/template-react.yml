@@ -31,6 +31,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: The BuildKit image app workflows use is on AWS's mirror
+        run: docker pull public.ecr.aws/vend/moby/buildkit:buildx-stable-1
+
       - name: Lint stage
         run: docker build --target lint -t template-lint .
 
