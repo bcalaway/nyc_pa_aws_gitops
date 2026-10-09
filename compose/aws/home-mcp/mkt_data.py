@@ -228,11 +228,9 @@ def _day(on: str) -> date | str:
 
 
 def _pct(x: dict, field: str) -> str:
-    """A value's percent display from mkt-api: `<field>_display` (or `display`) since values became decimals
-    (mkt-api #11, 2026-10-06); before that the field itself was in percent."""
-    if field == "value":
-        return x.get("display") or x["percent"]
-    return x.get(f"{field}_display") or x[field]
+    """A value's percent display from mkt-api: `display` for a curve point's value, `<field>_display` on a
+    bar (values are decimals since mkt-api #11, 2026-10-06)."""
+    return x["display"] if field == "value" else x[f"{field}_display"]
 
 
 def _bp(now: str, then: str) -> str:
