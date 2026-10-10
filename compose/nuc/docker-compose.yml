@@ -21,7 +21,7 @@ services:
       - "9100:9100"
 
   blackbox-exporter:
-    image: prom/blackbox-exporter:v0.28.0
+    image: prom/blackbox-exporter:v0.29.0
     container_name: blackbox-exporter
     restart: unless-stopped
     cap_add:
