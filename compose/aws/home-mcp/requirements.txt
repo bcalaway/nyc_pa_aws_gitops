@@ -3,4 +3,4 @@ pyjwt[crypto]==2.15.1
 httpx==0.28.1
 uvicorn==0.54.0
 pyyaml==6.0.3
-boto3==1.43.108
+boto3==1.43.109
