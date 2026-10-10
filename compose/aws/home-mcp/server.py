@@ -371,6 +371,56 @@ async def mkt_data_auctions(week: str = "", start: str = "", end: str = "") -> s
 
 @mcp.tool()
 @audited
+async def mkt_data_futures(product: str = "") -> str:
+    """CME futures products in the security master. With no product, every
+    product by kind with today's front contract. With one (a root like
+    "TY", a CME code like "ZN", or part of its name like "ultra bond"),
+    what it is, its generics today (TY1 is TYZ26), the front contract's
+    last trade, first notice or final settlement dates, and its basket's
+    size. Read-only. Use for "what's the front 10-year future?" or "when
+    is first notice for bonds?"."""
+    return await mkt_data.mkt_data_futures(product)
+
+
+@mcp.tool()
+@audited
+async def mkt_data_basket(contract: str) -> str:
+    """A deliverable Treasury futures contract's basket: how many
+    securities, the rule, and each one's conversion factor (the shortest
+    and longest when there are many). contract is a contract ("TYZ26") or
+    a product for its front ("TY", "ZN", "10-year"). Read-only. Use for
+    "what's deliverable into the 10-year contract?"."""
+    return await mkt_data.mkt_data_basket(contract)
+
+
+@mcp.tool()
+@audited
+async def mkt_data_positioning(product: str, report: str = "futures") -> str:
+    """A futures product's latest weekly positioning from the CFTC's
+    Traders in Financial Futures report: open interest, and each trader
+    category's (dealers, asset managers, leveraged funds, other
+    reportables, nonreportable) long, short and net in contracts, with
+    the week's change in net. product is a root ("TY"), CME code ("ZN") or
+    part of a name. report is "futures" (default) or "combined" (with
+    options). Read-only. Use for "how are leveraged funds positioned in
+    10s?" or "what's the CFTC positioning in euro futures?"."""
+    return await mkt_data.mkt_data_positioning(product, report)
+
+
+@mcp.tool()
+@audited
+async def mkt_data_fixing(name: str) -> str:
+    """A fixing's latest value: a rate fixing in percent (SOFR, EFFR), or
+    an FX fixing or index as published (EURUSD-ECB, USDJPY-H10), with its
+    date and source; for EFFR (or "fed funds"), also the fed funds target
+    range and where EFFR fixed in it. name is the fixing's short name.
+    Read-only. Use for "what did SOFR fix at?", "what's the fed funds
+    target?" or "what's the ECB's euro rate?"."""
+    return await mkt_data.mkt_data_fixing(name)
+
+
+@mcp.tool()
+@audited
 async def mkt_data_checks(calendar: str = "", source: str = "", limit: int = 10) -> str:
     """What mkt-data's capture jobs did, newest first: each fetch attempt or
     reparse per source, with its outcome (new, unchanged, error, reparse),

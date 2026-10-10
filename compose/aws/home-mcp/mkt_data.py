@@ -527,3 +527,166 @@ async def mkt_data_auctions(week: str = "", start: str = "", end: str = "") -> s
         line += "."
         lines.append(line)
     return "\n".join(lines)
+
+
+# --- Futures, baskets, positioning and fixings (mkt-data's docs/phase-4.md, step 7) ---
+
+FUTURES_KIND = {"treasury": "deliverable Treasury", "treasury_cash": "cash-settled Treasury", "stir": "interest rate",
+                "fx": "deliverable FX", "fx_cash": "cash-settled FX"}
+# The TFF report's trader categories, as mkt-api's positioning fields name them.
+POSITIONING = (("dealer", "Dealers"), ("asset_mgr", "Asset managers"), ("lev_funds", "Leveraged funds"),
+               ("other", "Other reportables"), ("nonrept", "Nonreportable"))
+POSITIONING_REPORT = {"futures": "CFTC-TFF", "combined": "CFTC-TFF-COMBINED"}
+
+
+async def _futures_root(text: str) -> tuple[dict | None, str]:
+    """A product by root (TY), CME code (ZN) or a word of its name ("ultra bond"), from mkt-api's list."""
+    status, body = await _api("/api/futures", {})
+    if status != 200:
+        return None, body
+    want = text.strip().upper()
+    for p in body:
+        if want in (p["root"].upper(), p["cme_code"].upper()):
+            return p, ""
+    named = [p for p in body if want and want in p["name"].upper()]
+    if len(named) == 1:
+        return named[0], ""
+    if named:
+        return None, f"{text!r} could be {', '.join(p['root'] for p in named)}. Which one?"
+    return None, f"There's no futures product {text!r}. Try a root like TY or a CME code like ZN."
+
+
+def _contracts(n: int) -> str:
+    return f"{n:,} contract{'s' if n != 1 else ''}"
+
+
+async def mkt_data_futures(product: str = "") -> str:
+    if not product.strip():
+        status, body = await _api("/api/futures", {})
+        if status != 200:
+            return body
+        by: dict[str, list[str]] = {}
+        for p in body:
+            by.setdefault(p["kind"], []).append(f"{p['root']} ({p['front'] or p['status']})")
+        lines = [f"{len(body)} futures products, with today's front contract:"]
+        lines += [f"- {FUTURES_KIND.get(k, k)[:1].upper()}{FUTURES_KIND.get(k, k)[1:]}: {', '.join(v)}." for k, v in by.items()]
+        return "\n".join(lines)
+    p, why = await _futures_root(product)
+    if p is None:
+        return why
+    status, d = await _api(f"/api/futures/{p['root']}", {})
+    if status != 200:
+        return d
+    lines = [f"{d['root']} (CME {d['cme_code']}): {d['name']}, {FUTURES_KIND.get(d['kind'], d['kind'])}, in {d['currency']}."]
+    if d["generics"]:
+        lines.append("Generics today: " + ", ".join(f"{g['generic']} is {g['contract']}" for g in d["generics"][:3]) + ".")
+    front = next((c for c in d["contracts"] if c["name"] == d["front"]), None)
+    if front:
+        dates = [(label, front[k]) for k, label in (("last_trade_date", "last trade"), ("first_notice_date", "first notice"),
+                                                   ("final_settlement_date", "final settlement"),
+                                                   ("last_delivery_date", "last delivery")) if front.get(k)]
+        if dates:
+            lines.append(f"{front['name']}: " + ", ".join(f"{label} {v}" for label, v in dates) + ".")
+        if front.get("basket_size") is not None:
+            lines.append(f"Its basket has {front['basket_size']} deliverable securities.")
+    if not d["cftc_code"]:
+        lines.append("The CFTC doesn't report its positioning.")
+    return " ".join(lines)
+
+
+async def mkt_data_basket(contract: str) -> str:
+    name = contract.strip().upper()
+    if not re.fullmatch(r"[A-Z0-9]{1,4}[FGHJKMNQUVXZ]\d{2}", name):  # a root, CME code or name: its front
+        p, why = await _futures_root(contract)
+        if p is None:
+            return why
+        if not p["front"]:
+            return f"{p['root']} has no contract listed today."
+        name = p["front"]
+    status, b = await _api(f"/api/futures/contracts/{name}/basket", {})
+    if status == 404:
+        return f"There's no basket for {name}: only deliverable Treasury contracts have one."
+    if status != 200:
+        return b
+    ds = b["deliverables"]
+    if not ds:
+        return f"{b['contract']} ({b['month']}) has no deliverable securities yet."
+    many = f"{len(ds)} deliverable securit{'ies' if len(ds) > 1 else 'y'}"
+    lines = [f"{b['contract']} ({b['month']}, {b['status']}): {many}, {b['rule']}."]
+    shown = ds if len(ds) <= 6 else [ds[0], ds[-1]]
+    for x in shown:
+        lines.append(f"- {x['security']} (CUSIP {x['cusip']}): conversion factor {x['conversion_factor']}.")
+    if len(ds) > 6:
+        lines.insert(1, "The shortest and the longest:")
+    return "\n".join(lines)
+
+
+async def mkt_data_positioning(product: str, report: str = "futures") -> str:
+    source = POSITIONING_REPORT.get(report.strip().lower() or "futures")
+    if source is None:
+        return f"I need report as futures or combined, not {report!r}."
+    p, why = await _futures_root(product)
+    if p is None:
+        return why
+    if not p["cftc_code"]:
+        return f"The CFTC doesn't report positioning for {p['root']}."
+    start = date.fromordinal(_today_ny().toordinal() - 35).isoformat()
+    status, d = await _api(f"/api/futures/{p['root']}/positioning", {"source": source, "start": start})
+    if status != 200:
+        return d
+    f = d["fields"]
+    weeks = sorted({x["date"] for x in f.get("oi", [])})
+    if not weeks:
+        return f"No CFTC report for {p['root']} in the last five weeks."
+    last, prior = weeks[-1], (weeks[-2] if len(weeks) > 1 else "")
+
+    def on(field: str, day: str) -> Decimal | None:
+        v = next((x["value"] for x in f.get(field, []) if x["date"] == day), None)
+        return Decimal(v) if v is not None else None
+
+    what = "futures and options" if source.endswith("COMBINED") else "futures only"
+    lines = [f"{p['root']} positioning as of {last} ({what}): open interest {_contracts(int(on('oi', last) or 0))}."]
+    for key, label in POSITIONING:
+        long_, short = on(f"{key}_long", last), on(f"{key}_short", last)
+        if long_ is None or short is None:
+            continue
+        net = long_ - short
+        text = f"- {label}: long {int(long_):,}, short {int(short):,}, net {'long' if net >= 0 else 'short'} {abs(int(net)):,}"
+        pl, ps = on(f"{key}_long", prior), on(f"{key}_short", prior)
+        if prior and pl is not None and ps is not None:
+            change = int(net - (pl - ps))
+            text += f" ({abs(change):,} {'longer' if change > 0 else 'shorter'} on the week)" if change else " (unchanged on the week)"
+        lines.append(text + ".")
+    return "\n".join(lines)
+
+
+FIXING_SAID = {"FED FUNDS": "EFFR", "FED FUNDS TARGET": "EFFR", "FED FUNDS RATE": "EFFR", "FEDERAL FUNDS": "EFFR",
+               "EFFECTIVE FED FUNDS": "EFFR", "FED FUNDS EFFECTIVE": "EFFR"}
+
+
+async def mkt_data_fixing(name: str) -> str:
+    want = name.strip()
+    want = FIXING_SAID.get(re.sub(r"[^A-Z ]", "", want.upper()).strip(), want)
+    status, d = await _api(f"/api/instruments/{want}", {})
+    if status == 404:
+        return f"There's no fixing called {want!r}. Try SOFR, EFFR, or an FX rate like EURUSD-ECB or USDJPY-H10."
+    if status != 200:
+        return d
+    if d["type"] not in ("rate_fixing", "fx_fixing", "fx_index"):
+        return f"{d['name']} isn't a fixing: it's a {d['type']}."
+    x = d.get("latest")
+    if not x:
+        return f"{d['name']} ({d['description']}) has no value yet."
+    value = f"{x['display']}%" if d.get("unit") == "%" else x["display"]
+    text = f"{d['name']}, {d['description']}: {value} on {x['date']}, from {x['source']}."
+    if d["name"] == "EFFR":  # the fed funds target range it fixes inside (Bill, 2026-10-09)
+        status, r = await _api("/api/instruments/EFFR/fields", {"field": ["target_low", "target_high"],
+                                                                "start": x["date"], "end": x["date"]})
+        lo, hi = (r["fields"].get(f) if status == 200 else None for f in ("target_low", "target_high"))
+        if lo and hi:
+            lo, hi = lo[-1]["display"], hi[-1]["display"]
+            where = ("at the bottom of" if Decimal(x["display"]) == Decimal(lo) else
+                     "at the top of" if Decimal(x["display"]) == Decimal(hi) else
+                     f"{format(((Decimal(x['display']) - Decimal(lo)) * 100).normalize(), 'f')} bp above the bottom of")
+            text += f" The fed funds target range is {lo}% to {hi}%; EFFR is {where} it."
+    return text
