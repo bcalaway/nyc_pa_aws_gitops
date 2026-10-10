@@ -412,8 +412,10 @@ async def mkt_data_positioning(product: str, report: str = "futures") -> str:
 async def mkt_data_fixing(name: str) -> str:
     """A fixing's latest value: a rate fixing in percent (SOFR, EFFR), or
     an FX fixing or index as published (EURUSD-ECB, USDJPY-H10), with its
-    date and source. name is the fixing's short name. Read-only. Use for
-    "what did SOFR fix at?" or "what's the ECB's euro rate?"."""
+    date and source; for EFFR (or "fed funds"), also the fed funds target
+    range and where EFFR fixed in it. name is the fixing's short name.
+    Read-only. Use for "what did SOFR fix at?", "what's the fed funds
+    target?" or "what's the ECB's euro rate?"."""
     return await mkt_data.mkt_data_fixing(name)
 
 

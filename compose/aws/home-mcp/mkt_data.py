@@ -660,8 +660,13 @@ async def mkt_data_positioning(product: str, report: str = "futures") -> str:
     return "\n".join(lines)
 
 
+FIXING_SAID = {"FED FUNDS": "EFFR", "FED FUNDS TARGET": "EFFR", "FED FUNDS RATE": "EFFR", "FEDERAL FUNDS": "EFFR",
+               "EFFECTIVE FED FUNDS": "EFFR", "FED FUNDS EFFECTIVE": "EFFR"}
+
+
 async def mkt_data_fixing(name: str) -> str:
     want = name.strip()
+    want = FIXING_SAID.get(re.sub(r"[^A-Z ]", "", want.upper()).strip(), want)
     status, d = await _api(f"/api/instruments/{want}", {})
     if status == 404:
         return f"There's no fixing called {want!r}. Try SOFR, EFFR, or an FX rate like EURUSD-ECB or USDJPY-H10."
@@ -673,4 +678,15 @@ async def mkt_data_fixing(name: str) -> str:
     if not x:
         return f"{d['name']} ({d['description']}) has no value yet."
     value = f"{x['display']}%" if d.get("unit") == "%" else x["display"]
-    return f"{d['name']}, {d['description']}: {value} on {x['date']}, from {x['source']}."
+    text = f"{d['name']}, {d['description']}: {value} on {x['date']}, from {x['source']}."
+    if d["name"] == "EFFR":  # the fed funds target range it fixes inside (Bill, 2026-10-09)
+        status, r = await _api("/api/instruments/EFFR/fields", {"field": ["target_low", "target_high"],
+                                                                "start": x["date"], "end": x["date"]})
+        lo, hi = (r["fields"].get(f) if status == 200 else None for f in ("target_low", "target_high"))
+        if lo and hi:
+            lo, hi = lo[-1]["display"], hi[-1]["display"]
+            where = ("at the bottom of" if Decimal(x["display"]) == Decimal(lo) else
+                     "at the top of" if Decimal(x["display"]) == Decimal(hi) else
+                     f"{format(((Decimal(x['display']) - Decimal(lo)) * 100).normalize(), 'f')} bp above the bottom of")
+            text += f" The fed funds target range is {lo}% to {hi}%; EFFR is {where} it."
+    return text
