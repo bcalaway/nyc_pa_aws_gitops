@@ -55,11 +55,19 @@ updates:
     ignore:
       # postgres-backup must match the server's major (16): a newer
       # pg_dumpall writes dumps the older server can't restore (#31).
+      # Since #168 moved FROM lines to AWS's mirror (public.ecr.aws/docker/
+      # library/...), Dependabot names these images docker/library/<name>,
+      # so the bare names stopped matching and #170 (postgres 16 -> 18) got
+      # through (reverted in #172). Keep both spellings.
       - dependency-name: postgres
+        update-types: [version-update:semver-major]
+      - dependency-name: docker/library/postgres
         update-types: [version-update:semver-major]
       # The voice-worker agent's Node major tracks hue's frontend (node:24);
       # move both together by hand. node:26 broke the agent build (#33).
       - dependency-name: node
+        update-types: [version-update:semver-major]
+      - dependency-name: docker/library/node
         update-types: [version-update:semver-major]
 
   # Python requirements of those images.
