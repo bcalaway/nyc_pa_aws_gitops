@@ -964,6 +964,51 @@ groups:
           summary: "{{ $values.A.Value }} source key(s) have no instrument"
           description: "quote-svc saw source keys secmaster-svc can't map, so their values aren't loaded. quote_svc_unmapped_key lists them (first 50 per source). For the CMTs, add the instrument or identifier to secmaster-svc's seeds/cmt.toml in a PR; for TD-PRICES (CUSIPs), secmaster-svc hasn't loaded the security yet: check secmaster_svc__load. Those days reload by themselves once it has."
 
+      - uid: quote-svc-source-late
+        title: Fixing or CFTC report late
+        # quote-svc's /metrics (quote-svc app/freshness.py, mkt-data docs/phase-4.md step 6): a fixing
+        # (SOFR, EFFR, H.10, the ECB) or a CFTC positioning report whose latest quote is older than its
+        # source's limit in days (quote_svc_source_stale_days: 5 for SOFR and EFFR, 6 for the ECB, 12 for
+        # H.10, 14 for the CFTC), one alert per source.
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              expr: max by (source) (quote_svc_source_late)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: ["C"]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: Error
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.source }} hasn't had a new value in longer than usual"
+          description: "quote-svc's latest {{ $labels.source }} quote is older than that source's limit (quote_svc_source_stale_days). Check mkt-data's capture first (home-mcp mkt_data_checks for {{ $labels.source }}: an error, or 'nothing published yet' for days), then quote_svc__load. A source that stopped publishing (a federal shutdown, a discontinued series) shows here too."
+
       - uid: quote-svc-prices-missing
         title: Treasury prices missing
         # quote-svc's /metrics (quote-svc app/freshness.py, mkt-data docs/phase-3.md step 4).
