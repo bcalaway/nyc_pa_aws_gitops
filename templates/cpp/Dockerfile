@@ -28,7 +28,10 @@
 
 # Base images from public.ecr.aws/docker/library, AWS's mirror of Docker's official images: no Docker Hub
 # rate limits or outages (Bill, 2026-10-09; nyc_pa_aws_gitops docs/gotchas.md).
-FROM public.ecr.aws/docker/library/ubuntu:24.04 AS base
+# Where the base images come from: AWS's public mirror by default; the platform's CI and CD pass its ECR
+# pull-through cache (nyc_pa_aws_gitops terraform/aws/ecr-cache.tf), so their pulls aren't throttled.
+ARG BASE_REGISTRY=public.ecr.aws
+FROM ${BASE_REGISTRY}/docker/library/ubuntu:24.04 AS base
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential clang clang-tidy cmake ninja-build git curl zip unzip tar pkg-config ca-certificates python3 \
@@ -87,7 +90,7 @@ RUN ctest --test-dir build --output-on-failure
 FROM base AS build-final
 RUN cmake --build build --target app -j
 
-FROM public.ecr.aws/docker/library/ubuntu:24.04 AS final
+FROM ${BASE_REGISTRY}/docker/library/ubuntu:24.04 AS final
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build-final /app/build/app /usr/local/bin/app

@@ -287,6 +287,13 @@ resource "aws_iam_role" "app_preview" {
 data "aws_iam_policy_document" "app_preview_permissions" {
   for_each = toset(local.preview_apps)
 
+  # Base images through the ECR pull-through cache (ecr-cache.tf).
+  statement {
+    effect    = "Allow"
+    actions   = local.ecr_cache_pull_actions
+    resources = [local.ecr_cache_repo_arn]
+  }
+
   statement {
     effect    = "Allow"
     actions   = ["ecr:GetAuthorizationToken"]
@@ -436,6 +443,7 @@ data "aws_iam_policy_document" "github_plan_permissions" {
       "cloudfront:Get*", "cloudfront:List*",
       "acm:DescribeCertificate", "acm:GetCertificate", "acm:ListTagsForCertificate",
       "ecr:DescribeRepositories", "ecr:GetLifecyclePolicy", "ecr:GetRepositoryPolicy", "ecr:ListTagsForResource",
+      "ecr:DescribePullThroughCacheRules", "ecr:DescribeRepositoryCreationTemplates",
       "dlm:Get*", "dlm:ListTagsForResource",
       "guardduty:Get*", "guardduty:List*",
       "access-analyzer:Get*", "access-analyzer:List*",

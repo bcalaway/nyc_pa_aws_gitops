@@ -184,6 +184,13 @@ data "aws_iam_policy_document" "app_github_actions_permissions" {
     resources = [for r in local.app_repo_names[each.key] : aws_ecr_repository.app[r].arn]
   }
 
+  # Base images through the ECR pull-through cache (ecr-cache.tf): BuildKit and the Dockerfile's FROM images.
+  statement {
+    effect    = "Allow"
+    actions   = local.ecr_cache_pull_actions
+    resources = [local.ecr_cache_repo_arn]
+  }
+
   # No SSM parameter access (Milestone 20, ADR-0025): the hub reads this
   # app's secrets itself when the <app>-deploy document runs, with its own
   # role (tls.tf's hub_apps).
