@@ -353,19 +353,26 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     resources = ["*"]
   }
 
-  # Both services create their own service-linked role on first use.
-  # Limited to exactly those two roles.
+  # These services create their own service-linked role on first use.
+  # Limited to exactly those roles.
   statement {
     effect  = "Allow"
     actions = ["iam:CreateServiceLinkedRole"]
     resources = [
       "arn:aws:iam::${var.aws_account_id}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty",
       "arn:aws:iam::${var.aws_account_id}:role/aws-service-role/access-analyzer.amazonaws.com/AWSServiceRoleForAccessAnalyzer",
+      # ECR's pull-through cache (ecr-cache.tf) creates its own on the first rule (#179's release failed without it,
+      # 2026-10-10), and repository creation templates use ECR's template role.
+      "arn:aws:iam::${var.aws_account_id}:role/aws-service-role/pullthroughcache.ecr.amazonaws.com/AWSServiceRoleForECRPullThroughCache",
+      "arn:aws:iam::${var.aws_account_id}:role/aws-service-role/ecr.amazonaws.com/AWSServiceRoleForECRTemplate",
     ]
     condition {
       test     = "StringEquals"
       variable = "iam:AWSServiceName"
-      values   = ["guardduty.amazonaws.com", "access-analyzer.amazonaws.com"]
+      values = [
+        "guardduty.amazonaws.com", "access-analyzer.amazonaws.com", "pullthroughcache.ecr.amazonaws.com",
+        "ecr.amazonaws.com",
+      ]
     }
   }
 }
