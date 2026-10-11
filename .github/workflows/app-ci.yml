@@ -6,6 +6,10 @@ name: App CI (reusable)
 # final runtime stage -- keeps this workflow language-agnostic instead of
 # hardcoding per-language tooling here, across the Python/C++/React starter
 # templates.
+#
+# Callers should grant `permissions: id-token: write, contents: read`, so base
+# images come through the platform's ECR pull-through cache instead of
+# anonymous pulls (terraform/aws/ecr-cache.tf); without it, CI still works.
 
 on:
   workflow_call:
@@ -32,11 +36,47 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Pull requests have no app role, so CI logs in to ECR with the shared pull-only role (ecr-cache.tf). That
+      # needs the caller to grant `id-token: write`; without it (or if the login fails) the job carries on and
+      # pulls base images from public.ecr.aws as before.
+      - name: Check for an OIDC token
+        id: oidc
+        run: echo "available=${ACTIONS_ID_TOKEN_REQUEST_URL:+true}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (pull-only)
+        if: steps.oidc.outputs.available == 'true'
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::147856894209:role/home-platform-github-pull
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        if: steps.oidc.outputs.available == 'true'
+        continue-on-error: true
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Choose the base image registry
+        id: base
+        # Base images (BuildKit, and the Dockerfile's FROM images through its BASE_REGISTRY build arg) come through
+        # the platform's ECR pull-through cache (terraform/aws/ecr-cache.tf), pulled authenticated from our own
+        # registry: AWS throttles anonymous pulls from public.ecr.aws on GitHub's shared runners (docs/gotchas.md).
+        # If this job can't pull from the cache (not logged in to ECR, or no access yet), it uses public.ecr.aws.
+        run: |
+          cache=147856894209.dkr.ecr.us-east-1.amazonaws.com/ecr-public
+          if docker pull -q "$cache/vend/moby/buildkit:buildx-stable-1" > /dev/null 2>&1; then
+            echo "registry=$cache" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::The ECR pull-through cache isn't available to this job; base images come from public.ecr.aws"
+            echo "registry=public.ecr.aws" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
         with:
-          # BuildKit from AWS's mirror too: setup-buildx otherwise pulls moby/buildkit from Docker Hub (docs/gotchas.md).
-          driver-opts: image=public.ecr.aws/vend/moby/buildkit:buildx-stable-1
+          # BuildKit from the cache (or AWS's mirror): setup-buildx otherwise pulls moby/buildkit from Docker Hub
+          # (docs/gotchas.md).
+          driver-opts: image=${{ steps.base.outputs.registry }}/vend/moby/buildkit:buildx-stable-1
 
       - name: Lint
         id: lint
@@ -48,6 +88,7 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: BASE_REGISTRY=${{ steps.base.outputs.registry }}
           # Only passed when a caller actually supplies vcpkg_pat -- see
           # app-build-push.yml's identical fix for why an unconditional
           # `vcpkg_pat=` line isn't safe for non-C++ apps.
@@ -63,6 +104,7 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: BASE_REGISTRY=${{ steps.base.outputs.registry }}
           # Only passed when a caller actually supplies vcpkg_pat -- see
           # app-build-push.yml's identical fix for why an unconditional
           # `vcpkg_pat=` line isn't safe for non-C++ apps.
@@ -77,6 +119,7 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: BASE_REGISTRY=${{ steps.base.outputs.registry }}
           # Only passed when a caller actually supplies vcpkg_pat -- see
           # app-build-push.yml's identical fix for why an unconditional
           # `vcpkg_pat=` line isn't safe for non-C++ apps.
@@ -91,13 +134,14 @@ jobs:
       - name: Report the failure as an annotation
         if: failure() && (steps.lint.outcome == 'failure' || steps.test.outcome == 'failure' || steps.final.outcome == 'failure')
         env:
+          BASE_REGISTRY: ${{ steps.base.outputs.registry }}
           DOCKERFILE: ${{ inputs.dockerfile }}
           LINT: ${{ steps.lint.outcome }}
           TEST: ${{ steps.test.outcome }}
           VCPKG_PAT: ${{ secrets.vcpkg_pat }}
         run: |
           if [ "$LINT" = failure ]; then stage=lint; elif [ "$TEST" = failure ]; then stage=test; else stage=final; fi
-          args=(-f "$DOCKERFILE" --progress=plain)
+          args=(-f "$DOCKERFILE" --progress=plain --build-arg "BASE_REGISTRY=$BASE_REGISTRY")
           [ "$stage" = final ] || args+=(--target "$stage")
           [ -n "$VCPKG_PAT" ] && args+=(--secret id=vcpkg_pat,env=VCPKG_PAT)
           docker buildx build "${args[@]}" . > "$RUNNER_TEMP/build.log" 2>&1 || true

@@ -216,6 +216,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
         "arn:aws:iam::${var.aws_account_id}:role/home-platform-dlm",
         # Milestone 20 (ci-roles.tf)
         "arn:aws:iam::${var.aws_account_id}:role/home-platform-github-plan",
+        # The ECR pull-through cache's CI pull role (ecr-cache.tf)
+        "arn:aws:iam::${var.aws_account_id}:role/home-platform-github-pull",
       ],
       [for n in local.app_names : "arn:aws:iam::${var.aws_account_id}:role/${n}-github-actions"],
       [for n in local.preview_app_names : "arn:aws:iam::${var.aws_account_id}:role/${n}-github-preview"],
@@ -253,6 +255,19 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       # Preview images, separate from production (Milestone 20)
       [for n in local.preview_app_names : "arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/${n}-preview"],
     )
+  }
+
+  # ECR's pull-through cache rule and the repository creation template for it (ecr-cache.tf). These are
+  # registry-level settings, not repositories, so they can't be resource-scoped.
+  statement {
+    effect = "Allow"
+    actions = [
+      "ecr:CreatePullThroughCacheRule", "ecr:DeletePullThroughCacheRule", "ecr:DescribePullThroughCacheRules",
+      "ecr:UpdatePullThroughCacheRule", "ecr:ValidatePullThroughCacheRule",
+      "ecr:CreateRepositoryCreationTemplate", "ecr:DeleteRepositoryCreationTemplate",
+      "ecr:DescribeRepositoryCreationTemplates", "ecr:UpdateRepositoryCreationTemplate",
+    ]
+    resources = ["*"]
   }
 
   statement {
